@@ -166,6 +166,13 @@ final class MAN_Admin {
 		return array(
 			'Predicción y análisis' => array(
 				array(
+					'tag'     => 'man_grafico',
+					'titulo'  => 'Gráfico avanzado (D3plus)',
+					'desc'    => 'Tarjeta con barra de herramientas: Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y "Cambiar tipo" en vivo. Elige una vista de datos y el tipo de gráfico.',
+					'attrs'   => array( '<code>view</code> — oni_serie | prob_fase | riesgo_subregion | riesgo_municipios | episodios', '<code>type</code> — bar | line | treemap | pie | …', '<code>theme</code> — claro | oscuro', '<code>actions</code>, <code>legend</code>, <code>toolbar</code>, <code>alto</code>' ),
+					'ejemplo' => '[man_grafico view="oni_serie" type="line"]',
+				),
+				array(
 					'tag'     => 'man_prediccion',
 					'titulo'  => 'Predicción ENSO',
 					'desc'    => 'Trayectoria del ONI hasta el mes objetivo (feb-2027) con banda de incertidumbre, umbrales de fase, probabilidad por trimestre y texto predictivo. Reveal animado.',

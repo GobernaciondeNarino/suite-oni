@@ -250,6 +250,7 @@ Cada elemento es un shortcode autónomo. `municipio` admite código DIVIPOLA o n
 | `[man_globo]` | Globo 3D Three.js cinematográfico con animación del fenómeno | calidad, autorotar |
 | `[man_timeline]` | Línea de tiempo del globo (slider de meses ONI) | inicio, fin |
 | `[man_prediccion]` | Predicción del ONI hasta el mes objetivo (línea + banda + umbrales + probabilidad por trimestre + texto predictivo); modelo propio contrastado con el ensamble NOAA/IRI | hasta, modelo, probabilidad |
+| `[man_grafico]` | Tarjeta D3plus con barra de herramientas (Detalle, Compartir, Datos, Imagen PNG, Descarga JSON, Cambiar tipo en vivo) y modales; motor genérico de 3 capas (ver archivo `skill`) | view, type, theme, actions, legend, toolbar, alto |
 | `[man_estadisticas]` | Gráficos estadísticos prediseñados D3plus (ONI, probabilidad de fase, riesgo por subregión) con tooltip/leyenda | tipo, hasta, mes, alto |
 | `[man_animacion]` | Animación explicativa del mecanismo ENSO con Anime.js (alisios, piscina cálida, termoclina, convección); compara Neutral/El Niño/La Niña | estado, autoplay |
 | `[man_mapa]` | Mapa coroplético de Nariño por municipio (Leaflet + D3) | variable, mes |
