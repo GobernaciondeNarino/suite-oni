@@ -31,8 +31,15 @@
         listo(cont);
         titulo(cont, 'Evolución del índice ONI (observado y proyectado)');
         var rows = [];
+        var ultObs = null, puente = false;
         (d.serie || []).forEach(function (p) {
-          rows.push({ Mes: p.mes, ONI: +p.oni, Serie: p.tipo === 'proyectado' ? 'Proyectado' : 'Observado' });
+          var proy = p.tipo === 'proyectado';
+          if (proy && ultObs && !puente) {
+            rows.push({ Mes: ultObs.mes, ONI: +ultObs.oni, Serie: 'Proyectado' }); // puente sin corte
+            puente = true;
+          }
+          rows.push({ Mes: p.mes, ONI: +p.oni, Serie: proy ? 'Proyectado' : 'Observado' });
+          if (!proy) { ultObs = p; }
         });
         if (has && window.d3plus && d3plus.LinePlot) {
           try {

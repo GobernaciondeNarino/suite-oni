@@ -488,3 +488,68 @@ Para reutilizar todo este sistema en otro proyecto (ej. "acme"):
 
 Nada del motor de gráficos (registro de tipos, compatibilidad, reshape, normalización, tooltip) depende
 del dominio: es 100% reutilizable.
+
+---
+
+## 11. Catálogo completo D3plus (revisión de d3plus.org)
+
+> **Addendum (Monitor Ambiental, v1.2.0).** Revisión de las clases de visualización de
+> `@d3plus/core` y sus capacidades. El global es `window.d3plus`; cada clase se instancia con
+> `new d3plus.<Clase>().select(node).data(rows)…render()`. La CDN **debe** ser
+> `@d3plus/core@3.1.4/umd/d3plus-core.full.js` (el bundle "bare" deja `window.d3plus = {}`).
+
+| Clase d3plus | Familia | Forma de datos | Métodos clave |
+|---|---|---|---|
+| `Plot` | cartesiana (base) | x, y numéricos | `.x() .y() .groupBy()` (scatter) |
+| `LinePlot` | cartesiana | dim X + medida (+ serie) | `.x() .y() .groupBy(serie)` |
+| `AreaPlot` | cartesiana | temporal | `.x() .y() .groupBy()` |
+| `BarChart` | cartesiana | 1 dim + 1 medida | `.x() .y() .stacked() .discrete('x')` |
+| `StackedArea` | cartesiana | temporal + N medidas | `.x() .y() .groupBy(_metric)` |
+| `BoxWhisker` | estadística | dim + N valores/grupo | `.groupBy() .value()` |
+| `Radar` | estadística | dim + ejes (métricas) | `.groupBy() .metric()` |
+| `Matrix` | matriz/heatmap | fila × columna + valor | `.data() .groupBy()` |
+| `Pie` / `Donut` | parte-todo | 1 dim + 1 medida | `.groupBy() .value()` |
+| `Treemap` | jerarquía | 1–2 dims + medida | `.groupBy([…]) .sum()` |
+| `Tree` | jerarquía | dims jerárquicas | `.groupBy([padre, hijo]) .sum()` |
+| `Geomap` | geográfica | dim geo + medida + TopoJSON | `.topojson() .topojsonId() .colorScale() .tiles() .zoom()` |
+| `Network` | red | nodos + aristas | `.nodes() .links() .size()` |
+| `Rings` | red (ego) | nodos + aristas + centro | `.nodes() .links() .center(id)` |
+| `Sankey` | flujo | nodos + enlaces | `.nodes() .links()` |
+| `Priestley` | línea temporal | dim + inicio/fin | `.start() .end() .groupBy()` |
+
+## 12. Interactividad y configuración (lo que hace "profesional" a un gráfico)
+
+D3plus trae interactividad nativa; el trabajo está en **configurarla bien**:
+
+- **Tooltip:** activo por defecto. Personalizar con
+  `.tooltipConfig({ title: d => …, tbody: [["Etiqueta", d => valor], …] })`. Sin un `tbody`
+  explícito el tooltip puede verse vacío → **siempre** definir `title` + `tbody`.
+- **Leyenda interactiva:** `.legend(true)` (clic en una serie la resalta/oculta). `.legendConfig({label:false})`
+  para modo solo-íconos.
+- **Color POR SERIE (regla de oro):** colorear por el **campo de grupo**, no por índice de punto.
+  `.color(d => mapaGrupoColor[d[campoSerie]])`. Usar `(_d,i)=>PALETTE[i]` en una **línea** crea una
+  "serie" falsa por punto y rompe la leyenda (ver §13).
+- **Ejes con título:** `.xConfig({ title })` / `.yConfig({ title })`. Para barras categóricas,
+  `.discrete('x')`. Formato de ticks con `xConfig.tickFormat`.
+- **Línea de tiempo / brush:** `.time(campoFecha).timeline(true)` añade el **deslizador temporal**
+  inferior (como en los dashboards de referencia). El campo debe ser fecha parseable (`AAAA-MM-DD`).
+- **Geomap interactivo:** `.zoom(true)` (zoom/pan), `.tiles(false)` para ocultar el mapa base,
+  `.ocean('transparent')`, `.fitObject()`/`.fitFilter()` para encuadrar la región.
+- **Controles y descarga:** `.controls([...])` para botones nativos; `.downloadButton(true)` exporta a
+  PNG/SVG. (En este plugin la toolbar propia ya cubre Imagen/Descarga.)
+- **Responsivo:** `.detectResize(true)` (ResizeObserver) → re-dibuja al cambiar el contenedor.
+- **Transiciones:** `.duration(ms)`. Respetar `prefers-reduced-motion` poniendo `0`.
+- **Totales y línea base:** `.total(true)`, `.baseline(0)` (útil para el ONI con umbral 0).
+
+## 13. Errores frecuentes (gotchas) y checklist de calidad
+
+1. **Leyenda duplicada / tooltip vacío** → color por índice de punto. **Solución:** color por grupo.
+2. **`window.d3plus` vacío** → CDN incorrecta. Usar `@d3plus/core@3.1.4/umd/d3plus-core.full.js`.
+3. **Línea "cortada"** entre observado y proyectado → son dos grupos sin punto común. **Solución:**
+   añadir un **punto puente** (el último observado también como primer proyectado).
+4. **Ejes sin etiqueta** → falta `xConfig/yConfig.title`. Mapear nombres de campo a etiquetas legibles.
+5. **Códigos numéricos promovidos a medida** (`"52001"`) → inferir con `is_int/is_float`, nunca `is_numeric`.
+6. **Sin filtro temporal** → falta `.time().timeline(true)`.
+
+**Checklist antes de publicar un gráfico:** color por serie ✓ · leyenda limpia ✓ · ejes con título ✓ ·
+tooltip con `title`+`tbody` ✓ · sin cortes en la serie ✓ · `detectResize` ✓ · timeline si es temporal ✓.
