@@ -185,14 +185,30 @@ final class MAN_Views {
 
 		switch ( $id ) {
 			case 'oni_serie':
-				$oni  = MAN_Rest::construir_oni();
-				$rows = array();
-				foreach ( ( isset( $oni['serie'] ) ? $oni['serie'] : array() ) as $s ) {
+				$oni        = MAN_Rest::construir_oni();
+				$serie      = isset( $oni['serie'] ) ? $oni['serie'] : array();
+				$rows       = array();
+				$ultimo_obs = null;
+				$puente     = false;
+				foreach ( $serie as $s ) {
+					$proy = ! empty( $s['proyectado'] );
+					// Punto puente: conecta la línea observada con la proyectada (sin corte).
+					if ( $proy && $ultimo_obs && ! $puente ) {
+						$rows[] = array(
+							'mes'  => $ultimo_obs['mes'],
+							'tipo' => 'Proyectado',
+							'oni'  => round( (float) $ultimo_obs['oni'], 2 ),
+						);
+						$puente = true;
+					}
 					$rows[] = array(
 						'mes'  => $s['mes'],
-						'tipo' => ! empty( $s['proyectado'] ) ? 'Proyectado' : 'Observado',
+						'tipo' => $proy ? 'Proyectado' : 'Observado',
 						'oni'  => round( (float) $s['oni'], 2 ),
 					);
+					if ( ! $proy ) {
+						$ultimo_obs = $s;
+					}
 				}
 				return $rows;
 
