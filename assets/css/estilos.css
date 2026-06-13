@@ -1,0 +1,133 @@
+/* =====================================================================
+   Monitor Ambiental y Fenómeno El Niño — Nariño
+   Estilos MINIMALISTAS del front.
+
+   Filosofía (aclaración del usuario): los shortcodes NO imponen chrome
+   propio — sin bordes, sin sombras, sin franjas de color, sin fondo — para
+   fundirse con la página anfitriona. Todo se controla con variables CSS
+   `--man-*` que el módulo de Apariencia (admin) o los atributos del
+   shortcode pueden ajustar. Solo los colores semánticos del clima
+   (semáforo, escala del mapa, fase ENSO) son fijos por ser técnicos.
+
+   Paleta institucional (referencia): verde #10A13B · amarillo #FFD500 ·
+   azul profundo #003087 · tipografía Hind Madurai.
+   ===================================================================== */
+
+/* Contenedor de todo shortcode. Hereda de la página por defecto. */
+.man {
+  background: var(--man-fondo, transparent);
+  color: var(--man-texto, inherit);
+  font-family: var(--man-tipografia, inherit);
+  border: var(--man-borde, none);
+  border-radius: var(--man-borde-radio, 0);
+  box-shadow: var(--man-sombra, none);
+  max-width: var(--man-ancho-max, 100%);
+  padding: var(--man-espaciado, 0);
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+.man * { box-sizing: border-box; }
+
+/* Tipografía interna mínima, sin imponer tamaños grandes. */
+.man-titulo { font-weight: 600; margin: 0 0 .4em; }
+.man-valores { margin: .3em 0; }
+.man-analisis { font-size: .95em; margin: .6em 0 0; }
+.man-fuentes { font-size: .75em; color: var(--man-mute, #6b7280); margin: .7em 0 0; }
+
+/* Estado de carga (skeleton) discreto, sin caja. */
+.man-skeleton { color: var(--man-mute, #6b7280); font-size: .9em; padding: .6em 0; }
+
+/* Estado de error con reintento. */
+.man-error { color: #c62828; font-size: .92em; margin: 0 0 .4em; }
+.man-error p { margin: 0 0 .4em; }
+
+/* Botón / control. Único elemento con borde sutil (afordancia de control). */
+.man-btn {
+  display: inline-block;
+  cursor: pointer;
+  font: inherit;
+  font-size: .9em;
+  line-height: 1.2;
+  padding: .45em .9em;
+  border: 1px solid var(--man-borde-color, #d8dbe0);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .15s ease, background .15s ease;
+}
+.man-btn:hover { border-color: var(--man-acento, #10A13B); }
+.man-btn--primario {
+  background: var(--man-acento, #10A13B);
+  border-color: var(--man-acento, #10A13B);
+  color: #fff;
+}
+.man-btn:disabled { opacity: .55; cursor: default; }
+
+/* Chip de nivel / fase (color semántico). */
+.man-chip {
+  display: inline-block;
+  padding: .12em .6em;
+  border-radius: 999px;
+  color: #fff;
+  font-size: .82em;
+  font-weight: 600;
+}
+
+/* --- [man_estado] --- */
+.man-estado__cuerpo { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.man-estado__info { flex: 1 1 220px; min-width: 220px; }
+.man-gauge { width: 260px; max-width: 100%; height: auto; display: block; }
+.man--compacto .man-estado__cuerpo { gap: 10px; }
+
+/* --- [man_pronostico] --- */
+.man-grafico { width: 100%; height: auto; display: block; }
+
+/* --- [man_mapa] --- */
+.man-mapa { position: relative; }
+.man-mapa__lienzo {
+  width: 100%;
+  min-height: 420px;
+  height: 60vh;
+  border-radius: var(--man-borde-radio, 0);
+}
+.man-mapa__panel { margin-top: 10px; font-size: .95em; }
+.man-mapa__panel p { margin: .25em 0; }
+
+/* --- [man_globo] --- */
+.man-globo { position: relative; }
+.man-globo__lienzo { width: 100%; min-height: 320px; }
+.man-globo__cinta { font-size: .85em; color: var(--man-mute, #6b7280); margin-top: .4em; text-align: center; }
+
+/* --- [man_timeline] --- */
+.man-timeline__cabecera { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.man-timeline__mes { font-size: 1.05em; font-weight: 600; }
+.man-timeline__oni { color: var(--man-mute, #6b7280); font-size: .9em; }
+.man-timeline__controles { display: flex; gap: 8px; align-items: center; margin-top: .5em; }
+.man-timeline__slider { flex: 1; min-width: 120px; }
+
+/* --- [man_datos] --- */
+.man-datos__titulo { font-weight: 600; margin: 0 0 .5em; }
+.man-datos__acciones { display: flex; gap: 8px; flex-wrap: wrap; }
+.man-datos__licencia { font-size: .75em; color: var(--man-mute, #6b7280); margin: .7em 0 0; }
+
+/* --- [man_historico] --- */
+.man-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+.man-card-item { flex: 1 1 220px; min-width: 200px; }
+.man-card-item .man-titulo { margin-bottom: .2em; }
+.man-mute-line { font-size: .85em; color: var(--man-mute, #6b7280); margin: .3em 0 0; }
+
+/* --- [man_mar] / [man_hidrico] --- */
+.man-mar__cuerpo .man-grafico,
+.man-hidrico__cuerpo .man-grafico { margin: .4em 0; }
+
+/* --- [man_estado_api] tabla --- */
+.man-tabla { width: 100%; border-collapse: collapse; font-size: .92em; }
+.man-tabla th, .man-tabla td { text-align: left; padding: .4em .6em; border-bottom: 1px solid var(--man-borde-color, #e5e7eb); }
+.man-tabla th { font-weight: 600; color: var(--man-mute, #6b7280); font-size: .85em; }
+.man-pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+/* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
+@media (prefers-reduced-motion: reduce) {
+  .man-btn { transition: none; }
+}
