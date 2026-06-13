@@ -16,7 +16,12 @@ Plugin de WordPress que comunica a la ciudadanía el estado del fenómeno El Ni�
 4. Ve a **Monitor Ambiental → Fuentes** para revisar/ajustar las APIs y pulsa
    **Sincronizar ahora** en NOAA ONI para traer el índice oficial.
 
-Sin proceso de build: D3, D3plus, Leaflet y Three.js se cargan por CDN.
+Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN.
+
+> **¿Dónde copio los shortcodes?** En **Monitor Ambiental → Elementos** tienes el
+> catálogo completo de componentes con su descripción, atributos y un botón
+> **Copiar** para pegarlos en cualquier página, entrada o widget (incluido el
+> bloque *Shortcode* o el widget HTML de Elementor).
 
 ---
 
@@ -27,6 +32,8 @@ Sin proceso de build: D3, D3plus, Leaflet y Three.js se cargan por CDN.
 | `[man_estado]` | Semáforo ENSO + condiciones (gauge D3 + texto) | `municipio`, `compacto` |
 | `[man_pronostico]` | Pronóstico 7–16 días (Open-Meteo en vivo) | `municipio`, `dias` |
 | `[man_mapa]` | Coroplético de los 64 municipios + panel al clic | `variable`, `mes` |
+| `[man_estadisticas]` | **Gráficos estadísticos D3plus** (ONI, probabilidad de fase por trimestre o riesgo por subregión) con tooltip/leyenda | `tipo`, `hasta`, `mes`, `alto` |
+| `[man_animacion]` | **Animación explicativa (Anime.js)** del mecanismo ENSO: alisios, piscina cálida, termoclina y lluvias; compara Neutral/El Niño/La Niña | `estado`, `autoplay` |
 | `[man_globo]` | Globo 3D cinematográfico (Three.js) | `calidad`, `autorotar` |
 | `[man_timeline]` | Slider de meses ONI que controla el globo | `inicio`, `fin` |
 | `[man_prediccion]` | **Predicción del ONI hasta feb-2027** (línea + banda de incertidumbre + umbrales de fase + probabilidad por trimestre + texto predictivo). Modelo propio del plugin contrastado con el ensamble NOAA/IRI | `hasta`, `modelo`, `probabilidad` |
@@ -45,6 +52,9 @@ Sin proceso de build: D3, D3plus, Leaflet y Three.js se cargan por CDN.
 [man_pronostico municipio="52001" dias="14"]
 [man_mapa variable="riesgo" mes="2026-10"]
 [man_globo calidad="alta"] [man_timeline]
+[man_animacion estado="el_nino"]
+[man_estadisticas tipo="oni" hasta="2027-02"]
+[man_estadisticas tipo="probabilidad"] [man_estadisticas tipo="riesgo"]
 [man_prediccion hasta="2027-02"]
 [man_prediccion hasta="2027-02" modelo="no" probabilidad="si"]
 [man_datos recurso="municipios" texto="Descarga el riesgo por municipio"]

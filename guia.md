@@ -250,6 +250,8 @@ Cada elemento es un shortcode autónomo. `municipio` admite código DIVIPOLA o n
 | `[man_globo]` | Globo 3D Three.js cinematográfico con animación del fenómeno | calidad, autorotar |
 | `[man_timeline]` | Línea de tiempo del globo (slider de meses ONI) | inicio, fin |
 | `[man_prediccion]` | Predicción del ONI hasta el mes objetivo (línea + banda + umbrales + probabilidad por trimestre + texto predictivo); modelo propio contrastado con el ensamble NOAA/IRI | hasta, modelo, probabilidad |
+| `[man_estadisticas]` | Gráficos estadísticos prediseñados D3plus (ONI, probabilidad de fase, riesgo por subregión) con tooltip/leyenda | tipo, hasta, mes, alto |
+| `[man_animacion]` | Animación explicativa del mecanismo ENSO con Anime.js (alisios, piscina cálida, termoclina, convección); compara Neutral/El Niño/La Niña | estado, autoplay |
 | `[man_mapa]` | Mapa coroplético de Nariño por municipio (Leaflet + D3) | variable, mes |
 | `[man_mar]` | Nivel del mar + oleaje Pacífico (IOC + Marine) | estacion |
 | `[man_salud]` | Casos dengue/EDA/IRA vs clima (D3plus correlación) | evento, año |
@@ -367,7 +369,10 @@ D3plus v3 vía CDN. Cada gráfico con paleta institucional y tooltip en español
 | Treemap | Población expuesta por nivel de riesgo | `[man_mapa]` |
 | Radar | Perfil ambiental municipal (T°, lluvia, viento, riesgo) | `[man_estado]` |
 
-> **Patrón de carga.** Reutilizar el skill `d3plus-wordpress`: enqueue por `wp_enqueue_scripts`, paso de datos PHP→JS por `wp_localize_script`, contenedor SVG responsivo y accesible (aria-label con el texto de análisis).
+> **Patrón de carga (implementado en `[man_estadisticas]`).** D3plus se registra por CDN y se encola por `wp_enqueue_scripts`; los datos llegan de la REST interna (`/prediccion`, `/departamento`); contenedor responsivo y accesible (`aria-label`). Si D3plus no cargara, el componente cae a un SVG simple (`MANcore.lineaSimple`) — resiliencia. Ver `assets/js/estadisticas.js`.
+
+### 6.1.1 Animación explicativa con Anime.js (`[man_animacion]`)
+Esquema vectorial (SVG) del corte ecuatorial del Pacífico que **anima la transición** entre Neutral / El Niño / La Niña con [Anime.js](https://animejs.com/documentation/) v3 (global): se interpolan posición/escala de la piscina cálida, opacidad y fuerza de los vientos alisios (más un viento anómalo del oeste en El Niño), inclinación de la termoclina (atributo `y2`), afloramiento frío y convección (lluvias). Autoplay con pausa fuera del viewport (IntersectionObserver) y respeto a `prefers-reduced-motion`. Ver `assets/js/animacion.js`.
 
 ### 6.2 D3.js puro (controles finos)
 - **Semáforo ENSO animado:** gauge D3 que transiciona entre La Niña–Neutral–El Niño según ONI vigente.

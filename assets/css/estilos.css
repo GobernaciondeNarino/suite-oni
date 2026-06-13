@@ -156,6 +156,21 @@
 .man-prediccion__barra-seg { height: 100%; }
 .man-prediccion__prob-dom { flex: 0 0 auto; font-size: .82em; }
 
+/* --- [man_estadisticas] (D3plus) --- */
+.man-estadisticas__lienzo { width: 100%; }
+.man-estadisticas__lienzo svg { max-width: 100%; height: auto; }
+.man-estadisticas__titulo { margin-bottom: .4em; }
+
+/* --- [man_animacion] (Anime.js) --- */
+.man-animacion__escena { width: 100%; }
+.man-animacion__svg { width: 100%; height: auto; display: block; border-radius: var(--man-borde-radio, 8px); }
+.man-animacion__svg .ani-warm,
+.man-animacion__svg .ani-cold,
+.man-animacion__svg .ani-winds,
+.man-animacion__svg .ani-conv { transform-box: fill-box; }
+.man-animacion__controles { display: flex; gap: 8px; flex-wrap: wrap; margin: .6em 0 .2em; }
+.man-animacion__narracion { min-height: 2.4em; }
+
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
 @media (prefers-reduced-motion: reduce) {
   .man-btn { transition: none; }

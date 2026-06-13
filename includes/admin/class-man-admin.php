@@ -36,6 +36,7 @@ final class MAN_Admin {
 			58
 		);
 		add_submenu_page( 'man-salud', 'Salud de APIs', 'Salud de APIs', 'manage_options', 'man-salud', array( $this, 'pagina_salud' ) );
+		add_submenu_page( 'man-salud', 'Elementos y shortcodes', 'Elementos', 'manage_options', 'man-elementos', array( $this, 'pagina_elementos' ) );
 		add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
 		add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
 	}
@@ -54,7 +55,8 @@ final class MAN_Admin {
 			'ajax'  => admin_url( 'admin-ajax.php' ),
 			'nonce' => wp_create_nonce( 'man_admin' ),
 		) );
-		wp_add_inline_style( 'common', '.man-card{background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px 20px;margin:14px 0;max-width:760px}.man-card h2 code{font-size:11px;color:#787c82;background:#f0f0f1;padding:2px 6px;border-radius:4px}.man-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}.man-resultado{margin-left:10px;font-style:italic}.man-tabla-salud td,.man-tabla-salud th{padding:8px 10px}' );
+		wp_add_inline_style( 'common', '.man-card{background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px 20px;margin:14px 0;max-width:760px}.man-card h2 code{font-size:11px;color:#787c82;background:#f0f0f1;padding:2px 6px;border-radius:4px}.man-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}.man-resultado{margin-left:10px;font-style:italic}.man-tabla-salud td,.man-tabla-salud th{padding:8px 10px}'
+			. '.man-el-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin:10px 0 26px}.man-el-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px}.man-el-card h3{margin:0 0 2px;font-size:14px}.man-el-card h3 code{font-size:12px;background:#eef2f7;color:#1d4ed8;padding:1px 6px;border-radius:4px}.man-el-desc{color:#50575e;margin:.3em 0 .6em;font-size:13px}.man-el-attrs{margin:.2em 0 .7em;padding-left:1.1em;font-size:12px;color:#50575e}.man-el-attrs code{background:#f0f0f1;padding:0 4px;border-radius:3px}.man-el-copy{display:flex;gap:6px;align-items:center}.man-el-input{flex:1;font-family:Menlo,Consolas,monospace;font-size:12px;padding:6px 8px;border:1px solid #c3c4c7;border-radius:4px;background:#f6f7f7}.man-el-card .button{white-space:nowrap}.man-el-intro{max-width:820px}.man-el-grp{margin:22px 0 6px;font-size:15px;border-bottom:1px solid #e0e0e0;padding-bottom:4px}' );
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -105,6 +107,170 @@ final class MAN_Admin {
 			</table>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Página de Elementos: catálogo de todos los shortcodes con descripción,
+	 * atributos y botón de copiar, para maquetar el sitio a la medida.
+	 */
+	public function pagina_elementos() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$grupos = $this->catalogo_shortcodes();
+		?>
+		<div class="wrap">
+			<h1>Monitor Ambiental — Elementos y shortcodes</h1>
+			<p class="man-el-intro">Cada elemento es un <strong>componente independiente</strong>. Copia su shortcode y pégalo
+				en cualquier página, entrada o widget (incluido el bloque <em>Shortcode</em> o el widget HTML de Elementor) para
+				maquetar el sitio como quieras. Por defecto son <strong>minimalistas y transparentes</strong>; ajusta el aspecto
+				global en <a href="<?php echo esc_url( admin_url( 'admin.php?page=man-apariencia' ) ); ?>">Apariencia</a> o por
+				atributo (<code>fondo</code>, <code>acento</code>, <code>borde</code>, <code>radio</code>, <code>sombra</code>,
+				<code>ancho</code>, <code>espaciado</code>).</p>
+
+			<?php foreach ( $grupos as $grupo => $items ) : ?>
+				<h2 class="man-el-grp"><?php echo esc_html( $grupo ); ?></h2>
+				<div class="man-el-grid">
+					<?php foreach ( $items as $sc ) : ?>
+						<div class="man-el-card">
+							<h3><?php echo esc_html( $sc['titulo'] ); ?> <code><?php echo esc_html( '[' . $sc['tag'] . ']' ); ?></code></h3>
+							<p class="man-el-desc"><?php echo esc_html( $sc['desc'] ); ?></p>
+							<?php if ( ! empty( $sc['attrs'] ) ) : ?>
+								<ul class="man-el-attrs">
+									<?php foreach ( $sc['attrs'] as $attr ) : ?>
+										<li><?php echo wp_kses( $attr, array( 'code' => array() ) ); ?></li>
+									<?php endforeach; ?>
+								</ul>
+							<?php endif; ?>
+							<div class="man-el-copy">
+								<input type="text" class="man-el-input" readonly
+									value="<?php echo esc_attr( $sc['ejemplo'] ); ?>"
+									onfocus="this.select()" />
+								<button type="button" class="button button-primary man-copiar"
+									data-copy="<?php echo esc_attr( $sc['ejemplo'] ); ?>">Copiar</button>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endforeach; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Catálogo de shortcodes agrupado para la página de Elementos.
+	 *
+	 * @return array<string,array<int,array>>
+	 */
+	private function catalogo_shortcodes() {
+		return array(
+			'Predicción y análisis' => array(
+				array(
+					'tag'     => 'man_prediccion',
+					'titulo'  => 'Predicción ENSO',
+					'desc'    => 'Trayectoria del ONI hasta el mes objetivo (feb-2027) con banda de incertidumbre, umbrales de fase, probabilidad por trimestre y texto predictivo. Reveal animado.',
+					'attrs'   => array( '<code>hasta</code> — mes objetivo AAAA-MM', '<code>modelo</code> — si/no (línea del modelo propio)', '<code>probabilidad</code> — si/no (barras por trimestre)' ),
+					'ejemplo' => '[man_prediccion hasta="2027-02"]',
+				),
+				array(
+					'tag'     => 'man_estadisticas',
+					'titulo'  => 'Estadísticas (D3plus)',
+					'desc'    => 'Gráficos prediseñados con tooltip y leyenda: ONI observado+proyectado, probabilidad de fase por trimestre o riesgo medio por subregión.',
+					'attrs'   => array( '<code>tipo</code> — oni | probabilidad | riesgo', '<code>hasta</code> — mes objetivo (oni/probabilidad)', '<code>mes</code> — mes del riesgo', '<code>alto</code> — ej. 360px' ),
+					'ejemplo' => '[man_estadisticas tipo="oni" hasta="2027-02"]',
+				),
+				array(
+					'tag'     => 'man_estado',
+					'titulo'  => 'Estado actual',
+					'desc'    => 'Semáforo ENSO (gauge D3) + ONI vigente, fase, intensidad y texto de análisis.',
+					'attrs'   => array( '<code>municipio</code> — DIVIPOLA, nombre o departamento', '<code>compacto</code> — si/no' ),
+					'ejemplo' => '[man_estado municipio="departamento"]',
+				),
+				array(
+					'tag'     => 'man_historico',
+					'titulo'  => 'Histórico ENSO',
+					'desc'    => 'Episodios de El Niño 2015–2024: barras de ONI pico y tarjetas de impacto en Nariño.',
+					'attrs'   => array( '<code>desde</code> — año inicial', '<code>hasta</code> — año final' ),
+					'ejemplo' => '[man_historico]',
+				),
+			),
+			'Animación y globo 3D'  => array(
+				array(
+					'tag'     => 'man_animacion',
+					'titulo'  => 'Animación del fenómeno',
+					'desc'    => 'Esquema animado (Anime.js) del Pacífico ecuatorial: alisios, piscina cálida, termoclina y lluvias. Compara Neutral / El Niño / La Niña.',
+					'attrs'   => array( '<code>estado</code> — neutral | el_nino | la_nina', '<code>autoplay</code> — si/no' ),
+					'ejemplo' => '[man_animacion estado="el_nino"]',
+				),
+				array(
+					'tag'     => 'man_globo',
+					'titulo'  => 'Globo 3D',
+					'desc'    => 'Globo terráqueo cinematográfico (Three.js) con la anomalía del Pacífico y el foco de Nariño. Modo ligero automático.',
+					'attrs'   => array( '<code>calidad</code> — auto | alta | baja', '<code>autorotar</code> — si/no' ),
+					'ejemplo' => '[man_globo calidad="auto"]',
+				),
+				array(
+					'tag'     => 'man_timeline',
+					'titulo'  => 'Línea de tiempo',
+					'desc'    => 'Slider de meses del ONI que controla el globo (emite el evento man:mes).',
+					'attrs'   => array( '<code>inicio</code> — AAAA-MM', '<code>fin</code> — AAAA-MM' ),
+					'ejemplo' => '[man_timeline]',
+				),
+			),
+			'Mapa y territorio'     => array(
+				array(
+					'tag'     => 'man_mapa',
+					'titulo'  => 'Mapa coroplético',
+					'desc'    => 'Mapa Leaflet de los 64 municipios por variable; clic en un municipio abre su panel.',
+					'attrs'   => array( '<code>variable</code> — riesgo | anomalia | precipitacion', '<code>mes</code> — AAAA-MM' ),
+					'ejemplo' => '[man_mapa variable="riesgo" mes="2026-10"]',
+				),
+				array(
+					'tag'     => 'man_pronostico',
+					'titulo'  => 'Pronóstico 7–16 días',
+					'desc'    => 'Pronóstico en vivo (Open-Meteo) por municipio con gráfico y texto de análisis.',
+					'attrs'   => array( '<code>municipio</code> — DIVIPOLA o nombre', '<code>dias</code> — 1 a 16' ),
+					'ejemplo' => '[man_pronostico municipio="52001" dias="14"]',
+				),
+				array(
+					'tag'     => 'man_hidrico',
+					'titulo'  => 'Recursos hídricos',
+					'desc'    => 'Caudal de ríos (GloFAS) y humedad de suelo por municipio.',
+					'attrs'   => array( '<code>municipio</code> — DIVIPOLA o nombre' ),
+					'ejemplo' => '[man_hidrico municipio="52001"]',
+				),
+				array(
+					'tag'     => 'man_mar',
+					'titulo'  => 'Mar y oleaje',
+					'desc'    => 'Nivel del mar (IOC) y oleaje del Pacífico (Open-Meteo Marine) frente a Tumaco.',
+					'attrs'   => array( '<code>estacion</code> — código de estación (opcional)' ),
+					'ejemplo' => '[man_mar]',
+				),
+				array(
+					'tag'     => 'man_salud',
+					'titulo'  => 'Salud y clima',
+					'desc'    => 'Casos de dengue (SIVIGILA) sensibles al clima.',
+					'attrs'   => array( '<code>evento</code> — dengue', '<code>anio</code> — año' ),
+					'ejemplo' => '[man_salud evento="dengue"]',
+				),
+			),
+			'Datos abiertos'        => array(
+				array(
+					'tag'     => 'man_datos',
+					'titulo'  => 'Descarga de datos',
+					'desc'    => 'Botones de Descargar JSON/CSV, Ver API y Copiar URL para datos abiertos (CC BY 4.0).',
+					'attrs'   => array( '<code>recurso</code> — municipios | oni | prediccion | municipio', '<code>municipio</code>, <code>mes</code>', '<code>texto</code> — rótulo' ),
+					'ejemplo' => '[man_datos recurso="prediccion" texto="Descarga la predicción del ONI"]',
+				),
+				array(
+					'tag'     => 'man_estado_api',
+					'titulo'  => 'Salud de las APIs',
+					'desc'    => 'Panel público del estado de cada fuente de datos del plugin.',
+					'attrs'   => array(),
+					'ejemplo' => '[man_estado_api]',
+				),
+			),
+		);
 	}
 
 	/**
