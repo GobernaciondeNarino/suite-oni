@@ -1,0 +1,490 @@
+# Guía completa: cómo funciona cada gráfico + apariencia del shortcode
+
+> **Documento global y reutilizable.** Describe cómo está construido cada tipo de gráfico, cómo se
+> alimenta con datos, y exactamente cómo se ve y se comporta el componente cuando se aplica un
+> shortcode — con su barra de herramientas, botones, modales y temas. Está escrito para aplicarse en
+> **cualquier proyecto WordPress**, no solo en el de referencia.
+>
+> **Referencia base:** https://github.com/GobernaciondeNarino/tic-suite (TIC Suite Gráficos v1.6.0).
+> Los prefijos `tsg-` / `TSG` aparecen porque vienen de esa implementación; renómbralos a tu
+> proyecto (ej. `acme-` / `Acme`) y todo funciona igual. Ver la "checklist de renombrado" en `SKILL.md`.
+
+---
+
+## Índice
+
+1. [Modelo mental: 3 capas](#1-modelo-mental-3-capas)
+2. [El contrato de datos (vista → payload)](#2-el-contrato-de-datos-vista--payload)
+3. [Cómo funciona cada gráfico, uno por uno](#3-cómo-funciona-cada-gráfico-uno-por-uno)
+4. [Apariencia del shortcode renderizado](#4-apariencia-del-shortcode-renderizado)
+5. [Barra de herramientas: botones y funcionalidades](#5-barra-de-herramientas-botones-y-funcionalidades)
+6. [Modales (Detalle y Datos)](#6-modales-detalle-y-datos)
+7. [Leyenda: modo texto vs íconos](#7-leyenda-modo-texto-vs-íconos)
+8. [Temas, responsive y accesibilidad](#8-temas-responsive-y-accesibilidad)
+9. [Tokens CSS para personalizar la apariencia](#9-tokens-css-para-personalizar-la-apariencia)
+10. [Checklist para portar a un proyecto nuevo](#10-checklist-para-portar-a-un-proyecto-nuevo)
+
+---
+
+## 1. Modelo mental: 3 capas
+
+Cada gráfico que se publica con el shortcode atraviesa siempre las mismas tres capas. Entender esta
+separación es lo que permite reutilizar el patrón en cualquier proyecto:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CAPA 1 — PHP / servidor                                          │
+│  El shortcode emite SOLO un <figure> con atributos data-*.        │
+│  No vuelca datos en el HTML (cacheable, seguro).                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │  data-view, data-type, data-project…
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CAPA 2 — frontend.js / hidratador                                │
+│  Lee los data-*, hace fetch al REST (/render?view=…&type=…),      │
+│  recibe el payload {chart, view, data, compatible} y lo entrega   │
+│  al renderer. También cablea la toolbar y los modales.            │
+└─────────────────────────────────────────────────────────────────┘
+                              │  TSGRenderer.render(id, payload, opts)
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  CAPA 3 — renderer.js / d3plus                                    │
+│  Elige la clase d3plus según payload.chart.class, configura ejes, │
+│  tooltip, leyenda y color, y dibuja el SVG dentro de .tsg-chart.  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Por qué importa para reutilizar:** la capa 3 (el renderer) es 100% genérica — no sabe nada del
+dominio. La capa 1 y 2 solo transportan `(view, type)` y datos. Para un proyecto nuevo, cambias los
+datos y los nombres de campo; el motor de gráficos no se toca.
+
+---
+
+## 2. El contrato de datos (vista → payload)
+
+Todo gráfico se alimenta de una **vista**: un objeto con dimensiones (campos de texto/categóricos),
+medidas (campos numéricos) y filas de datos.
+
+```json
+{
+  "id": "mi-vista",
+  "name": "Nombre legible",
+  "description": "Descripción corta.",
+  "category": "categorical",
+  "dimensions": ["categoria"],
+  "measures": ["valor"],
+  "data": [
+    { "categoria": "A", "valor": 12 },
+    { "categoria": "B", "valor": 27 }
+  ],
+  "edges": []
+}
+```
+
+El REST `/render` devuelve el **payload** que consume el renderer:
+
+```json
+{
+  "chart":   { "key": "bar", "class": "BarChart", "label": "Barras" },
+  "view":    { "id": "...", "name": "...", "dimensions": [...], "measures": [...], "category": "..." },
+  "data":    [ { ... } ],
+  "mapping": { "links": [] },
+  "compatible": ["bar", "pie", "donut", "treemap"]
+}
+```
+
+- `chart.class` → nombre de la clase d3plus a instanciar (`window.d3plus[class]`).
+- `view.dimensions` / `view.measures` → el renderer los usa como ejes/grupos/valores.
+- `compatible` → lista de tipos compatibles, usada por el botón "Cambiar" para el swap en vivo.
+
+**Inferencia de tipos de campo** (cuando la vista no declara dimensions/measures): los campos `string`
+se vuelven dimensiones; los `int`/`float` se vuelven medidas. Usar `is_int`/`is_float`, **nunca**
+`is_numeric` — así un código tipo `"52001"` (string numérico) no se promueve a medida por accidente.
+
+---
+
+## 3. Cómo funciona cada gráfico, uno por uno
+
+Para cada tipo: qué clase d3plus usa, qué forma de datos necesita, y la llamada exacta del renderer.
+`dims` = `view.dimensions`, `measures` = `view.measures`.
+
+> **Regla previa común — `filterMeaningful()`:** antes de dibujar, se descartan las filas cuya medida
+> principal sea `0/null/NaN` (excepto en grafos: network/rings/sankey, donde la estructura tiene valor
+> por sí misma). En el geomap, las filas descartadas hacen que el polígono caiga al color "sin datos".
+
+### bar — Barras
+
+- **Clase:** `BarChart`
+- **Datos:** 1 dimensión categórica + 1 medida.
+- **Render:**
+  ```javascript
+  viz.data(data).groupBy(dims[0]).x(dims[0]).y(measures[0]);
+  ```
+- **Uso típico:** comparar categorías (presupuesto por dependencia, conteo por categoría).
+
+### stacked_bar — Barras apiladas
+
+- **Clase:** `BarChart` + `.stacked(true)` (en d3plus v3 **no existe** `StackedBarChart`).
+- **Datos:** 1 dimensión + 2 o más medidas (formato ancho).
+- **Render:** se hace *reshape* ancho→largo (cada medida se convierte en una fila con `_metric`/`_value`),
+  excluyendo series derivadas (`total`, `pct_*`, `participacion_*`, `cobertura_*`) para no doble-contar:
+  ```javascript
+  const long = reshapeWideToLong(data, dims, measures);
+  viz.data(long).groupBy(['_metric', dims[0]]).x(dims[0]).y('_value').stacked(true);
+  ```
+
+### line — Líneas
+
+- **Clase:** `LinePlot`
+- **Datos:** 1 dimensión (eje X) + 2 medidas, o medidas con sufijo de año.
+- **Render:** si detecta medidas con sufijo `_20XX` (ej. `proyectos_2024`, `proyectos_2025`), reestructura
+  a formato largo con `_year` en el eje X y una línea por entidad; si no, usa `dims[1]||dims[0]` como grupo:
+  ```javascript
+  // año-basado → long con _year; si no:
+  viz.data(data).groupBy(dims[1] || dims[0]).x(dims[0]).y(measures[0]);
+  ```
+
+### area — Área
+
+- **Clase:** `AreaPlot`
+- **Datos:** igual que `line` (temporal).
+- **Render:** misma lógica que `line` (incluye la detección de años).
+
+### stacked_area — Área apilada
+
+- **Clase:** `StackedArea`
+- **Datos:** 1 dimensión temporal + 2+ medidas apilables.
+- **Render:**
+  ```javascript
+  const long = reshapeWideToLong(data, dims, measures);
+  viz.data(long).groupBy('_metric').x(dims[0]).y('_value');
+  ```
+
+### pie — Pastel / donut — Dona
+
+- **Clase:** `Pie` / `Donut`
+- **Datos:** 1 dimensión + 1 medida.
+- **Render:**
+  ```javascript
+  viz.data(data).groupBy(dims[0]).value(measures[0]);
+  ```
+
+### treemap — Treemap
+
+- **Clase:** `Treemap`
+- **Datos:** 1 dimensión + 1 medida.
+- **Render:**
+  ```javascript
+  viz.data(data).groupBy([dims[0]]).sum(measures[0]);
+  ```
+
+### geomap — Mapa coroplético
+
+- **Clase:** `Geomap`
+- **Datos:** 1 dimensión geográfica + 1 medida + un TopoJSON.
+- **Render:** une los datos al TopoJSON por una clave normalizada (NFD, mayúsculas, sin acentos):
+  ```javascript
+  viz.data(dataConId)
+     .topojson(topoUrl).topojsonKey('regions')
+     .topojsonId(d => d.properties.id)
+     .id('_region_id')
+     .colorScale(measures[0])
+     .colorScaleConfig({ color: ['#fffcf3', '#1a5276'] })
+     .topojsonFill('#fffcf3')   // polígonos sin datos
+     .tiles(false)              // oculta tiles base (y etiquetas de vecinos)
+     .ocean('transparent');     // sin rectángulo gris de fondo
+  ```
+- **Genérico:** sirve para cualquier región (municipios, departamentos, países). Cambia el archivo
+  TopoJSON y la propiedad de unión.
+
+### network — Red / rings — Anillos
+
+- **Clase:** `Network` / `Rings`
+- **Datos:** nodos (desde la dimensión) + aristas (`edges` o `mapping.links`).
+- **Render:**
+  ```javascript
+  const nodes = buildNodes(data, dims[0]);   // [{ id, ...row }]
+  viz.nodes(nodes).links(edges).groupBy(dims[0]).size(measures[0]); // network
+  // rings: además viz.center(nodes[0].id)
+  ```
+- Estos gráficos **no** se filtran por ceros.
+
+### sankey — Sankey
+
+- **Clase:** `Sankey`
+- **Datos:** dos modos:
+  - **Con aristas** (`view.edges`/`mapping.links`): usa nodos + enlaces explícitos.
+  - **Sin aristas** (datos categóricos): sintetiza un flujo raíz→hoja (`"Total"` → cada categoría).
+
+### priestley — Línea temporal (Priestley)
+
+- **Clase:** `Priestley`
+- **Datos:** 1 dimensión + 2 medidas, o medidas con años.
+- **Render:** para medidas con años asigna `_start`/`_end` (mín/máx año) y dibuja barras horizontales
+  que abarcan el rango temporal:
+  ```javascript
+  const pData = data.map(r => ({ ...r, _start: añoMin, _end: añoMax }));
+  viz.data(pData).groupBy(dims[0]).start('_start').end('_end').value(medidaTotal);
+  ```
+
+### box_whisker — Caja y bigotes
+
+- **Clase:** `BoxWhisker`
+- **Datos:** 1 dimensión categórica + 1 medida (múltiples filas por grupo).
+- **Render:**
+  ```javascript
+  viz.data(data).groupBy(dims[0]).value(measures[0]);
+  ```
+- **Uso típico:** distribución estadística de una métrica por grupo.
+
+### tree — Árbol / jerarquía
+
+- **Clase:** `Tree`
+- **Datos:** 1–2 dimensiones jerárquicas + 1 medida.
+- **Render:**
+  ```javascript
+  viz.data(data).groupBy([dims[1] || dims[0], dims[0]]).sum(measures[0]);
+  ```
+
+> **Tabla de compatibilidad vista→gráfico** (qué tipos aparecen según `category`):
+>
+> | category | gráficos disponibles |
+> |---|---|
+> | `categorical` | bar, stacked_bar, line, pie, donut, treemap, sankey, priestley |
+> | `temporal` | line, area, stacked_area |
+> | `geographic` | bar, stacked_bar, pie, donut, treemap, geomap, tree, box_whisker, priestley |
+> | `hierarchical` | bar, stacked_bar, pie, donut, treemap, sankey |
+> | `network` | network, rings, sankey |
+> | `statistical` | bar, stacked_bar, line, box_whisker |
+
+---
+
+## 4. Apariencia del shortcode renderizado
+
+Cuando publicas el shortcode, el componente se renderiza como una **tarjeta (`<figure>`)** autocontenida
+con esta anatomía vertical:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║ ● Título del gráfico                                           ║  ← franja de título
+╠══════════════════════════════════════════════════════════════╣
+║          [Detalle] [Compartir] [Datos] [Imagen] [▼Cambiar]    ║  ← barra de herramientas (derecha)
+╠══════════════════════════════════════════════════════════════╣
+║                                                                ║
+║                    SVG del gráfico (d3plus)                    ║  ← área del gráfico
+║                                                                ║
+║                  ▬ Serie A   ▬ Serie B   ▬ Serie C             ║  ← leyenda (abajo, nativa d3plus)
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Características visuales de la tarjeta:**
+
+- **Contenedor `.tsg-figure`**: fondo blanco, borde sutil (`#e2e8f0`), esquinas redondeadas (radio 14px),
+  doble sombra suave para dar elevación, `overflow: hidden` para recortar todo dentro del radio.
+- **Título `.tsg-figure__title`**: tipografía 15px peso 600, con un **punto de color** (●) a la izquierda
+  (círculo azul de 10px con halo). Fondo en degradado vertical sutil y línea inferior separadora.
+- **Barra de herramientas `.tsg-toolbar`**: alineada a la derecha, fondo gris muy claro (`--tsg-surface`),
+  con los botones de acción.
+- **Área del gráfico `.tsg-chart`**: padding de 12px, el `<svg>` ocupa el 100% del ancho y se adapta.
+- **Leyenda**: anclada siempre abajo (`legendPosition('bottom')`), nativa de d3plus (interactiva: clic
+  para resaltar/ocultar series).
+
+El shortcode genera **solo** el esqueleto `<figure>` con atributos `data-*`; el gráfico se inyecta
+después por JS. Esto mantiene el HTML cacheable y sin datos expuestos.
+
+**Estructura HTML emitida (simplificada):**
+
+```html
+<figure id="tsg-fig-{uuid}" class="tsg-figure tsg-theme-tic-suite"
+        data-tsg-figure="1" data-project="..." data-view="..." data-type="bar"
+        data-legend="1" data-legend-style="text" data-x-title="" data-y-title="">
+
+  <figcaption class="tsg-figure__title">Título del gráfico</figcaption>
+
+  <div class="tsg-toolbar" role="toolbar" aria-label="Acciones del gráfico">
+    <button class="tsg-action" data-tsg-action="detalle">…</button>
+    <!-- demás botones -->
+  </div>
+
+  <div id="tsg-chart-{uuid}" class="tsg-chart" style="min-height:420px;height:420px;"></div>
+
+  <!-- modal reutilizable para Detalle/Datos -->
+  <div class="tsg-modal" data-tsg-modal="1" hidden>…</div>
+</figure>
+```
+
+---
+
+## 5. Barra de herramientas: botones y funcionalidades
+
+La barra muestra hasta 6 acciones, controladas por el atributo `actions` del shortcode. Cada botón usa
+un ícono Dashicon de WordPress (azul) + etiqueta. Al pasar el mouse: el botón se eleva 1px, fondo blanco
+y borde visible. En móvil (`≤640px`) se ocultan las etiquetas y quedan solo los íconos.
+
+| Botón | Ícono | Qué hace | Detalle técnico |
+|---|---|---|---|
+| **Detalle** | `info` | Abre un modal con los metadatos del gráfico | Tipo, categoría, dimensiones, medidas y número de filas |
+| **Compartir** | `share` | Comparte/copia el enlace al gráfico | Usa `navigator.share` si existe; si no, copia la URL (`#id-figura`) al portapapeles. El botón parpadea en verde con "URL copiada" |
+| **Datos** | `editor-table` | Abre un modal con la tabla completa de datos | Tabla formateada en `es-CO` (separadores de miles; booleanos como ✓) |
+| **Imagen** | `format-image` | Exporta el gráfico a **PNG a 2×** (retina) | Serializa el SVG → Canvas con fondo blanco → descarga `{vista}-{tipo}.png`. Si falla, descarga el SVG |
+| **Descarga** | `download` | Descarga el payload como **JSON** | Incluye `view` + `data`, archivo `{vista}.json` |
+| **Cambiar** | `image-rotate` | Cambia el tipo de gráfico **en vivo** sin recargar | `<select>` con los tipos compatibles; al elegir otro hace fetch a `/render` y reemplaza el SVG in-place |
+
+**Estados de los botones:**
+
+- **Éxito** (`.is-success`): tras copiar/compartir, el botón se pone verde con ícono de check por ~1.6s.
+- **Cargando** (`.tsg-chart.is-loading`): durante el swap de tipo, el gráfico baja a opacidad 0.55 y
+  muestra un texto "Cargando…" centrado.
+
+**El control "Cambiar" (swap en vivo):**
+
+Es un `<select>` invisible superpuesto sobre un botón estilizado, con un indicador de caret (▾). Se
+poblá automáticamente con el array `compatible` del payload — sin segunda petición. Al cambiar:
+
+```javascript
+// 1. muestra estado de carga
+// 2. fetch /render?view=…&type=NUEVO&project=…
+// 3. re-renderiza el SVG y re-sincroniza data-type + el propio selector
+```
+
+**Configurar qué botones aparecen** (atributo `actions` del shortcode):
+
+```
+[tsg_grafico view="mi-vista" type="bar" actions="detalle,datos,imagen"]
+```
+
+Omitir `actions` muestra los 6 por defecto. Poner `toolbar="false"` oculta toda la barra.
+
+---
+
+## 6. Modales (Detalle y Datos)
+
+Ambos botones (`Detalle`, `Datos`) abren el **mismo** componente modal reutilizable, cambiando solo el
+título y el cuerpo.
+
+**Apariencia:**
+
+- Fondo oscuro semitransparente (`rgba(15,23,42,.55)`) con desenfoque (`backdrop-filter: blur(2px)`).
+- Panel centrado, máximo 720px de ancho, 85vh de alto, esquinas redondeadas, sombra fuerte.
+- Cabecera con título + botón de cierre (×). Cuerpo con scroll.
+- Se cierra con: clic en ×, clic en el backdrop, o tecla **Escape**.
+
+**Modal "Detalle del gráfico":** lista de definición (`<dl>`) en dos columnas:
+
+```
+Tipo de gráfico   Barras
+Categoría         categorical
+Dimensiones       Categoria
+Medidas           Valor
+Filas             24
+```
+
+**Modal "Datos de la vista":** tabla con encabezado pegajoso (sticky), filas alternadas (zebra),
+todas las dimensiones + medidas, con números formateados en `es-CO`.
+
+---
+
+## 7. Leyenda: modo texto vs íconos
+
+Controlado por `legend` (mostrar/ocultar) y `legend_style` (`text` | `icons`).
+
+- **`text`** (default): leyenda nativa de d3plus con etiquetas de texto + swatch de color, anclada abajo,
+  interactiva (clic en una serie para resaltarla/ocultarla).
+- **`icons`**: misma leyenda interactiva pero **solo los cuadros de color**, sin texto. Se logra ocultando
+  las etiquetas vía `legendConfig` en el renderer + una regla CSS de respaldo:
+  ```css
+  .tsg-figure[data-legend-style="icons"] .d3plus-Legend .d3plus-textBox { display: none !important; }
+  ```
+
+Hay además una tira de leyenda HTML propia (`.tsg-legend`) con swatches de 24px en cuadros de 34px que
+escalan al hacer hover — útil si prefieres una leyenda fuera del SVG.
+
+---
+
+## 8. Temas, responsive y accesibilidad
+
+**Temas** (atributo `theme` del shortcode):
+
+- `tic-suite` (claro, default): fondo blanco, tinta `#0f172a`, acento `#2563eb`.
+- `dark`: fondo `#0f172a`, superficie `#1e293b`, tinta `#f8fafc`, texto suave `#94a3b8`. Se activa con
+  la clase `.tsg-theme-dark`, que solo redefine las variables CSS.
+
+**Responsive:**
+
+- El SVG usa `detectResize(true)` (ResizeObserver) → se redibuja al cambiar el tamaño del contenedor.
+- En `≤640px`: la tarjeta reduce padding y radio, la toolbar oculta etiquetas (solo íconos), y el `<dl>`
+  del modal pasa a una sola columna.
+
+**Accesibilidad:**
+
+- Toolbar con `role="toolbar"` y `aria-label`.
+- Botones con `:focus-visible` (outline azul de 2px).
+- Swatches de leyenda con `aria-label` y `title`.
+- `@media (prefers-reduced-motion: reduce)` desactiva todas las transiciones.
+
+---
+
+## 9. Tokens CSS para personalizar la apariencia
+
+Toda la apariencia se controla con variables CSS declaradas en `.tsg-figure`. Para re-tematizar a tu
+proyecto, sobrescríbelas (sin tocar el resto del CSS):
+
+```css
+.tsg-figure {
+  --tsg-bg:       #ffffff;   /* fondo de la tarjeta */
+  --tsg-surface:  #f8fafc;   /* franjas (título, toolbar, leyenda) */
+  --tsg-border:   #e2e8f0;   /* bordes y separadores */
+  --tsg-ink:      #0f172a;   /* texto principal */
+  --tsg-soft:     #64748b;   /* texto secundario / íconos inactivos */
+  --tsg-accent:   #2563eb;   /* acento (punto del título, íconos, foco) */
+  --tsg-accent-2: #0ea5e9;   /* acento secundario */
+  --tsg-success:  #16a34a;   /* estado de éxito (copiar/compartir) */
+}
+
+/* Ejemplo: re-tematizar a tu paleta institucional */
+.tsg-figure {
+  --tsg-accent: #1A5276;     /* tu color primario */
+  --tsg-success: #27ae60;
+}
+```
+
+**Paleta de series del gráfico** (los colores de las barras/sectores/líneas) se define en el renderer,
+no en CSS — es un array que se cicla por índice:
+
+```javascript
+const PALETTE = [
+  '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e',
+  '#eab308', '#f97316', '#ef4444', '#a855f7', '#ec4899', '#6366f1',
+];
+viz.shapeConfig({ fill: (_d, i) => PALETTE[i % PALETTE.length] });
+```
+
+Cambia ese array por tu paleta para alinear las series con tu identidad visual.
+
+---
+
+## 10. Checklist para portar a un proyecto nuevo
+
+Para reutilizar todo este sistema en otro proyecto (ej. "acme"):
+
+1. **Copia** `includes/`, `assets/js/{renderer,frontend,admin}.js`, `assets/css/{frontend,admin}.css`
+   y `data/` a tu plugin.
+2. **Renombra prefijos:**
+   - Clases PHP `TSG_` → `Acme_`
+   - Hooks/funciones `tsg_` → `acme_`
+   - Shortcode `[tsg_grafico]` → `[acme_chart]`
+   - Globals JS `TSGData`/`TSG_FRONTEND` → `AcmeData`, `window.TSGRenderer` → `window.AcmeRenderer`
+   - Namespace REST `tic-suite/v1` → `acme/v1`
+   - Clases CSS `tsg-` → `acme-` (o conserva `tsg-` si no choca con nada)
+3. **CDN obligatoria:** usa `@d3plus/core@3.1.4/umd/d3plus-core.full.js` (el bundle bare deja
+   `window.d3plus = {}` y todos los gráficos fallan).
+4. **Datos:** crea tus vistas en `data/views/*.json` con tus campos. La inferencia
+   dimensiones/medidas es automática.
+5. **Mapas (opcional):** si no usas geomap, borra `data/topo/` y el caso `geomap`. Si lo usas,
+   genera tu propio TopoJSON y ajusta la clave de unión.
+6. **Apariencia:** sobrescribe las variables `--tsg-*` y el array `PALETTE` con tu identidad visual.
+7. **Verifica:** publica `[acme_chart view="..." type="bar"]` en una página y confirma que la tarjeta,
+   la toolbar y los modales aparecen.
+
+Nada del motor de gráficos (registro de tipos, compatibilidad, reshape, normalización, tooltip) depende
+del dominio: es 100% reutilizable.
