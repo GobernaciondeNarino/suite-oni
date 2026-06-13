@@ -40,13 +40,27 @@
       });
     }
 
-    // Posición inicial: el último mes observado.
-    var idx = serie.length - 1;
-    for (var i = 0; i < serie.length; i++) {
-      if (serie[i].proyectado) { idx = Math.max(0, i - 1); break; }
-    }
+    // Posición inicial: enero de 2026 (inicio del rango ene-2026 → mar-2027).
+    var idx = 0;
 
+    var velocidad = cont.querySelector('.man-timeline__velocidad');
+    var intervalo = velocidad ? parseInt(velocidad.value, 10) : 1200;
     var playing = false, timer = null;
+
+    function arrancarTimer() {
+      clearInterval(timer);
+      timer = setInterval(function () {
+        var v = parseInt(slider.value, 10) + 1;
+        if (v > serie.length - 1) { v = 0; }
+        set(v);
+      }, intervalo);
+    }
+    if (velocidad) {
+      velocidad.addEventListener('change', function () {
+        intervalo = parseInt(velocidad.value, 10) || 1200;
+        if (playing) { arrancarTimer(); }
+      });
+    }
 
     function set(i) {
       i = Math.max(0, Math.min(serie.length - 1, i));
@@ -71,15 +85,7 @@
     btnPlay.addEventListener('click', function () {
       playing = !playing;
       btnPlay.textContent = playing ? '⏸' : '▶';
-      if (playing) {
-        timer = setInterval(function () {
-          var v = parseInt(slider.value, 10) + 1;
-          if (v > serie.length - 1) { v = 0; }
-          set(v);
-        }, 1200);
-      } else {
-        clearInterval(timer);
-      }
+      if (playing) { arrancarTimer(); } else { clearInterval(timer); }
     });
 
     set(idx);

@@ -225,6 +225,7 @@ final class MAN_Shortcodes {
 			'calidad'   => sanitize_key( $atts['calidad'] ),
 			'autorotar' => 'si' === $atts['autorotar'],
 			'textura'   => 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
+			'geojson'   => esc_url_raw( MAN_URL . 'data/narino_municipios.geojson' ),
 			'mesActual' => gmdate( 'Y-m' ),
 		) );
 
@@ -277,6 +278,11 @@ final class MAN_Shortcodes {
 				<button type="button" class="man-btn" data-accion="play" aria-label="Reproducir o pausar">▶</button>
 				<button type="button" class="man-btn" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
 				<input type="range" class="man-timeline__slider" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
+				<select class="man-timeline__velocidad" aria-label="Velocidad de reproducción">
+					<option value="1800">0.5×</option>
+					<option value="1200" selected>1×</option>
+					<option value="600">2×</option>
+				</select>
 			</div>
 			<ul class="man-timeline__marcas" aria-hidden="true"></ul>
 			<p class="man-timeline__leyenda">
