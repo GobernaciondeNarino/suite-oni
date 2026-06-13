@@ -1,0 +1,159 @@
+/* =====================================================================
+   [man_grafico] — tarjeta de gráfico D3plus con barra de herramientas.
+   A diferencia de los shortcodes minimalistas (.man), este componente ES
+   una tarjeta autocontenida (figure) con su propio chrome y temas.
+   Apariencia re-tematizable con los tokens --man-g-*. (Ver /skill, §4 y §9.)
+   ===================================================================== */
+.man-g {
+  --man-g-bg:       #ffffff;
+  --man-g-surface:  #f8fafc;
+  --man-g-border:   #e2e8f0;
+  --man-g-ink:      #0f172a;
+  --man-g-soft:     #64748b;
+  --man-g-accent:   #10A13B;
+  --man-g-accent-2: #003087;
+  --man-g-success:  #16a34a;
+
+  margin: 16px 0;
+  background: var(--man-g-bg);
+  color: var(--man-g-ink);
+  border: 1px solid var(--man-g-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 6px 18px rgba(15, 23, 42, .06);
+  overflow: hidden;
+}
+.man-g * { box-sizing: border-box; }
+
+/* Tema oscuro: solo redefine variables. */
+.man-g--dark {
+  --man-g-bg:      #0f172a;
+  --man-g-surface: #1e293b;
+  --man-g-border:  #334155;
+  --man-g-ink:     #f8fafc;
+  --man-g-soft:    #94a3b8;
+}
+
+/* Título con punto de color. */
+.man-g__title {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  background: linear-gradient(180deg, var(--man-g-surface), var(--man-g-bg));
+  border-bottom: 1px solid var(--man-g-border);
+}
+.man-g__title::before {
+  content: "";
+  display: inline-block;
+  width: 10px; height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--man-g-accent-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--man-g-accent-2) 22%, transparent);
+}
+
+/* Barra de herramientas. */
+.man-g__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--man-g-surface);
+  border-bottom: 1px solid var(--man-g-border);
+}
+.man-g__action,
+.man-g__swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--man-g-ink);
+  cursor: pointer;
+  position: relative;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.man-g__action .dashicons,
+.man-g__swap .dashicons { color: var(--man-g-accent-2); font-size: 18px; width: 18px; height: 18px; }
+.man-g__action:hover,
+.man-g__swap:hover { background: var(--man-g-bg); border-color: var(--man-g-border); transform: translateY(-1px); }
+.man-g__action:focus-visible,
+.man-g__swap:focus-within { outline: 2px solid var(--man-g-accent-2); outline-offset: 1px; }
+.man-g__action.is-success { color: var(--man-g-success); }
+.man-g__action.is-success .dashicons { color: var(--man-g-success); }
+
+/* El "Cambiar" es un select invisible sobre el botón. */
+.man-g__swap { padding-right: 22px; }
+.man-g__swap select {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: 0;
+}
+.man-g__caret { position: absolute; right: 8px; pointer-events: none; color: var(--man-g-soft); font-size: 11px; }
+
+/* Área del gráfico. */
+.man-g__chart { padding: 12px; position: relative; transition: opacity .2s ease; }
+.man-g__chart svg { max-width: 100%; height: auto; }
+.man-g__chart.is-loading { opacity: .55; }
+.man-g__chart.is-loading::after {
+  content: "Cargando…";
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--man-g-soft); font-size: 14px;
+}
+
+/* Pie y skeleton heredan estilos minimalistas pero con padding de la tarjeta. */
+.man-g .man-skeleton,
+.man-g .man-fuentes { padding-left: 16px; padding-right: 16px; }
+.man-g .man-error { margin: 12px 16px; }
+
+/* Modal reutilizable (Detalle / Datos). */
+.man-g__modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; }
+.man-g__modal[hidden] { display: none; }
+.man-g__modal-back { position: absolute; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(2px); }
+.man-g__modal-panel {
+  position: relative;
+  width: min(720px, 92vw);
+  max-height: 85vh;
+  display: flex; flex-direction: column;
+  background: var(--man-g-bg);
+  color: var(--man-g-ink);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, .35);
+  overflow: hidden;
+}
+.man-g__modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--man-g-border);
+  background: var(--man-g-surface);
+}
+.man-g__modal-x { font-size: 22px; line-height: 1; background: none; border: 0; cursor: pointer; color: var(--man-g-soft); }
+.man-g__modal-body { padding: 14px 16px; overflow: auto; }
+
+.man-g__dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; font-size: 14px; }
+.man-g__dl dt { color: var(--man-g-soft); }
+.man-g__dl dd { margin: 0; }
+
+.man-g__tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.man-g__tabla th, .man-g__tabla td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--man-g-border); }
+.man-g__tabla thead th { position: sticky; top: 0; background: var(--man-g-surface); }
+.man-g__tabla tbody tr:nth-child(odd) { background: color-mix(in srgb, var(--man-g-surface) 50%, transparent); }
+
+/* Responsive: en móvil, la toolbar oculta etiquetas. */
+@media (max-width: 640px) {
+  .man-g__title { font-size: 14px; }
+  .man-g__action-txt { display: none; }
+  .man-g__dl { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .man-g__action, .man-g__swap, .man-g__chart { transition: none; }
+}

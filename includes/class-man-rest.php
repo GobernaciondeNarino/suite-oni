@@ -71,6 +71,24 @@ final class MAN_Rest {
 			'args'                => array( 'hasta' => array( 'sanitize_callback' => 'sanitize_text_field' ) ),
 		) );
 
+		// Motor de gráficos D3plus ([man_grafico]).
+		register_rest_route( self::NS, '/vistas', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_vistas' ),
+			'permission_callback' => $publico,
+		) );
+		register_rest_route( self::NS, '/render', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_render' ),
+			'permission_callback' => $publico,
+			'args'                => array(
+				'view'  => array( 'sanitize_callback' => 'sanitize_key' ),
+				'type'  => array( 'sanitize_callback' => 'sanitize_key' ),
+				'hasta' => array( 'sanitize_callback' => 'sanitize_text_field' ),
+				'mes'   => array( 'sanitize_callback' => 'sanitize_text_field' ),
+			),
+		) );
+
 		register_rest_route( self::NS, '/mar', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_mar' ),
@@ -157,6 +175,55 @@ final class MAN_Rest {
 	public function ruta_prediccion( $req ) {
 		$hasta = self::sanitizar_objetivo( $req->get_param( 'hasta' ) );
 		return rest_ensure_response( self::construir_prediccion( $hasta ) );
+	}
+
+	/**
+	 * Lista de vistas disponibles para el motor de gráficos.
+	 */
+	public function ruta_vistas() {
+		return rest_ensure_response( array( 'vistas' => MAN_Views::lista() ) );
+	}
+
+	/**
+	 * Payload de render para [man_grafico]: {chart, view, data, compatible}.
+	 * Valida la vista (lista blanca) y restringe el tipo a los compatibles.
+	 */
+	public function ruta_render( $req ) {
+		$view_id = sanitize_key( (string) $req->get_param( 'view' ) );
+		if ( '' === $view_id || ! MAN_Views::existe( $view_id ) ) {
+			return new \WP_Error( 'man_vista', 'Vista no encontrada.', array( 'status' => 404 ) );
+		}
+
+		$args = array(
+			'hasta' => self::sanitizar_objetivo( $req->get_param( 'hasta' ) ),
+			'mes'   => MAN_Security::sanitizar_mes( $req->get_param( 'mes' ) ),
+		);
+		$view = MAN_Views::obtener( $view_id, $args );
+
+		$compatibles = MAN_Views::compatibles( $view['category'] );
+		$tipo        = sanitize_key( (string) $req->get_param( 'type' ) );
+		if ( '' === $tipo || ! in_array( $tipo, $compatibles, true ) ) {
+			$tipo = MAN_Views::default_tipo( $view_id );
+		}
+
+		$tipos = MAN_Views::tipos();
+		$chart = isset( $tipos[ $tipo ] ) ? $tipos[ $tipo ] : $tipos['bar'];
+		$chart['key'] = $tipo;
+
+		return rest_ensure_response( array(
+			'chart'      => $chart,
+			'view'       => array(
+				'id'          => $view['id'],
+				'name'        => $view['name'],
+				'description' => $view['description'],
+				'category'    => $view['category'],
+				'dimensions'  => $view['dimensions'],
+				'measures'    => $view['measures'],
+			),
+			'data'       => $view['data'],
+			'mapping'    => array( 'links' => array() ),
+			'compatible' => $compatibles,
+		) );
 	}
 
 	public function ruta_mar( $req ) {

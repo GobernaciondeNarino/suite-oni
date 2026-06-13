@@ -32,6 +32,7 @@ Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN
 | `[man_estado]` | Semáforo ENSO + condiciones (gauge D3 + texto) | `municipio`, `compacto` |
 | `[man_pronostico]` | Pronóstico 7–16 días (Open-Meteo en vivo) | `municipio`, `dias` |
 | `[man_mapa]` | Coroplético de los 64 municipios + panel al clic | `variable`, `mes` |
+| `[man_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y *Cambiar tipo en vivo*) + modales y temas | `view`, `type`, `theme`, `actions`, `legend`, `toolbar`, `alto` |
 | `[man_estadisticas]` | **Gráficos estadísticos D3plus** (ONI, probabilidad de fase por trimestre o riesgo por subregión) con tooltip/leyenda | `tipo`, `hasta`, `mes`, `alto` |
 | `[man_animacion]` | **Animación explicativa (Anime.js)** del mecanismo ENSO: alisios, piscina cálida, termoclina y lluvias; compara Neutral/El Niño/La Niña | `estado`, `autoplay` |
 | `[man_globo]` | Globo 3D cinematográfico (Three.js) | `calidad`, `autorotar` |
@@ -59,6 +60,17 @@ Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN
 [man_prediccion hasta="2027-02" modelo="no" probabilidad="si"]
 [man_datos recurso="municipios" texto="Descarga el riesgo por municipio"]
 [man_datos recurso="prediccion" texto="Descarga la predicción del ONI"]
+```
+
+### Motor de gráficos D3plus (`[man_grafico]`)
+Motor genérico de **3 capas** (ver el archivo [`skill`](skill)): el shortcode emite solo un `<figure>` con `data-*` (cacheable, sin datos en el HTML) → `grafico.js` pide `/wp-json/man/v1/render?view=…&type=…` → `renderer.js` elige la clase D3plus y dibuja. Trae barra de herramientas (Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · **Cambiar tipo en vivo**), modales, temas claro/oscuro y tokens `--man-g-*`.
+
+**Vistas disponibles** (`view`): `oni_serie`, `prob_fase`, `riesgo_subregion`, `riesgo_municipios`, `episodios`.
+**Tipos** (`type`): `bar`, `stacked_bar`, `line`, `area`, `stacked_area`, `pie`, `donut`, `treemap`, `box_whisker` (se restringe a los compatibles con la vista).
+```
+[man_grafico view="oni_serie" type="line"]
+[man_grafico view="riesgo_subregion" type="treemap" theme="oscuro"]
+[man_grafico view="prob_fase" type="stacked_bar" actions="datos,imagen,cambiar"]
 ```
 
 ### Predicción y métodos predictivos

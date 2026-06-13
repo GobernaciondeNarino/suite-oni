@@ -63,6 +63,7 @@ final class MAN_Plugin {
 
 		// Datos.
 		require_once $base . 'data/class-man-municipios.php';
+		require_once $base . 'data/class-man-views.php';
 
 		// Análisis.
 		require_once $base . 'analysis/class-man-enso.php';

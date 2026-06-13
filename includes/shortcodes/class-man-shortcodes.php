@@ -43,6 +43,7 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_prediccion', array( $this, 'sc_prediccion' ) );
 		add_shortcode( 'man_estadisticas', array( $this, 'sc_estadisticas' ) );
 		add_shortcode( 'man_animacion', array( $this, 'sc_animacion' ) );
+		add_shortcode( 'man_grafico', array( $this, 'sc_grafico' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
@@ -55,7 +56,7 @@ final class MAN_Shortcodes {
 	public function registrar_assets() {
 		// Librerías por CDN (sin npm/build).
 		wp_register_script( 'd3', 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js', array(), '7', true );
-		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/d3plus@3/dist/d3plus.full.min.js', array(), '3', true );
+		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/@d3plus/core@3.1.4/umd/d3plus-core.full.js', array(), '3.1.4', true );
 		wp_register_style( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', array(), '1.9.4' );
 		wp_register_script( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', array(), '1.9.4', true );
 
@@ -82,6 +83,10 @@ final class MAN_Shortcodes {
 		// Animaciones explicativas con Anime.js (el globo usa Three.js, registrado aparte).
 		wp_register_script( 'animejs', 'https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js', array(), '3.2.1', true );
 		wp_register_script( 'man-animacion', MAN_URL . 'assets/js/animacion.js', array( 'animejs', 'man-core' ), MAN_VERSION, true );
+		// Motor de gráficos D3plus con barra de herramientas ([man_grafico]).
+		wp_register_style( 'man-grafico-css', MAN_URL . 'assets/css/grafico.css', array(), MAN_VERSION );
+		wp_register_script( 'man-renderer', MAN_URL . 'assets/js/renderer.js', array( 'd3plus' ), MAN_VERSION, true );
+		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
@@ -479,6 +484,69 @@ final class MAN_Shortcodes {
 			<p class="man-animacion__narracion man-analisis" aria-live="polite"></p>
 			<?php echo $this->pie_fuentes( 'Esquema didáctico · NOAA/CPC · Three.js (globo) · Anime.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_grafico] — Tarjeta de gráfico D3plus con barra de herramientas
+	 * (Detalle, Compartir, Datos, Imagen PNG, Descarga JSON, Cambiar tipo en
+	 * vivo) y modales. Motor genérico de 3 capas (ver archivo /skill).
+	 *
+	 * view: oni_serie | prob_fase | riesgo_subregion | riesgo_municipios | episodios.
+	 */
+	public function sc_grafico( $atts ) {
+		$atts = $this->fusionar( array(
+			'view'         => 'oni_serie',
+			'type'         => '',
+			'actions'      => '',
+			'theme'        => 'claro',
+			'legend'       => 'si',
+			'legend_style' => 'text',
+			'toolbar'      => 'si',
+			'alto'         => '420px',
+			'hasta'        => '2027-02',
+			'mes'          => gmdate( 'Y-m' ),
+		), $atts, 'man_grafico' );
+
+		wp_enqueue_style( 'dashicons' );
+		wp_enqueue_style( 'man-grafico-css' );
+		wp_enqueue_script( 'man-grafico' );
+
+		$id     = $this->id();
+		$view   = sanitize_key( $atts['view'] );
+		$type   = sanitize_key( $atts['type'] );
+		$tema   = in_array( $atts['theme'], array( 'dark', 'oscuro' ), true ) ? 'dark' : 'claro';
+		$alto   = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '420px';
+		$hasta  = MAN_Security::sanitizar_mes( $atts['hasta'] );
+		if ( $hasta <= gmdate( 'Y-m' ) ) {
+			$hasta = '2027-02';
+		}
+		$mes     = MAN_Security::sanitizar_mes( $atts['mes'] );
+		$actions = preg_replace( '/[^a-z,_]/', '', strtolower( (string) $atts['actions'] ) );
+		$legend  = ( 'no' === $atts['legend'] || '0' === (string) $atts['legend'] ) ? '0' : '1';
+		$lstyle  = 'icons' === $atts['legend_style'] ? 'icons' : 'text';
+		$toolbar = ( 'no' === $atts['toolbar'] || '0' === (string) $atts['toolbar'] ) ? '0' : '1';
+
+		ob_start();
+		?>
+		<figure id="<?php echo esc_attr( $id ); ?>"
+			class="man-g man-g--<?php echo esc_attr( $tema ); ?>"
+			data-man-grafico
+			data-view="<?php echo esc_attr( $view ); ?>"
+			data-type="<?php echo esc_attr( $type ); ?>"
+			data-actions="<?php echo esc_attr( $actions ); ?>"
+			data-legend="<?php echo esc_attr( $legend ); ?>"
+			data-legend-style="<?php echo esc_attr( $lstyle ); ?>"
+			data-toolbar="<?php echo esc_attr( $toolbar ); ?>"
+			data-hasta="<?php echo esc_attr( $hasta ); ?>"
+			data-mes="<?php echo esc_attr( $mes ); ?>">
+			<figcaption class="man-g__title">Gráfico</figcaption>
+			<div class="man-g__chart" id="<?php echo esc_attr( $id ); ?>-chart"
+				style="min-height:<?php echo esc_attr( $alto ); ?>"></div>
+			<?php echo $this->skeleton( 'Cargando gráfico…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<p class="man-fuentes">Fuente: NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus</p>
+		</figure>
 		<?php
 		return ob_get_clean();
 	}

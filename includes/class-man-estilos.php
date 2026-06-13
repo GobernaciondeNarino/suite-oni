@@ -116,14 +116,27 @@ final class MAN_Estilos {
 	/**
 	 * Sanea un valor para inserción segura en CSS (anti-inyección).
 	 *
+	 * Mantiene funciones legítimas (rgba(), calc(), var()) pero neutraliza las
+	 * peligrosas (url(), expression(), image-set(), -moz-binding) y los
+	 * caracteres que permitirían salir del valor o inyectar reglas. Acota la
+	 * longitud como defensa en profundidad. La salida vuelve a escaparse con
+	 * esc_attr() (atributos) o se inserta en propiedades CSS controladas.
+	 *
 	 * @param string $v Valor crudo.
 	 * @return string
 	 */
 	public static function sanitizar_css( $v ) {
 		$v = (string) $v;
-		$v = str_replace( array( ';', '{', '}', '<', '>', '\\', '"', "'" ), '', $v );
-		$v = preg_replace( '/url\s*\(/i', '', $v );
-		$v = preg_replace( '/expression\s*\(/i', '', $v );
-		return trim( $v );
+		// Una sola línea: elimina saltos y caracteres de control.
+		$v = preg_replace( '/[\x00-\x1F\x7F]+/', ' ', $v );
+		// Caracteres que permitirían cerrar el valor/regla o inyectar markup.
+		$v = str_replace( array( ';', '{', '}', '<', '>', '\\', '"', "'", '@', '`' ), '', $v );
+		// Comentarios CSS (podrían ocultar payloads).
+		$v = str_replace( array( '/*', '*/' ), '', $v );
+		// Funciones peligrosas (se conservan rgba()/calc()/var()).
+		$v = preg_replace( '/(?:url|expression|image-set|-moz-binding)\s*\(/i', '', $v );
+		$v = trim( $v );
+		// Longitud acotada.
+		return function_exists( 'mb_substr' ) ? mb_substr( $v, 0, 200 ) : substr( $v, 0, 200 );
 	}
 }
