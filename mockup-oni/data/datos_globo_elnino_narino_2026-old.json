@@ -1,0 +1,593 @@
+{
+  "meta": {
+    "titulo": "El Niño 2026 — Globo de afectaciones · Nariño",
+    "version": "1.0",
+    "fecha_corte": "2026-06",
+    "naturaleza": "Datos ILUSTRATIVOS y de ESCENARIO DE PLANEACIÓN. No son mediciones oficiales del IDEAM/CORPONARIÑO. Verificar contra boletines oficiales vigentes.",
+    "paleta": {
+      "azul": "#1A5276",
+      "dorado": "#E8A020",
+      "azul_oscuro": "#003087"
+    },
+    "fuentes": [
+      "IDEAM (mar-may 2026)",
+      "NOAA-CPC",
+      "Min Vivienda (may 2026)",
+      "antecedentes 2015-2016 y 2023-2024"
+    ]
+  },
+  "fenomeno": {
+    "nombre": "Fenómeno de El Niño (fase cálida del ENSO/ENOS)",
+    "estado_actual": "Alerta temprana / Vigilancia de El Niño (junio 2026).",
+    "intensidad_prevista": "Entre fuerte y muy fuerte (bajo observación).",
+    "probabilidad_resumen": "82% (may-jul) con consolidación cercana a 96% hacia fin de año."
+  },
+  "mecanismo": {
+    "que_lo_produce": "El Niño es la fase cálida del ciclo ENSO: un calentamiento anómalo y sostenido de las aguas superficiales del océano Pacífico ecuatorial centro-oriental, acompañado del debilitamiento de los vientos alisios que normalmente empujan el agua cálida hacia el oeste.",
+    "como_se_genera": [
+      {
+        "paso": 1,
+        "titulo": "Estado normal",
+        "texto": "Los vientos alisios soplan de este a oeste y acumulan agua cálida en el Pacífico occidental; en el oriente aflora agua fría (surgencia)."
+      },
+      {
+        "paso": 2,
+        "titulo": "Debilitamiento de alisios",
+        "texto": "Los vientos alisios se debilitan o invierten, reduciendo la surgencia de agua fría en el Pacífico oriental."
+      },
+      {
+        "paso": 3,
+        "titulo": "Calentamiento del Pacífico",
+        "texto": "El agua cálida se desplaza hacia el este; la temperatura superficial del mar sube por encima del promedio (anomalía positiva en la región Niño-3.4)."
+      },
+      {
+        "paso": 4,
+        "titulo": "Cambio atmosférico",
+        "texto": "Se altera la circulación atmosférica (celda de Walker), desplazando las zonas de lluvia."
+      },
+      {
+        "paso": 5,
+        "titulo": "Efecto en Colombia/Nariño",
+        "texto": "Disminuyen las lluvias y suben las temperaturas, generando déficit hídrico, mayor riesgo de incendios y presión sobre agricultura y salud."
+      }
+    ],
+    "indicadores": [
+      "Índice Niño-3.4",
+      "Índice Oceánico de El Niño (ONI)"
+    ]
+  },
+  "global": {
+    "meses": [
+      {
+        "mes": "2026-01",
+        "nombre_mes": "Enero",
+        "oni": 0.0,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 40,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales."
+      },
+      {
+        "mes": "2026-02",
+        "nombre_mes": "Febrero",
+        "oni": 0.1,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 50,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales."
+      },
+      {
+        "mes": "2026-03",
+        "nombre_mes": "Marzo",
+        "oni": 0.2,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 62,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales."
+      },
+      {
+        "mes": "2026-04",
+        "nombre_mes": "Abril",
+        "oni": 0.3,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 70,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales."
+      },
+      {
+        "mes": "2026-05",
+        "nombre_mes": "Mayo",
+        "oni": 0.4,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 82,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales."
+      },
+      {
+        "mes": "2026-06",
+        "nombre_mes": "Junio",
+        "oni": 0.5,
+        "fase": "el_nino_debil",
+        "probabilidad_el_nino_pct": 85,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      },
+      {
+        "mes": "2026-07",
+        "nombre_mes": "Julio",
+        "oni": 0.7,
+        "fase": "el_nino_debil",
+        "probabilidad_el_nino_pct": 90,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      },
+      {
+        "mes": "2026-08",
+        "nombre_mes": "Agosto",
+        "oni": 0.9,
+        "fase": "el_nino_debil",
+        "probabilidad_el_nino_pct": 92,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      },
+      {
+        "mes": "2026-09",
+        "nombre_mes": "Septiembre",
+        "oni": 1.0,
+        "fase": "el_nino_moderado",
+        "probabilidad_el_nino_pct": 94,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      },
+      {
+        "mes": "2026-10",
+        "nombre_mes": "Octubre",
+        "oni": 1.2,
+        "fase": "el_nino_moderado",
+        "probabilidad_el_nino_pct": 96,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      },
+      {
+        "mes": "2026-11",
+        "nombre_mes": "Noviembre",
+        "oni": 1.2,
+        "fase": "el_nino_moderado",
+        "probabilidad_el_nino_pct": 96,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      },
+      {
+        "mes": "2026-12",
+        "nombre_mes": "Diciembre",
+        "oni": 1.1,
+        "fase": "el_nino_moderado",
+        "probabilidad_el_nino_pct": 95,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios."
+      }
+    ]
+  },
+  "narino": {
+    "subregiones": [
+      {
+        "id": "andina",
+        "nombre": "Zona andina (Pasto y entorno)",
+        "riesgos": [
+          "déficit hídrico en acueductos rurales",
+          "afectación a papa y leche",
+          "heladas"
+        ]
+      },
+      {
+        "id": "pacifico",
+        "nombre": "Pacífico (Tumaco, costa, Barbacoas)",
+        "riesgos": [
+          "incendios en zonas de transición",
+          "afectación a pesca",
+          "agua dulce"
+        ]
+      },
+      {
+        "id": "cordillera_paramos",
+        "nombre": "Cordillera y páramos",
+        "riesgos": [
+          "incendios de cobertura vegetal",
+          "estrés en fuentes hídricas"
+        ]
+      }
+    ],
+    "meses": [
+      {
+        "mes": "2026-01",
+        "nombre_mes": "Enero",
+        "nivel_alerta_general": "verde",
+        "resumen": "Enero 2026 — fase neutral. Déficit hídrico 18/100 (alerta verde); 5 focos de calor; 0 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 18,
+            "nivel_caudal_pct": 98,
+            "precipitacion_mm": 130,
+            "focos_calor": 5,
+            "hectareas_en_riesgo": 200
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 5,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "bajo",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 0,
+            "reduccion_hidroelectrica_pct": 0
+          }
+        }
+      },
+      {
+        "mes": "2026-02",
+        "nombre_mes": "Febrero",
+        "nivel_alerta_general": "verde",
+        "resumen": "Febrero 2026 — fase neutral. Déficit hídrico 22/100 (alerta verde); 8 focos de calor; 0 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 22,
+            "nivel_caudal_pct": 96,
+            "precipitacion_mm": 125,
+            "focos_calor": 8,
+            "hectareas_en_riesgo": 350
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 8,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "bajo",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 0,
+            "reduccion_hidroelectrica_pct": 0
+          }
+        }
+      },
+      {
+        "mes": "2026-03",
+        "nombre_mes": "Marzo",
+        "nivel_alerta_general": "verde",
+        "resumen": "Marzo 2026 — fase neutral. Déficit hídrico 28/100 (alerta verde); 14 focos de calor; 1 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 28,
+            "nivel_caudal_pct": 92,
+            "precipitacion_mm": 115,
+            "focos_calor": 14,
+            "hectareas_en_riesgo": 700
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 14,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "medio",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 1,
+            "reduccion_hidroelectrica_pct": 2
+          }
+        }
+      },
+      {
+        "mes": "2026-04",
+        "nombre_mes": "Abril",
+        "nivel_alerta_general": "amarillo",
+        "resumen": "Abril 2026 — fase neutral. Déficit hídrico 34/100 (alerta amarillo); 25 focos de calor; 3 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 34,
+            "nivel_caudal_pct": 86,
+            "precipitacion_mm": 100,
+            "focos_calor": 25,
+            "hectareas_en_riesgo": 1500
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 22,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 3,
+            "reduccion_hidroelectrica_pct": 5
+          }
+        }
+      },
+      {
+        "mes": "2026-05",
+        "nombre_mes": "Mayo",
+        "nivel_alerta_general": "amarillo",
+        "resumen": "Mayo 2026 — fase neutral. Déficit hídrico 42/100 (alerta amarillo); 40 focos de calor; 6 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 42,
+            "nivel_caudal_pct": 78,
+            "precipitacion_mm": 85,
+            "focos_calor": 40,
+            "hectareas_en_riesgo": 3200
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 32,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 6,
+            "reduccion_hidroelectrica_pct": 9
+          }
+        }
+      },
+      {
+        "mes": "2026-06",
+        "nombre_mes": "Junio",
+        "nivel_alerta_general": "naranja",
+        "resumen": "Junio 2026 — fase el nino debil. Déficit hídrico 52/100 (alerta naranja); 70 focos de calor; 10 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 52,
+            "nivel_caudal_pct": 70,
+            "precipitacion_mm": 70,
+            "focos_calor": 70,
+            "hectareas_en_riesgo": 5500
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 42,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "alto",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 10,
+            "reduccion_hidroelectrica_pct": 14
+          }
+        }
+      },
+      {
+        "mes": "2026-07",
+        "nombre_mes": "Julio",
+        "nivel_alerta_general": "naranja",
+        "resumen": "Julio 2026 — fase el nino debil. Déficit hídrico 63/100 (alerta naranja); 110 focos de calor; 15 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 63,
+            "nivel_caudal_pct": 62,
+            "precipitacion_mm": 55,
+            "focos_calor": 110,
+            "hectareas_en_riesgo": 8000
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 52,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 15,
+            "reduccion_hidroelectrica_pct": 19
+          }
+        }
+      },
+      {
+        "mes": "2026-08",
+        "nombre_mes": "Agosto",
+        "nivel_alerta_general": "rojo",
+        "resumen": "Agosto 2026 — fase el nino debil. Déficit hídrico 73/100 (alerta rojo); 150 focos de calor; 19 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 73,
+            "nivel_caudal_pct": 55,
+            "precipitacion_mm": 45,
+            "focos_calor": 150,
+            "hectareas_en_riesgo": 9500
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 60,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 19,
+            "reduccion_hidroelectrica_pct": 23
+          }
+        }
+      },
+      {
+        "mes": "2026-09",
+        "nombre_mes": "Septiembre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "Septiembre 2026 — fase el nino moderado. Déficit hídrico 82/100 (alerta rojo); 175 focos de calor; 22 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 82,
+            "nivel_caudal_pct": 50,
+            "precipitacion_mm": 38,
+            "focos_calor": 175,
+            "hectareas_en_riesgo": 10500
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 64,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 22,
+            "reduccion_hidroelectrica_pct": 25
+          }
+        }
+      },
+      {
+        "mes": "2026-10",
+        "nombre_mes": "Octubre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "Octubre 2026 — fase el nino moderado. Déficit hídrico 88/100 (alerta rojo); 185 focos de calor; 23 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 88,
+            "nivel_caudal_pct": 48,
+            "precipitacion_mm": 35,
+            "focos_calor": 185,
+            "hectareas_en_riesgo": 11000
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 66,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 23,
+            "reduccion_hidroelectrica_pct": 26
+          }
+        }
+      },
+      {
+        "mes": "2026-11",
+        "nombre_mes": "Noviembre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "Noviembre 2026 — fase el nino moderado. Déficit hídrico 84/100 (alerta rojo); 150 focos de calor; 20 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 84,
+            "nivel_caudal_pct": 52,
+            "precipitacion_mm": 42,
+            "focos_calor": 150,
+            "hectareas_en_riesgo": 8500
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 58,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "medio",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 20,
+            "reduccion_hidroelectrica_pct": 22
+          }
+        }
+      },
+      {
+        "mes": "2026-12",
+        "nombre_mes": "Diciembre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "Diciembre 2026 — fase el nino moderado. Déficit hídrico 72/100 (alerta rojo); 95 focos de calor; 14 acueductos en racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 72,
+            "nivel_caudal_pct": 60,
+            "precipitacion_mm": 60,
+            "focos_calor": 95,
+            "hectareas_en_riesgo": 5000
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 45,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 14,
+            "reduccion_hidroelectrica_pct": 15
+          }
+        }
+      }
+    ]
+  },
+  "leyenda_alertas": {
+    "verde": "Normal",
+    "amarillo": "Vigilancia",
+    "naranja": "Alerta",
+    "rojo": "Emergencia"
+  }
+}

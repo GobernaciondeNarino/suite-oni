@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1A5276" />
+  <title>El Niño 2026 — Globo de afectaciones · Nariño</title>
+  <meta name="description" content="Pieza educativa interactiva — Gobernación de Nariño, Secretaría TIC. Globo 3D del Fenómeno de El Niño 2026 y afectaciones para Nariño." />
+
+  <!-- Tipografía institucional Hind Madurai (Manual de identidad - Gobernación de Nariño) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Madurai:wght@300;400;500;600;700&family=Source+Sans+3:ital,wght@1,400&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./css/estilos.css" />
+
+  <!-- DECISIÓN: Three.js por importmap con módulos ES (sin build, compatible con Plesk estático). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- Chart.js 4.x por CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+
+  <!-- Capa de carga -->
+  <div class="cargando" id="capaCarga" aria-hidden="false">
+    <div class="cargando__spinner" aria-hidden="true"></div>
+    <p>Cargando escena y datos…</p>
+  </div>
+
+  <!-- Capa de error de carga -->
+  <div class="capa-error" id="capaError" hidden role="alert">
+    <div class="capa-error__caja">
+      <h2>No se pudieron cargar los datos</h2>
+      <p id="capaErrorMensaje">Verifique la conexión y la ruta del archivo <code>data/datos_globo_elnino_narino_2026.json</code>.</p>
+      <button type="button" id="botonReintentar" class="boton boton--primario">Reintentar</button>
+    </div>
+  </div>
+
+  <main class="contenido">
+
+    <!-- LÍNEA DE TIEMPO (barra superior — reemplaza el header) -->
+    <section class="timeline timeline--superior" aria-label="Línea de tiempo mensual 2026">
+      <div class="timeline__identidad">
+        <img
+          class="timeline__logo"
+          src="./assets/TIC.png"
+          alt="Gobernación de Nariño · Secretaría TIC, Innovación y Gobierno Abierto"
+          width="220" height="44"
+          loading="eager"
+          decoding="async"
+          onerror="this.style.display='none'"
+        />
+        <span class="timeline__separador" aria-hidden="true"></span>
+        <strong class="timeline__titulo">El Niño 2026 · Nariño</strong>
+        <span class="estado__chip" id="chipEstado" aria-live="polite">—</span>
+      </div>
+
+      <div class="timeline__controles">
+        <button type="button" class="boton boton--circular" id="btnAtras" title="Mes anterior" aria-label="Mes anterior">◀</button>
+        <button type="button" class="boton boton--circular boton--primario" id="btnPlay" title="Reproducir/Pausar" aria-label="Reproducir o pausar">▶</button>
+        <button type="button" class="boton boton--circular" id="btnAdelante" title="Mes siguiente" aria-label="Mes siguiente">▶</button>
+
+        <label class="timeline__velocidad">
+          Velocidad:
+          <select id="selectVelocidad" aria-label="Velocidad de reproducción">
+            <option value="2000">Lento</option>
+            <option value="1200" selected>Normal</option>
+            <option value="600">Rápido</option>
+          </select>
+        </label>
+
+        <!-- Menú "Capas" — toggles independientes para sparkline histórico
+             del slider y capa de foco de calor costero del globo. -->
+        <details class="timeline__capas" id="capasMenu">
+          <summary class="timeline__capas-summary" title="Activar / desactivar capas visuales">
+            Capas <span class="timeline__capas-chevron" aria-hidden="true">▾</span>
+          </summary>
+          <div class="timeline__capas-menu" role="group" aria-label="Capas visuales">
+            <label class="timeline__capas-opcion">
+              <input type="checkbox" id="capaHistoricoSlider" checked />
+              <span><strong>Histórico</strong> en línea de tiempo</span>
+            </label>
+            <label class="timeline__capas-opcion">
+              <input type="checkbox" id="capaFocoCalor" checked />
+              <span><strong>Foco de calor</strong> sobre el Pacífico <em>(ago–dic)</em></span>
+            </label>
+          </div>
+        </details>
+      </div>
+
+      <div class="timeline__slider">
+        <!-- Sparkline histórico de ONI (mini-curva debajo del slider) -->
+        <canvas class="timeline__sparkline" id="sparklineHistorico" aria-hidden="true"></canvas>
+        <!-- Divisor visual observado/proyectado (su 'left' se ajusta por JS) -->
+        <span class="timeline__divisor" id="timelineDivisor" aria-hidden="true"></span>
+        <input type="range" id="sliderMes" min="0" max="11" step="1" value="0" aria-label="Mes activo" />
+        <ul class="timeline__marcas" id="marcasMeses" aria-hidden="true"></ul>
+        <p class="timeline__leyenda" aria-hidden="true">
+          <span class="timeline__leyenda-item"><span class="timeline__leyenda-pip timeline__leyenda-pip--obs"></span>Observado</span>
+          <span class="timeline__leyenda-item"><span class="timeline__leyenda-pip timeline__leyenda-pip--proy"></span>Proyectado</span>
+          <span class="timeline__leyenda-item"><span class="timeline__leyenda-pip timeline__leyenda-pip--hist"></span>Histórico ENSO</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- ESCENA 3D -->
+    <section class="escena" aria-label="Globo terráqueo 3D">
+      <div id="escena3d" class="escena__lienzo" role="img" aria-label="Globo terráqueo con anomalía del Pacífico ecuatorial y marcador de Nariño"></div>
+
+      <!-- Controles flotantes sobre la escena -->
+      <div class="escena__controles" role="toolbar" aria-label="Controles de cámara y vista">
+        <button type="button" class="boton" data-camara="mecanismo" title="Vista del Pacífico ecuatorial — mecanismo del fenómeno">🌎 Mecanismo</button>
+        <button type="button" class="boton" data-camara="local" title="Vista de Colombia/Nariño — impacto local">📍 Impacto local</button>
+        <button type="button" class="boton" id="botonExplicativo" title="Cómo se genera El Niño paso a paso">📖 ¿Cómo se genera?</button>
+        <button type="button" class="boton" id="botonHistorico" title="Comparar con episodios pasados de El Niño">📊 Históricos</button>
+        <label class="boton boton--toggle" title="Reduce efectos para equipos modestos">
+          <input type="checkbox" id="toggleLigero" /> Modo ligero
+        </label>
+      </div>
+
+      <!-- Tooltip flotante de municipio -->
+      <div class="tooltip-municipio" id="tooltipMunicipio" hidden></div>
+
+      <!-- Cintillo de mes activo sobre la escena -->
+      <div class="cintillo" id="cintillo" aria-live="polite">
+        <strong id="cintilloMes">—</strong>
+        <span class="cintillo__separador">·</span>
+        <span>ONI: <strong id="cintilloOni">—</strong></span>
+        <span class="cintillo__separador">·</span>
+        <span>Probabilidad: <strong id="cintilloProb">—</strong></span>
+        <span class="cintillo__separador">·</span>
+        <span id="cintilloResumen">—</span>
+      </div>
+    </section>
+
+    <!-- PANELES: gráficos + prevención -->
+    <section class="paneles" aria-label="Información temática">
+
+      <div class="panel panel--graficos">
+        <nav class="pestanas" role="tablist" aria-label="Categorías temáticas">
+          <button class="pestana" role="tab" aria-selected="true" data-pestana="ambiental">🌱 Ambiental</button>
+          <button class="pestana" role="tab" aria-selected="false" data-pestana="agricola">🌾 Agrícola</button>
+          <button class="pestana" role="tab" aria-selected="false" data-pestana="salud">🏥 Salud</button>
+          <button class="pestana" role="tab" aria-selected="false" data-pestana="recursos">💧 Recursos</button>
+          <button class="pestana" role="tab" aria-selected="false" data-pestana="historico">📊 Histórico</button>
+        </nav>
+
+        <div class="pestana-contenido" id="pestanaAmbiental" role="tabpanel">
+          <div class="grid-graficos">
+            <div class="grafico-caja">
+              <h3>Déficit hídrico (0–100)</h3>
+              <canvas id="graficoDeficitHidrico"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Precipitación y nivel de caudal</h3>
+              <canvas id="graficoPrecipitacionCaudal"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Focos de calor y hectáreas en riesgo (mes activo)</h3>
+              <canvas id="graficoFocos"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Índice de severidad ambiental (compuesto)</h3>
+              <canvas id="graficoSeveridadAmbiental"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="pestana-contenido" id="pestanaAgricola" hidden role="tabpanel">
+          <div class="grid-graficos">
+            <div class="grafico-caja">
+              <h3>Área de cultivos en riesgo (%)</h3>
+              <canvas id="graficoCultivosRiesgo"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Variación mensual del riesgo agrícola</h3>
+              <canvas id="graficoVariacionAgricola"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Riesgo acumulado del año</h3>
+              <canvas id="graficoRiesgoAcumulado"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Cultivos críticos del mes</h3>
+              <ul id="listaCultivos" class="lista-etiquetas"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="pestana-contenido" id="pestanaSalud" hidden role="tabpanel">
+          <div class="grid-graficos">
+            <div class="grafico-caja">
+              <h3>Semáforo sanitario — mes activo</h3>
+              <div class="semaforo">
+                <div class="semaforo__item" id="semEda">
+                  <span class="semaforo__nombre">Presión EDA</span>
+                  <span class="semaforo__nivel">—</span>
+                </div>
+                <div class="semaforo__item" id="semIra">
+                  <span class="semaforo__nombre">Presión IRA</span>
+                  <span class="semaforo__nivel">—</span>
+                </div>
+                <div class="semaforo__item" id="semVect">
+                  <span class="semaforo__nombre">Alerta vectores</span>
+                  <span class="semaforo__nivel">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="grafico-caja">
+              <h3>Evolución sanitaria (mes a mes)</h3>
+              <canvas id="graficoSalud"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Riesgo sanitario agregado (anual)</h3>
+              <canvas id="graficoSaludAgregado"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Distribución actual de presión (mes activo)</h3>
+              <canvas id="graficoSaludRadar"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="pestana-contenido" id="pestanaRecursos" hidden role="tabpanel">
+          <div class="grid-graficos">
+            <div class="grafico-caja">
+              <h3>Acueductos en racionamiento (nº municipios)</h3>
+              <canvas id="graficoAcueductos"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Reducción hidroeléctrica (%)</h3>
+              <canvas id="graficoHidro"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Acueductos · acumulado anual</h3>
+              <canvas id="graficoAcueductosAcum"></canvas>
+            </div>
+            <div class="grafico-caja">
+              <h3>Reducción hidroeléctrica vs déficit hídrico</h3>
+              <canvas id="graficoHidroVsDeficit"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTÓRICO (nueva pestaña) -->
+        <div class="pestana-contenido" id="pestanaHistorico" hidden role="tabpanel">
+          <div class="historico-intro">
+            <p id="historicoSecuencia">Comparativo con episodios pasados de El Niño que afectaron a Nariño y Colombia.</p>
+          </div>
+          <div class="historico-tarjetas" id="historicoTarjetas">
+            <!-- Las tarjetas se construyen desde JS leyendo historico_enso_episodios.json -->
+          </div>
+          <div class="grafico-caja grafico-caja--ancho">
+            <h3>ONI pico — eventos comparados</h3>
+            <canvas id="graficoHistoricoONI"></canvas>
+          </div>
+          <p class="historico-fuente" id="historicoFuente"></p>
+        </div>
+      </div>
+
+      <!-- DECISIÓN: panel lateral con 3 zonas — (1) análisis dinámico por
+           pestaña activa, (2) nivel de alerta del mes activo, (3) recomendaciones
+           acordeón por sector + subregiones. El bloque de análisis cambia con
+           la pestaña; las recomendaciones cambian con el nivel de alerta. -->
+      <aside class="panel panel--prevencion" aria-label="Análisis y recomendaciones">
+
+        <!-- Bloque ANÁLISIS — acordeón cuya cabecera (título) expande/colapsa
+             todo el contenido. Cambia con la pestaña + mes activo. -->
+        <section class="analisis-pestana analisis-pestana--acordeon activo" id="analisisPestana" aria-live="polite">
+          <button type="button" class="analisis-pestana__cabecera" id="analisisCabecera" aria-expanded="true" aria-controls="analisisCuerpo">
+            <span class="analisis-pestana__titulo">
+              <span class="analisis-pestana__icono" id="analisisIcono" aria-hidden="true">🌱</span>
+              <span id="analisisTitulo">Análisis · Ambiental</span>
+            </span>
+            <span class="analisis-pestana__chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="analisis-pestana__cuerpo" id="analisisCuerpo">
+            <!-- Texto inyectado por JS según la pestaña + mes activos -->
+          </div>
+        </section>
+
+        <!-- Bloque RECOMENDACIONES — TODO el bloque es un acordeón
+             cuyo header (título) lo expande/colapsa. Los sub-sectores
+             internos (hídrico/agrícola/...) son bloques fijos visibles
+             cuando el acordeón está expandido. -->
+        <section class="recomendaciones recomendaciones--acordeon" id="recomendacionesAcordeon" aria-labelledby="recomendacionesTitulo">
+          <button type="button" class="recomendaciones__cabecera-principal" id="recomendacionesCabecera" aria-expanded="true" aria-controls="recomendacionesCuerpo">
+            <h3 class="recomendaciones__titulo" id="recomendacionesTitulo">Recomendaciones de prevención</h3>
+            <span class="recomendaciones__nivel-chip" id="nivelAlertaTexto">—</span>
+            <span class="recomendaciones__chevron-principal" aria-hidden="true">▾</span>
+          </button>
+          <div class="recomendaciones__cuerpo-principal" id="recomendacionesCuerpo">
+            <p class="recomendaciones__intro" id="prevencionIntro">—</p>
+            <div class="recomendaciones__sectores" id="prevencionContenido">
+              <!-- prevencion.js renderiza 5 bloques fijos (no acordeón) -->
+            </div>
+          </div>
+        </section>
+
+        <details class="prevencion__subregiones">
+          <summary>Riesgos por subregión</summary>
+          <ul id="listaSubregiones" class="lista-subregiones"></ul>
+        </details>
+      </aside>
+    </section>
+
+    <!-- Drawer histórico ENSO — comparación visual con episodios pasados -->
+    <aside class="drawer-explicativo drawer-historico" id="drawerHistorico" hidden aria-labelledby="historicoDrawerTitulo">
+      <div class="drawer-explicativo__cabecera drawer-explicativo__cabecera--azul">
+        <h2 id="historicoDrawerTitulo">Comparar con históricos</h2>
+        <button type="button" class="explicativo__cerrar" id="botonCerrarHistorico" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="drawer-explicativo__cuerpo">
+        <p class="explicativo__intro">
+          Selecciona un episodio para ejecutar su mecanismo físico sobre el globo.
+        </p>
+
+        <details class="historico-que-pasa" open>
+          <summary>¿Qué pasa en el globo al activar un episodio?</summary>
+          <ol class="historico-que-pasa__lista">
+            <li><b>El ONI sube</b> al valor pico del episodio (ej. 2.6 en 2015-16). Esto dispara automáticamente la física del fenómeno.</li>
+            <li><b>La anomalía SST del Pacífico</b> se intensifica (shader azul → amarillo → rojo según ONI).</li>
+            <li><b>Los vientos alisios se debilitan</b>: las flechas y partículas E→O frenan y se tornan azuladas.</li>
+            <li><b>Las nubes se desplazan al ESTE</b>, hacia Sudamérica (mecanismo Walker desplazado).</li>
+            <li><b>Aparece un flujo cálido W→E</b> sobre la región Niño-3.4 (lat ±5°, lng -170° a -120°), representando el desplazamiento real de aguas cálidas hacia las costas americanas.</li>
+            <li><b>Cuando el ONI ≥ 1.2</b> aparece un halo pulsante sobre el epicentro de la anomalía (Niño-3.4).</li>
+            <li><b>La curva de teleconexión Pacífico → Nariño</b> se activa y el marcador de Nariño cambia de color por nivel de alerta.</li>
+          </ol>
+          <p class="historico-que-pasa__nota">Color del flujo y del halo según categoría: <span class="hist-pip hist-pip--debil"></span>débil · <span class="hist-pip hist-pip--moderado"></span>moderado · <span class="hist-pip hist-pip--fuerte"></span>fuerte · <span class="hist-pip hist-pip--muy_fuerte"></span>muy fuerte.</p>
+        </details>
+
+        <div class="historico-drawer-tarjetas" id="historicoDrawerTarjetas">
+          <!-- Tarjetas construidas desde JS — click reproduce el mecanismo del episodio -->
+        </div>
+        <div class="historico-actual" id="historicoActual">
+          <strong>Evento 2026-27 (proyectado)</strong>
+          <span id="historicoActualResumen">—</span>
+        </div>
+      </div>
+      <div class="drawer-explicativo__pie">
+        <button type="button" class="boton boton--primario" id="botonResetHistorico">↻ Limpiar visualización</button>
+      </div>
+    </aside>
+
+    <!-- Modo explicativo — DRAWER LATERAL (no modal) -->
+    <aside class="drawer-explicativo" id="modalExplicativo" hidden aria-labelledby="explicativoTitulo">
+      <div class="drawer-explicativo__cabecera">
+        <h2 id="explicativoTitulo">¿Cómo se genera El Niño?</h2>
+        <button type="button" class="explicativo__cerrar" id="botonCerrarExplicativo" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="drawer-explicativo__progreso">
+        <div class="drawer-explicativo__barra" id="explicativoBarra" style="width: 20%"></div>
+      </div>
+      <div class="drawer-explicativo__cuerpo">
+        <p class="explicativo__intro" id="explicativoQueProduce">—</p>
+        <ol class="explicativo__pasos" id="explicativoPasos"></ol>
+      </div>
+      <div class="drawer-explicativo__pie">
+        <button type="button" class="boton" id="btnPasoAnterior">◀ Anterior</button>
+        <button type="button" class="boton boton--toggle" id="btnAutoPaso" title="Avance automático">
+          <span id="iconoAuto">▶</span> Auto
+        </button>
+        <span id="explicativoIndicador">1/5</span>
+        <button type="button" class="boton boton--primario" id="btnPasoSiguiente">Siguiente ▶</button>
+      </div>
+    </aside>
+
+  </main>
+
+  <footer class="pie" role="contentinfo">
+    <p class="pie__aviso" id="avisoNaturaleza">—</p>
+    <p class="pie__institucional">
+      Gobernación de Nariño · Secretaría TIC, Innovación y Gobierno Abierto · Plan de Contingencia ante El Niño (Ley 1523 de 2012)
+    </p>
+  </footer>
+
+  <!-- DECISIÓN: main.js como módulo ES para permitir imports de three. -->
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

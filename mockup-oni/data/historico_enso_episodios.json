@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "titulo": "Histórico de episodios de El Niño (ENSO) — referencia para Nariño/Colombia",
+    "version": "1.0",
+    "fecha_corte": "2026-06",
+    "descripcion": "Episodios clave de El Niño con ONI pico oficial e impactos cuantificados, para comparar el evento 2026-27 con la experiencia histórica.",
+    "umbrales_oni": {
+      "debil": "0.5 a 0.9",
+      "moderado": "1.0 a 1.4",
+      "fuerte": "1.5 a 1.9",
+      "muy_fuerte": ">=2.0",
+      "definicion_evento": "5 trimestres móviles consecutivos con ONI >= +0.5 °C en la región Niño-3.4"
+    },
+    "indice_referencia": "ONI (ERSSTv5, base 1991-2020). NOAA adoptó RONI como índice oficial desde feb-2026; bajo RONI algunos picos bajan de categoría (p.ej. 2023-24 fuerte->moderado).",
+    "fuentes": [
+      "NOAA-CPC tabla ONI_v5",
+      "NOAA Climate.gov",
+      "UNGRD",
+      "Min Ambiente",
+      "Min Vivienda",
+      "Decreto 0037 de 2024 (Presidencia)",
+      "El Tiempo (archivo)",
+      "IDEAM"
+    ]
+  },
+  "episodios": [
+    {
+      "periodo": "2015-2016",
+      "inicio": "2015-03",
+      "fin": "2016-05",
+      "duracion_meses": 15,
+      "oni_pico": 2.6,
+      "oni_pico_alt": 2.75,
+      "categoria": "muy_fuerte",
+      "contexto": "Uno de los tres El Niño 'muy fuertes' desde 1950 (junto a 1982-83 y 1997-98).",
+      "impactos_colombia": {
+        "hectareas_incendios": 188650,
+        "costo_billones_cop": 1.6,
+        "municipios_calamidad_agua": "más de 200",
+        "reduccion_lluvia_pct": "30-40",
+        "anomalia_temp_C": 2.5,
+        "municipios_racionamiento_2014_2016": 296,
+        "municipios_desabastecimiento": 237
+      },
+      "impactos_narino": {
+        "municipios_afectados": 34,
+        "hectareas_afectadas": 90000,
+        "perdidas_cop": "~0.5 billones",
+        "detalle": "Sandoná: 655 ha caña y 190 ha café quemadas, 10 viviendas; ríos Telembí y Patía en mínimos; racionamiento en Taminango, Arboleda, Ancuya, San Lorenzo, El Peñol, Policarpa, Túquerres, Albán."
+      }
+    },
+    {
+      "periodo": "2018-2019",
+      "inicio": "2018-10",
+      "fin": "2019-06",
+      "duracion_meses": 9,
+      "oni_pico": 0.9,
+      "categoria": "debil",
+      "contexto": "El Niño débil; respuesta coordinada vía CONPES 3947.",
+      "impactos_colombia": {
+        "deficit_precipitacion_pct_max": 80,
+        "alertas": "incendios en Orinoquía y Amazonía; heladas en Altiplano Cundiboyacense, Santander, Nariño, Cauca, Antioquia",
+        "instrumento": "CONPES 3947"
+      },
+      "impactos_narino": {
+        "detalle": "Riesgo de heladas en zona andina/altiplano; afectación a papa y pastos."
+      }
+    },
+    {
+      "periodo": "2023-2024",
+      "inicio": "2023-11",
+      "fin": "2024-05",
+      "duracion_meses": 7,
+      "oni_pico": 2.06,
+      "categoria": "fuerte",
+      "categoria_roni": "moderado",
+      "contexto": "Declarado oficialmente el 3-nov-2023; situación de desastre nacional (Decreto 0037 del 27-ene-2024).",
+      "impactos_colombia": {
+        "incendios_forestales": 323,
+        "hectareas_afectadas": 6723,
+        "municipios_desabastecimiento": 69,
+        "personas_afectadas": 44954,
+        "familias_afectadas": 16233,
+        "municipios_alerta_roja_incendios": 681,
+        "municipios_problemas_abastecimiento_posterior": "más de 270",
+        "corte": "3-nov-2023 a 24-ene-2024 (Decreto 0037)"
+      },
+      "impactos_narino": {
+        "incendios": "más de 250",
+        "hectareas_afectadas": 3100,
+        "municipios_afectados": 49,
+        "municipios_desabastecimiento": "al menos 6"
+      }
+    }
+  ],
+  "contexto_enso_reciente": {
+    "secuencia": "La Niña 2020-2023 -> El Niño fuerte 2023-24 -> neutral 2024 -> La Niña débil 2024-25 -> La Niña débil 2025-26 -> transición a El Niño 2026.",
+    "evento_actual": "El Niño 2026-27 en desarrollo; pico esperado OND 2026; intensidad fuerte a muy fuerte."
+  }
+}

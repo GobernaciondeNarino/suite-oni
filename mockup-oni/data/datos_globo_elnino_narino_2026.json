@@ -1,0 +1,815 @@
+{
+  "meta": {
+    "titulo": "El Niño 2026 — Globo de afectaciones · Nariño",
+    "version": "2.0",
+    "fecha_corte": "2026-06",
+    "naturaleza": "Datos OFICIALES verificados para el ONI (observado hasta abr-2026; proyectado por ensamble NOAA-CPC/IRI después). Las afectaciones en Nariño son un escenario de planeación derivado. Cada mes incluye 'tipo_dato' (observado|proyectado).",
+    "paleta": {
+      "azul": "#1A5276",
+      "dorado": "#E8A020",
+      "azul_oscuro": "#003087"
+    },
+    "fuentes": [
+      "NOAA Climate Prediction Center (ONI_v5 / RONI, abr-may 2026)",
+      "NOAA/IRI ENSO plume (Quick Look may 2026)",
+      "IDEAM — Informe de Predicción Climática (Guerrero & Ruiz, may 2026)",
+      "OMM/WMO y ECMWF/Copernicus (ensamble MME)",
+      "UNGRD / Min Ambiente / Min Vivienda (impactos históricos)"
+    ],
+    "ventana_temporal": "2026-01 a 2027-03",
+    "umbrales_oni": {
+      "debil": "0.5 a 0.9",
+      "moderado": "1.0 a 1.4",
+      "fuerte": "1.5 a 1.9",
+      "muy_fuerte": ">=2.0",
+      "definicion_evento": "5 trimestres móviles consecutivos con ONI >= +0.5 °C en la región Niño-3.4"
+    }
+  },
+  "fenomeno": {
+    "nombre": "Fenómeno de El Niño (fase cálida del ENSO/ENOS)",
+    "estado_actual": "Transición ENSO-neutral hacia El Niño; 'Vigilancia de El Niño' (NOAA), junio 2026.",
+    "intensidad_prevista": "Fuerte a muy fuerte (pico OND 2026; incertidumbre real en la magnitud).",
+    "probabilidad_resumen": "82% (may-jul 2026) y 96% (dic 2026-feb 2027) según NOAA-CPC e IDEAM."
+  },
+  "mecanismo": {
+    "que_lo_produce": "El Niño es la fase cálida del ciclo ENSO: un calentamiento anómalo y sostenido de las aguas superficiales del océano Pacífico ecuatorial centro-oriental, acompañado del debilitamiento de los vientos alisios que normalmente empujan el agua cálida hacia el oeste.",
+    "como_se_genera": [
+      {
+        "paso": 1,
+        "titulo": "Estado normal",
+        "texto": "Los vientos alisios soplan de este a oeste y acumulan agua cálida en el Pacífico occidental; en el oriente aflora agua fría (surgencia)."
+      },
+      {
+        "paso": 2,
+        "titulo": "Debilitamiento de alisios",
+        "texto": "Los vientos alisios se debilitan o invierten, reduciendo la surgencia de agua fría en el Pacífico oriental."
+      },
+      {
+        "paso": 3,
+        "titulo": "Calentamiento del Pacífico",
+        "texto": "El agua cálida se desplaza hacia el este; la temperatura superficial del mar sube por encima del promedio (anomalía positiva en la región Niño-3.4)."
+      },
+      {
+        "paso": 4,
+        "titulo": "Cambio atmosférico",
+        "texto": "Se altera la circulación atmosférica (celda de Walker), desplazando las zonas de lluvia."
+      },
+      {
+        "paso": 5,
+        "titulo": "Efecto en Colombia/Nariño",
+        "texto": "Disminuyen las lluvias y suben las temperaturas, generando déficit hídrico, mayor riesgo de incendios y presión sobre agricultura y salud."
+      }
+    ],
+    "indicadores": [
+      "Índice Niño-3.4",
+      "Índice Oceánico de El Niño (ONI)"
+    ]
+  },
+  "global": {
+    "meses": [
+      {
+        "mes": "2026-01",
+        "nombre_mes": "Enero",
+        "oni": -0.4,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 5,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales.",
+        "tipo_dato": "observado",
+        "oni_banda_min": -0.5,
+        "oni_banda_max": -0.3,
+        "fuente_oni": "NOAA ONI DJF / IRI OISSTv2"
+      },
+      {
+        "mes": "2026-02",
+        "nombre_mes": "Febrero",
+        "oni": -0.25,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 10,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales.",
+        "tipo_dato": "observado",
+        "oni_banda_min": -0.35,
+        "oni_banda_max": -0.15,
+        "fuente_oni": "IRI OISSTv2 JFM"
+      },
+      {
+        "mes": "2026-03",
+        "nombre_mes": "Marzo",
+        "oni": 0,
+        "fase": "neutral",
+        "probabilidad_el_nino_pct": 20,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales.",
+        "tipo_dato": "observado",
+        "oni_banda_min": -0.1,
+        "oni_banda_max": 0.1,
+        "fuente_oni": "IRI OISSTv2 FMA"
+      },
+      {
+        "mes": "2026-04",
+        "nombre_mes": "Abril",
+        "oni": 0.47,
+        "fase": "neutral_calido",
+        "probabilidad_el_nino_pct": 40,
+        "anomalia_pacifico_descripcion": "Pacífico ecuatorial en condiciones neutrales.",
+        "tipo_dato": "observado",
+        "oni_banda_min": 0.3,
+        "oni_banda_max": 0.6,
+        "fuente_oni": "IRI OISSTv2 (mensual abr)"
+      },
+      {
+        "mes": "2026-05",
+        "nombre_mes": "Mayo",
+        "oni": 0.7,
+        "fase": "el_nino_umbral",
+        "probabilidad_el_nino_pct": 60,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "observado",
+        "oni_banda_min": 0.5,
+        "oni_banda_max": 0.9,
+        "fuente_oni": "IRI semanal ~+0.9 (13-may)"
+      },
+      {
+        "mes": "2026-06",
+        "nombre_mes": "Junio",
+        "oni": 1,
+        "fase": "el_nino_debil",
+        "probabilidad_el_nino_pct": 82,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 0.7,
+        "oni_banda_max": 1.4,
+        "fuente_oni": "Ensamble CPC/IRI + IDEAM"
+      },
+      {
+        "mes": "2026-07",
+        "nombre_mes": "Julio",
+        "oni": 1.3,
+        "fase": "el_nino_moderado",
+        "probabilidad_el_nino_pct": 88,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 0.9,
+        "oni_banda_max": 1.9,
+        "fuente_oni": "Ensamble CPC/IRI"
+      },
+      {
+        "mes": "2026-08",
+        "nombre_mes": "Agosto",
+        "oni": 1.6,
+        "fase": "el_nino_fuerte",
+        "probabilidad_el_nino_pct": 90,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 1.1,
+        "oni_banda_max": 2.4,
+        "fuente_oni": "Ensamble CPC/IRI / OMM"
+      },
+      {
+        "mes": "2026-09",
+        "nombre_mes": "Septiembre",
+        "oni": 1.9,
+        "fase": "el_nino_fuerte",
+        "probabilidad_el_nino_pct": 92,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 1.3,
+        "oni_banda_max": 2.9,
+        "fuente_oni": "Ensamble CPC/IRI / OMM"
+      },
+      {
+        "mes": "2026-10",
+        "nombre_mes": "Octubre",
+        "oni": 2.1,
+        "fase": "el_nino_muy_fuerte",
+        "probabilidad_el_nino_pct": 93,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 1.4,
+        "oni_banda_max": 3.3,
+        "fuente_oni": "Ensamble OMM/ECMWF (pico)"
+      },
+      {
+        "mes": "2026-11",
+        "nombre_mes": "Noviembre",
+        "oni": 2.1,
+        "fase": "el_nino_muy_fuerte",
+        "probabilidad_el_nino_pct": 93,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 1.4,
+        "oni_banda_max": 3.2,
+        "fuente_oni": "Ensamble CPC/IRI (pico)"
+      },
+      {
+        "mes": "2026-12",
+        "nombre_mes": "Diciembre",
+        "oni": 2,
+        "fase": "el_nino_muy_fuerte",
+        "probabilidad_el_nino_pct": 96,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 1.3,
+        "oni_banda_max": 3,
+        "fuente_oni": "CPC 96% DEF"
+      },
+      {
+        "mes": "2027-01",
+        "nombre_mes": "Enero",
+        "oni": 1.7,
+        "fase": "el_nino_fuerte",
+        "probabilidad_el_nino_pct": 96,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 1,
+        "oni_banda_max": 2.6,
+        "fuente_oni": "Ensamble CPC/IRI"
+      },
+      {
+        "mes": "2027-02",
+        "nombre_mes": "Febrero",
+        "oni": 1.3,
+        "fase": "el_nino_moderado",
+        "probabilidad_el_nino_pct": 90,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 0.7,
+        "oni_banda_max": 2.1,
+        "fuente_oni": "Ensamble CPC/IRI (declive)"
+      },
+      {
+        "mes": "2027-03",
+        "nombre_mes": "Marzo",
+        "oni": 0.9,
+        "fase": "el_nino_debil",
+        "probabilidad_el_nino_pct": 75,
+        "anomalia_pacifico_descripcion": "Calentamiento anómalo del Pacífico ecuatorial centro-oriental; debilitamiento de los vientos alisios.",
+        "tipo_dato": "proyectado",
+        "oni_banda_min": 0.4,
+        "oni_banda_max": 1.6,
+        "fuente_oni": "Ensamble CPC/IRI (declive)"
+      }
+    ]
+  },
+  "narino": {
+    "subregiones": [
+      {
+        "id": "andina",
+        "nombre": "Zona andina (Pasto y entorno)",
+        "riesgos": [
+          "déficit hídrico en acueductos rurales",
+          "afectación a papa y leche",
+          "heladas"
+        ]
+      },
+      {
+        "id": "pacifico",
+        "nombre": "Pacífico (Tumaco, costa, Barbacoas)",
+        "riesgos": [
+          "incendios en zonas de transición",
+          "afectación a pesca",
+          "agua dulce"
+        ]
+      },
+      {
+        "id": "cordillera_paramos",
+        "nombre": "Cordillera y páramos",
+        "riesgos": [
+          "incendios de cobertura vegetal",
+          "estrés en fuentes hídricas"
+        ]
+      }
+    ],
+    "meses": [
+      {
+        "mes": "2026-01",
+        "nombre_mes": "Enero",
+        "nivel_alerta_general": "verde",
+        "resumen": "Condiciones normales en el Pacífico. Los alisios soplan con fuerza de este a oeste. Nariño inicia el año sin anomalías significativas; 4 acueductos rurales en racionamiento preventivo.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 18,
+            "nivel_caudal_pct": 91,
+            "precipitacion_mm": 143,
+            "focos_calor": 33,
+            "hectareas_en_riesgo": 1980
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 12,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "bajo",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 4,
+            "reduccion_hidroelectrica_pct": 5
+          }
+        },
+        "tipo_dato": "observado",
+        "oni": -0.4
+      },
+      {
+        "mes": "2026-02",
+        "nombre_mes": "Febrero",
+        "nivel_alerta_general": "verde",
+        "resumen": "El Pacífico ecuatorial se mantiene neutro. Leve aumento del déficit hídrico estacional. Sin señales de alerta climática activa para Nariño; 5 municipios con racionamiento.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 22,
+            "nivel_caudal_pct": 89,
+            "precipitacion_mm": 139,
+            "focos_calor": 41,
+            "hectareas_en_riesgo": 2420
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 15,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "bajo",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 5,
+            "reduccion_hidroelectrica_pct": 6
+          }
+        },
+        "tipo_dato": "observado",
+        "oni": -0.25
+      },
+      {
+        "mes": "2026-03",
+        "nombre_mes": "Marzo",
+        "nivel_alerta_general": "verde",
+        "resumen": "Temperatura del Pacífico exactamente en el promedio histórico. Primer umbral estacional de sequía en zonas andinas; monitoreo de focos de calor activado con 52 registros.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 28,
+            "nivel_caudal_pct": 85,
+            "precipitacion_mm": 133,
+            "focos_calor": 52,
+            "hectareas_en_riesgo": 3080
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 18,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "medio",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 6,
+            "reduccion_hidroelectrica_pct": 7
+          }
+        },
+        "tipo_dato": "observado",
+        "oni": 0
+      },
+      {
+        "mes": "2026-04",
+        "nombre_mes": "Abril",
+        "nivel_alerta_general": "amarillo",
+        "resumen": "El Pacífico comienza a calentarse. Los alisios pierden intensidad levemente. Nariño activa vigilancia amarilla: déficit hídrico sube al 34 %, 63 focos de calor activos y 8 municipios con racionamiento de agua.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 34,
+            "nivel_caudal_pct": 82,
+            "precipitacion_mm": 127,
+            "focos_calor": 63,
+            "hectareas_en_riesgo": 3740
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 22,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 8,
+            "reduccion_hidroelectrica_pct": 9
+          }
+        },
+        "tipo_dato": "observado",
+        "oni": 0.47
+      },
+      {
+        "mes": "2026-05",
+        "nombre_mes": "Mayo",
+        "nivel_alerta_general": "amarillo",
+        "resumen": "Se supera el umbral de El Niño (+0.5 °C). Los alisios se debilitan notablemente. La teleconexión Pacífico–Nariño empieza a ser visible: aumento de temperatura, reducción de lluvias (120 mm) y 78 focos de calor activos.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 42,
+            "nivel_caudal_pct": 78,
+            "precipitacion_mm": 120,
+            "focos_calor": 78,
+            "hectareas_en_riesgo": 4620
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 28,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 10,
+            "reduccion_hidroelectrica_pct": 11
+          }
+        },
+        "tipo_dato": "observado",
+        "oni": 0.7
+      },
+      {
+        "mes": "2026-06",
+        "nombre_mes": "Junio",
+        "nivel_alerta_general": "naranja",
+        "resumen": "El Niño débil confirmado. El Pacífico oriental supera 1 °C sobre el promedio. Nariño entra en alerta naranja: déficit hídrico 52/100, 96 focos de calor activos y 12 municipios en racionamiento. Se activan planes de contingencia hídrica.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 52,
+            "nivel_caudal_pct": 73,
+            "precipitacion_mm": 110,
+            "focos_calor": 96,
+            "hectareas_en_riesgo": 5720
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 34,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "alto",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 12,
+            "reduccion_hidroelectrica_pct": 14
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 1
+      },
+      {
+        "mes": "2026-07",
+        "nombre_mes": "Julio",
+        "nivel_alerta_general": "naranja",
+        "resumen": "El Niño moderado en desarrollo. Los alisios están casi detenidos; el agua cálida avanza hacia el este. Nariño: 63/100 de déficit hídrico, 117 focos de calor, 14 municipios sin agua suficiente. Riesgo agrícola sube al 42 % del área cultivada.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 63,
+            "nivel_caudal_pct": 67,
+            "precipitacion_mm": 100,
+            "focos_calor": 117,
+            "hectareas_en_riesgo": 6930
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 42,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 14,
+            "reduccion_hidroelectrica_pct": 16
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 1.3
+      },
+      {
+        "mes": "2026-08",
+        "nombre_mes": "Agosto",
+        "nivel_alerta_general": "rojo",
+        "resumen": "El Niño fuerte. Vientos alisios prácticamente detenidos sobre el Pacífico ecuatorial. Nariño en emergencia roja: déficit hídrico 73/100, 135 focos de calor activos, 17 municipios en racionamiento y alta presión sobre sistemas de salud. Se requiere activación del CMGRD.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 73,
+            "nivel_caudal_pct": 62,
+            "precipitacion_mm": 90,
+            "focos_calor": 135,
+            "hectareas_en_riesgo": 8030
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 48,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 17,
+            "reduccion_hidroelectrica_pct": 19
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 1.6
+      },
+      {
+        "mes": "2026-09",
+        "nombre_mes": "Septiembre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "El Niño fuerte en su etapa de aceleración. La anomalía de temperatura en el Pacífico alcanza +1.9 °C. Nariño: 82/100 déficit hídrico, 152 focos de calor, 19 municipios sin agua. Incendios forestales en escalada crítica; alerta vectores activa.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 82,
+            "nivel_caudal_pct": 57,
+            "precipitacion_mm": 81,
+            "focos_calor": 152,
+            "hectareas_en_riesgo": 9020
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 54,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 19,
+            "reduccion_hidroelectrica_pct": 21
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 1.9
+      },
+      {
+        "mes": "2026-10",
+        "nombre_mes": "Octubre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "PICO del evento. El Niño muy fuerte: +2.1 °C en el Pacífico ecuatorial. Nariño en emergencia máxima: 88/100 déficit hídrico, 163 focos de calor, 20 municipios sin agua y 58 % del área agrícola en riesgo. Comparable al El Niño 2015-16 en impacto local.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 88,
+            "nivel_caudal_pct": 54,
+            "precipitacion_mm": 76,
+            "focos_calor": 163,
+            "hectareas_en_riesgo": 9680
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 58,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "alto",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 20,
+            "reduccion_hidroelectrica_pct": 23
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 2.1
+      },
+      {
+        "mes": "2026-11",
+        "nombre_mes": "Noviembre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "El evento se mantiene en su pico. Segunda lectura consecutiva de ONI +2.1 °C: se confirma El Niño muy fuerte. En Nariño: 84/100 déficit hídrico, 155 focos de calor activos y alerta vectores en nivel alto. Temporada seca extendida.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 84,
+            "nivel_caudal_pct": 56,
+            "precipitacion_mm": 79,
+            "focos_calor": 155,
+            "hectareas_en_riesgo": 9240
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 55,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "alto",
+            "presion_ira": "medio",
+            "alerta_vectores": "alto"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 19,
+            "reduccion_hidroelectrica_pct": 22
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 2.1
+      },
+      {
+        "mes": "2026-12",
+        "nombre_mes": "Diciembre",
+        "nivel_alerta_general": "rojo",
+        "resumen": "Inicio del declive. El ONI baja levemente a +2.0 °C, pero los impactos aún son críticos. Nariño: 72/100 déficit hídrico y 133 focos de calor. La probabilidad acumulada de El Niño llega al 96 % según NOAA-CPC. Se proyecta recuperación gradual en 2027.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 72,
+            "nivel_caudal_pct": 63,
+            "precipitacion_mm": 91,
+            "focos_calor": 133,
+            "hectareas_en_riesgo": 7920
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 48,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 17,
+            "reduccion_hidroelectrica_pct": 19
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 2
+      },
+      {
+        "mes": "2027-01",
+        "nombre_mes": "Enero",
+        "nivel_alerta_general": "naranja",
+        "resumen": "Declive del evento en curso. El Pacífico se enfría gradualmente. Nariño desciende a alerta naranja: 60/100 déficit hídrico, 111 focos de calor y 14 municipios aún en racionamiento. Se inicia recuperación de caudales.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 60,
+            "nivel_caudal_pct": 69,
+            "precipitacion_mm": 102,
+            "focos_calor": 111,
+            "hectareas_en_riesgo": 6600
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 40,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "medio",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 14,
+            "reduccion_hidroelectrica_pct": 16
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 1.7
+      },
+      {
+        "mes": "2027-02",
+        "nombre_mes": "Febrero",
+        "nivel_alerta_general": "amarillo",
+        "resumen": "Descenso a El Niño moderado. Los alisios se recuperan. Nariño baja a alerta amarilla: 50/100 déficit hídrico, 92 focos de calor y 12 municipios en racionamiento. Se recomienda mantener medidas de ahorro hídrico.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 50,
+            "nivel_caudal_pct": 74,
+            "precipitacion_mm": 112,
+            "focos_calor": 92,
+            "hectareas_en_riesgo": 5500
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 33,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "medio",
+            "presion_ira": "bajo",
+            "alerta_vectores": "medio"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 12,
+            "reduccion_hidroelectrica_pct": 13
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 1.3
+      },
+      {
+        "mes": "2027-03",
+        "nombre_mes": "Marzo",
+        "nivel_alerta_general": "amarillo",
+        "resumen": "El evento se debilita a El Niño débil. Los alisios recuperan actividad normal. Nariño: 42/100 déficit hídrico, 78 focos de calor y 10 municipios en racionamiento. Se proyecta retorno a condiciones neutrales para el segundo semestre de 2027.",
+        "indicadores": {
+          "ambiental": {
+            "deficit_hidrico": 42,
+            "nivel_caudal_pct": 78,
+            "precipitacion_mm": 120,
+            "focos_calor": 78,
+            "hectareas_en_riesgo": 4620
+          },
+          "agricola": {
+            "area_cultivos_en_riesgo_pct": 28,
+            "cultivos_criticos": [
+              "papa",
+              "café",
+              "cacao",
+              "pastos/leche"
+            ]
+          },
+          "salud": {
+            "presion_eda": "bajo",
+            "presion_ira": "bajo",
+            "alerta_vectores": "bajo"
+          },
+          "recursos": {
+            "acueductos_en_racionamiento": 10,
+            "reduccion_hidroelectrica_pct": 11
+          }
+        },
+        "tipo_dato": "proyectado",
+        "oni": 0.9
+      }
+    ]
+  },
+  "leyenda_alertas": {
+    "verde": "Normal",
+    "amarillo": "Vigilancia",
+    "naranja": "Alerta",
+    "rojo": "Emergencia"
+  }
+}
