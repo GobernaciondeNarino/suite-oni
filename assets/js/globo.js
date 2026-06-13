@@ -61,6 +61,14 @@ function triangularFan(verts) {
   for (var i = 1; i < verts.length - 1; i++) { idx.push(0, i, i + 1); }
   return idx;
 }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function titulo(s) {
+  return String(s || '').toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
 
 function esLigero() {
   return CFG.calidad === 'baja' ||
@@ -412,6 +420,9 @@ class GloboMAN {
     if (!CFG.geojson) { return; }
     this.mapaGrupo = new THREE.Group();
     this.escena.add(this.mapaGrupo);
+    this._mapaMeshes = [];
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
 
     var serieRiesgo = {};
     var pintar = function () {
@@ -422,6 +433,7 @@ class GloboMAN {
           var nombre = props.MPIO_CNMBR || props.nombre || 'Municipio';
           var matR = new THREE.MeshBasicMaterial({ color: 0x2e7d32, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
           var matB = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+          var muni = { divipola: divipola, nombre: nombre, matR: matR, matB: matB, serie: serieRiesgo[divipola] || null };
           var gMun = new THREE.Group();
           featurePoligonos(feat).forEach(function (anillos) {
             var av = anillosAVectores(anillos, 1.013);
@@ -433,13 +445,17 @@ class GloboMAN {
             geoR.setAttribute('position', new THREE.BufferAttribute(p, 3));
             geoR.setIndex(triangularFan(ext));
             geoR.computeVertexNormals();
-            gMun.add(new THREE.Mesh(geoR, matR));
+            var meshR = new THREE.Mesh(geoR, matR);
+            meshR.userData.muni = muni;
+            gMun.add(meshR);
+            self._mapaMeshes.push(meshR);
             gMun.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ext.concat([ext[0]])), matB));
           });
           self.mapaGrupo.add(gMun);
-          self._mapaMuns.push({ divipola: divipola, nombre: nombre, matR: matR, matB: matB, serie: serieRiesgo[divipola] || null });
+          self._mapaMuns.push(muni);
         });
         self._mapaMes(self.estado.mes || CFG.mesActual);
+        self._registrarHoverMapa();
       }).catch(function () { /* sin mapa: el resto del globo sigue */ });
     };
 
@@ -449,6 +465,61 @@ class GloboMAN {
         pintar();
       }).catch(pintar);
     } else { pintar(); }
+  }
+
+  // Hover sobre el mapa: tooltip con municipio + riesgo del mes activo (raycaster).
+  _registrarHoverMapa() {
+    if (this._hoverListo) { return; }
+    this._hoverListo = true;
+    var self = this;
+    var dom = this.renderer.domElement;
+    this.tip = document.createElement('div');
+    this.tip.className = 'man-globo__tip';
+    this.tip.hidden = true;
+    this.cont.appendChild(this.tip);
+
+    var onMove = function (e) {
+      if (!self._mapaMeshes.length) { return; }
+      var rect = dom.getBoundingClientRect();
+      self.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      self.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      self.raycaster.setFromCamera(self.mouse, self.camara);
+      var hits = self.raycaster.intersectObjects(self._mapaMeshes, false);
+      if (hits.length && hits[0].object.userData.muni) {
+        self._tooltipMuni(e, hits[0].object.userData.muni);
+        dom.style.cursor = 'pointer';
+      } else {
+        self.tip.hidden = true; dom.style.cursor = '';
+      }
+    };
+    dom.addEventListener('pointermove', onMove);
+    dom.addEventListener('pointerleave', function () { self.tip.hidden = true; dom.style.cursor = ''; });
+  }
+
+  _tooltipMuni(e, muni) {
+    var rect = this.cont.getBoundingClientRect();
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    var html = '<strong>' + esc(titulo(muni.nombre)) + '</strong>';
+    var reg = null;
+    if (muni.serie && muni.serie.serie) {
+      var s = muni.serie.serie;
+      for (var i = 0; i < s.length; i++) { if (s[i].mes === this.estado.mes) { reg = s[i]; break; } }
+      if (!reg && s.length) { reg = s[s.length - 1]; }
+    }
+    if (reg) {
+      html += '<span class="tt-nivel" style="background:' + esc(reg.color) + '">RIESGO ' + Math.round(reg.riesgo * 100) + '/100</span>';
+      html += '<span class="tt-linea">' + esc(this._mesTxt(reg.mes)) + ' · DIVIPOLA ' + esc(muni.divipola) + '</span>';
+    } else {
+      html += '<span class="tt-linea">DIVIPOLA ' + esc(muni.divipola) + '</span>';
+    }
+    this.tip.innerHTML = html;
+    this.tip.hidden = false;
+    var w = this.tip.offsetWidth || 180, half = w / 2;
+    if (x - half < 6) { x = half + 6; }
+    if (x + half > rect.width - 6) { x = rect.width - half - 6; }
+    this.tip.style.transform = (y - (this.tip.offsetHeight || 70) - 14 < 0) ? 'translate(-50%, 16px)' : 'translate(-50%, calc(-100% - 12px))';
+    this.tip.style.left = x + 'px';
+    this.tip.style.top = y + 'px';
   }
 
   // Recolorea los municipios para el mes activo.
