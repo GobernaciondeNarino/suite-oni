@@ -29,6 +29,7 @@ Sin proceso de build: D3, D3plus, Leaflet y Three.js se cargan por CDN.
 | `[man_mapa]` | Coroplético de los 64 municipios + panel al clic | `variable`, `mes` |
 | `[man_globo]` | Globo 3D cinematográfico (Three.js) | `calidad`, `autorotar` |
 | `[man_timeline]` | Slider de meses ONI que controla el globo | `inicio`, `fin` |
+| `[man_prediccion]` | **Predicción del ONI hasta feb-2027** (línea + banda de incertidumbre + umbrales de fase + probabilidad por trimestre + texto predictivo). Modelo propio del plugin contrastado con el ensamble NOAA/IRI | `hasta`, `modelo`, `probabilidad` |
 | `[man_datos]` | Botón de datos abiertos (JSON/CSV/Ver API) | `recurso`, `municipio`, `mes`, `texto` |
 | `[man_historico]` | Episodios ENSO 2015–2024 (barras ONI pico + tarjetas) | `desde`, `hasta` |
 | `[man_mar]` | Oleaje Pacífico (Open-Meteo Marine) + nivel del mar (IOC) | `estacion` |
@@ -44,8 +45,21 @@ Sin proceso de build: D3, D3plus, Leaflet y Three.js se cargan por CDN.
 [man_pronostico municipio="52001" dias="14"]
 [man_mapa variable="riesgo" mes="2026-10"]
 [man_globo calidad="alta"] [man_timeline]
+[man_prediccion hasta="2027-02"]
+[man_prediccion hasta="2027-02" modelo="no" probabilidad="si"]
 [man_datos recurso="municipios" texto="Descarga el riesgo por municipio"]
+[man_datos recurso="prediccion" texto="Descarga la predicción del ONI"]
 ```
+
+### Predicción y métodos predictivos
+`[man_prediccion]` no lee una curva fija: el plugin **calcula** la trayectoria del
+ONI con un modelo de **tendencia lineal amortiguada (Holt) por mínimos cuadrados**
+sobre la cola observada, con **reversión a la media** climatológica y **banda de
+incertidumbre creciente** con el horizonte (ampliada en la primavera boreal). La
+**probabilidad de fase** se obtiene integrando una gaussiana sobre los umbrales
+NOAA ±0,5 °C. Todo se contrasta con el **ensamble oficial NOAA-CPC/IRI** y se
+comunica siempre la incertidumbre (no son certezas). Lógica auditable en
+`includes/analysis/class-man-forecast.php` y `class-man-texto.php`.
 
 ### Apariencia minimalista y overrides por atributo
 Por defecto todo es **transparente y sin bordes/sombras/franjas**. Ajusta el aspecto global en **Monitor Ambiental → Apariencia**, o por shortcode:
@@ -64,12 +78,13 @@ Pensada para ciudadanía, estudiantes e investigadores. Licencia **CC BY 4.0**.
 ```
 GET /wp-json/man/v1/abierto/municipios?mes=2026-10&formato=json
 GET /wp-json/man/v1/abierto/oni?formato=csv
+GET /wp-json/man/v1/abierto/prediccion?hasta=2027-02&formato=json
 GET /wp-json/man/v1/abierto/52001?formato=json
 ```
 
-El shortcode `[man_datos]` genera los botones de **Descargar JSON**, **Descargar CSV**, **Ver API** y **Copiar URL**.
+El shortcode `[man_datos]` genera los botones de **Descargar JSON**, **Descargar CSV**, **Ver API** y **Copiar URL** (recursos: `municipios`, `oni`, `prediccion`, `municipio`).
 
-REST interna (para el front): `/wp-json/man/v1/municipio/{divipola}`, `/departamento`, `/oni`, `/estado-apis`.
+REST interna (para el front): `/wp-json/man/v1/municipio/{divipola}`, `/departamento`, `/oni`, `/prediccion`, `/historico`, `/estado-apis`.
 
 ---
 

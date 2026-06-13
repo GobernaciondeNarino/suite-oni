@@ -1,6 +1,6 @@
 <?php
 /**
- * Registro y render de los 6 shortcodes del núcleo.
+ * Registro y render de los shortcodes del núcleo (componentes independientes).
  *
  * Contrato común (Sección 4.1): esqueleto inmediato, carga asíncrona, texto
  * de análisis, error elegante con reintento y atribución de fuentes. El
@@ -40,6 +40,7 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_timeline', array( $this, 'sc_timeline' ) );
 		add_shortcode( 'man_datos', array( $this, 'sc_datos' ) );
 		add_shortcode( 'man_historico', array( $this, 'sc_historico' ) );
+		add_shortcode( 'man_prediccion', array( $this, 'sc_prediccion' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
@@ -73,6 +74,7 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-datos', MAN_URL . 'assets/js/datos.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-timeline', MAN_URL . 'assets/js/timeline.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-historico', MAN_URL . 'assets/js/historico.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
+		wp_register_script( 'man-prediccion', MAN_URL . 'assets/js/prediccion.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
@@ -291,6 +293,9 @@ final class MAN_Shortcodes {
 		if ( 'oni' === $recurso ) {
 			$ruta   = 'man/v1/abierto/oni';
 			$titulo = 'Serie del índice ONI';
+		} elseif ( 'prediccion' === $recurso ) {
+			$ruta   = 'man/v1/abierto/prediccion';
+			$titulo = 'Predicción del ONI (observado + ensamble + modelo)';
 		} elseif ( 'municipio' === $recurso ) {
 			$div    = MAN_Security::sanitizar_divipola( $atts['municipio'] );
 			$div    = ( 'departamento' === $div ) ? '52001' : $div;
@@ -339,6 +344,46 @@ final class MAN_Shortcodes {
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-historico>
 			<?php echo $this->skeleton( 'Cargando históricos ENSO…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'NOAA/CPC · IDEAM (episodios ENSO)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_prediccion] — Predicción de la trayectoria del ONI hasta el mes
+	 * objetivo (por defecto febrero de 2027): gráfica animada con banda de
+	 * incertidumbre, umbrales de fase, probabilidades por trimestre y texto
+	 * predictivo. Componente independiente y maquetable por separado.
+	 */
+	public function sc_prediccion( $atts ) {
+		$atts = $this->fusionar( array(
+			'hasta'        => '2027-02',
+			'modelo'       => 'si',   // muestra la línea del modelo propio del plugin.
+			'probabilidad' => 'si',   // muestra las barras de probabilidad por trimestre.
+		), $atts, 'man_prediccion' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-prediccion' );
+
+		$id    = $this->id();
+		$hasta = MAN_Security::sanitizar_mes( $atts['hasta'] );
+		// sanitizar_mes cae al mes actual si el valor es inválido; forzamos un
+		// objetivo futuro razonable por defecto.
+		if ( $hasta <= gmdate( 'Y-m' ) ) {
+			$hasta = '2027-02';
+		}
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-prediccion"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-prediccion
+			data-hasta="<?php echo esc_attr( $hasta ); ?>"
+			data-modelo="<?php echo esc_attr( 'no' === $atts['modelo'] ? 'no' : 'si' ); ?>"
+			data-probabilidad="<?php echo esc_attr( 'no' === $atts['probabilidad'] ? 'no' : 'si' ); ?>">
+			<?php echo $this->skeleton( 'Calculando la predicción del fenómeno…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'NOAA/CPC ONI · IRI/CPC ENSO plume · Modelo estadístico del plugin' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

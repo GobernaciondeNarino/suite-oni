@@ -127,6 +127,35 @@
 .man-tabla th { font-weight: 600; color: var(--man-mute, #6b7280); font-size: .85em; }
 .man-pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
+/* --- [man_prediccion] --- */
+.man-prediccion__chips { display: flex; gap: 14px; flex-wrap: wrap; margin: .2em 0 .8em; }
+.man-prediccion__chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 1 auto;
+}
+.man-prediccion__chip-rotulo { font-size: .72em; color: var(--man-mute, #6b7280); text-transform: uppercase; letter-spacing: .03em; }
+.man-prediccion__chip strong { font-size: 1.15em; }
+.man-prediccion__chip .man-chip { align-self: flex-start; margin-top: 2px; }
+.man-prediccion__grafico { width: 100%; height: auto; display: block; margin: .2em 0 .4em; }
+
+.man-prediccion__prob { margin: .8em 0 .2em; }
+.man-prediccion__prob-titulo { font-size: .82em; font-weight: 600; color: var(--man-mute, #6b7280); margin: 0 0 .4em; }
+.man-prediccion__prob-fila { display: flex; align-items: center; gap: 10px; margin: .25em 0; font-size: .85em; }
+.man-prediccion__prob-rotulo { flex: 0 0 84px; color: var(--man-mute, #6b7280); }
+.man-prediccion__barra {
+  flex: 1 1 auto;
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 120px;
+  background: var(--man-borde-color, #eef0f3);
+}
+.man-prediccion__barra-seg { height: 100%; }
+.man-prediccion__prob-dom { flex: 0 0 auto; font-size: .82em; }
+
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
 @media (prefers-reduced-motion: reduce) {
   .man-btn { transition: none; }
