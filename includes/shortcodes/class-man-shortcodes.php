@@ -278,6 +278,11 @@ final class MAN_Shortcodes {
 				<button type="button" class="man-btn" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
 				<input type="range" class="man-timeline__slider" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
 			</div>
+			<ul class="man-timeline__marcas" aria-hidden="true"></ul>
+			<p class="man-timeline__leyenda">
+				<span class="man-timeline__pip man-timeline__pip--obs"></span>Observado
+				<span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado
+			</p>
 			<?php echo $this->pie_fuentes( 'NOAA/CPC ONI' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php

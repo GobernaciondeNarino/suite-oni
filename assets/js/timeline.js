@@ -20,8 +20,25 @@
     var lblMes = cont.querySelector('.man-timeline__mes');
     var lblOni = cont.querySelector('.man-timeline__oni');
     var btnPlay = cont.querySelector('[data-accion="play"]');
+    var marcas = cont.querySelector('.man-timeline__marcas');
 
     slider.max = serie.length - 1;
+
+    // Marcas de meses (observado / proyectado), clicables.
+    if (marcas) {
+      marcas.style.gridTemplateColumns = 'repeat(' + serie.length + ', 1fr)';
+      marcas.innerHTML = '';
+      serie.forEach(function (s, i) {
+        var li = document.createElement('li');
+        var nombre = mesLargo(s.mes).split(' ')[0].slice(0, 3);
+        var anio = String(s.mes).split('-')[0];
+        li.textContent = (i === 0 || /-01$/.test(s.mes)) ? (nombre + ' ' + anio.slice(2)) : nombre;
+        li.className = 'man-timeline__marca ' + (s.proyectado ? 'es-proy' : 'es-obs');
+        li.setAttribute('data-i', i);
+        li.addEventListener('click', function () { set(i); });
+        marcas.appendChild(li);
+      });
+    }
 
     // Posición inicial: el último mes observado.
     var idx = serie.length - 1;
@@ -37,8 +54,13 @@
       var s = serie[i];
       lblMes.textContent = mesLargo(s.mes);
       lblOni.textContent = 'ONI ' + (s.oni >= 0 ? '+' : '') + C.num(s.oni, 1) + ' · ' + s.fase;
+      if (marcas) {
+        Array.prototype.forEach.call(marcas.querySelectorAll('.man-timeline__marca'), function (li) {
+          li.classList.toggle('activo', Number(li.getAttribute('data-i')) === i);
+        });
+      }
       window.dispatchEvent(new CustomEvent('man:mes', {
-        detail: { mes: s.mes, oni: s.oni, fase: s.fase, indice: i }
+        detail: { mes: s.mes, oni: s.oni, fase: s.fase, tipo: s.proyectado ? 'proyectado' : 'observado', indice: i }
       }));
     }
 

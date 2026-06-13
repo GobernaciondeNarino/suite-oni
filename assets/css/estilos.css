@@ -96,7 +96,7 @@
 
 /* --- [man_globo] --- */
 .man-globo { position: relative; }
-.man-globo__lienzo { width: 100%; min-height: 320px; }
+.man-globo__lienzo { width: 100%; min-height: 380px; }
 .man-globo__cinta { font-size: .85em; color: var(--man-mute, #6b7280); margin-top: .4em; text-align: center; }
 
 /* --- [man_timeline] --- */
@@ -105,6 +105,22 @@
 .man-timeline__oni { color: var(--man-mute, #6b7280); font-size: .9em; }
 .man-timeline__controles { display: flex; gap: 8px; align-items: center; margin-top: .5em; }
 .man-timeline__slider { flex: 1; min-width: 120px; }
+.man-timeline__marcas {
+  list-style: none; margin: .4em 0 0; padding: 0;
+  display: grid; gap: 2px;
+}
+.man-timeline__marca {
+  font-size: .62em; text-align: center; color: var(--man-mute, #9aa0aa);
+  padding: 2px 0; border-top: 2px solid currentColor; cursor: pointer;
+  white-space: nowrap; overflow: hidden; opacity: .75;
+}
+.man-timeline__marca.es-obs { color: #6b7280; }
+.man-timeline__marca.es-proy { color: #1565c0; }
+.man-timeline__marca.activo { opacity: 1; font-weight: 700; color: var(--man-acento, #10A13B); }
+.man-timeline__leyenda { font-size: .72em; color: var(--man-mute, #6b7280); margin: .4em 0 0; }
+.man-timeline__pip { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: middle; }
+.man-timeline__pip--obs { background: #6b7280; }
+.man-timeline__pip--proy { background: #1565c0; }
 
 /* --- [man_datos] --- */
 .man-datos__titulo { font-weight: 600; margin: 0 0 .5em; }
