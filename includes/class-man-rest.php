@@ -89,6 +89,13 @@ final class MAN_Rest {
 			),
 		) );
 
+		// Mapa de Nariño sobre el globo (riesgo mensual por municipio).
+		register_rest_route( self::NS, '/mapa-narino', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_mapa_narino' ),
+			'permission_callback' => $publico,
+		) );
+
 		register_rest_route( self::NS, '/mar', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_mar' ),
@@ -182,6 +189,13 @@ final class MAN_Rest {
 	 */
 	public function ruta_vistas() {
 		return rest_ensure_response( array( 'vistas' => MAN_Views::lista() ) );
+	}
+
+	/**
+	 * Serie de riesgo mensual por municipio para la capa de mapa del globo.
+	 */
+	public function ruta_mapa_narino() {
+		return rest_ensure_response( self::construir_mapa_narino() );
 	}
 
 	/**
@@ -540,6 +554,41 @@ final class MAN_Rest {
 			'episodios' => isset( $h['episodios'] ) ? $h['episodios'] : array(),
 			'contexto'  => isset( $h['contexto_enso_reciente'] ) ? $h['contexto_enso_reciente'] : null,
 			'fuente'    => 'NOAA/CPC · IDEAM (episodios ENSO)',
+		);
+	}
+
+	/**
+	 * Riesgo mensual por municipio (para colorear el mapa de Nariño en el globo).
+	 * Devuelve {municipios: {divipola: {nombre, serie:[{mes, riesgo, color}]}}}.
+	 *
+	 * @return array
+	 */
+	public static function construir_mapa_narino() {
+		$pred = self::predicciones();
+		$out  = array();
+		if ( ! empty( $pred['municipios'] ) ) {
+			foreach ( $pred['municipios'] as $divipola => $m ) {
+				$serie = array();
+				if ( ! empty( $m['serie_mensual'] ) ) {
+					foreach ( $m['serie_mensual'] as $s ) {
+						$riesgo = isset( $s['indice_riesgo'] ) ? (float) $s['indice_riesgo'] : 0.0;
+						$nivel  = MAN_Risk::nivel( $riesgo );
+						$serie[] = array(
+							'mes'    => isset( $s['mes'] ) ? $s['mes'] : '',
+							'riesgo' => round( $riesgo, 3 ),
+							'color'  => $nivel['color'],
+						);
+					}
+				}
+				$out[ (string) $divipola ] = array(
+					'nombre' => isset( $m['municipio'] ) ? $m['municipio'] : (string) $divipola,
+					'serie'  => $serie,
+				);
+			}
+		}
+		return array(
+			'municipios' => $out,
+			'fuente'     => 'Predicciones por municipio (escenario de planeación) · DANE (cartografía)',
 		);
 	}
 

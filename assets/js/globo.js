@@ -44,6 +44,24 @@ function nivelPorOni(oni) {
   return 'verde';
 }
 
+/* Helpers GeoJSON → polígonos sobre la esfera (capa de municipios de Nariño). */
+function featurePoligonos(feat) {
+  var g = feat.geometry || {};
+  if (g.type === 'Polygon') { return [g.coordinates]; }
+  if (g.type === 'MultiPolygon') { return g.coordinates; }
+  return [];
+}
+function anillosAVectores(anillos, radio) {
+  return anillos.map(function (anillo) {
+    return anillo.map(function (par) { return latLngAVector3(par[1], par[0], radio); });
+  });
+}
+function triangularFan(verts) {
+  var idx = [];
+  for (var i = 1; i < verts.length - 1; i++) { idx.push(0, i, i + 1); }
+  return idx;
+}
+
 function esLigero() {
   return CFG.calidad === 'baja' ||
     (CFG.calidad === 'auto' && ((window.devicePixelRatio || 1) > 2 || (navigator.hardwareConcurrency || 4) <= 4));
@@ -59,21 +77,27 @@ class GloboMAN {
     this.visible = true;
 
     this.estado = {
-      oni: 0, oniObjetivo: 0, nivel: 'verde',
+      oni: 0, oniObjetivo: 0, nivel: 'verde', mes: '',
       colorMarc: new THREE.Color(COLORES_ALERTA.verde),
       colorMarcObj: new THREE.Color(COLORES_ALERTA.verde)
     };
+    this._focoObjetivo = 0;
+    this._focoOpacidad = 0;
+    this._mapaMuns = [];
 
     this._escena();
     this._globo();
     this._anomalia();
     this._alisios();
+    this._particulasAlisios();
     this._heat();
+    this._focoCalor();
     this._nubes();
     this._teleconexion();
     this._marcador();
     this._ondas();
     this._estrellas();
+    this._mapaNarino();
     this._eventos();
     this._cargaInicial();
     this._quitarSkeleton();
@@ -326,11 +350,135 @@ class GloboMAN {
     this.escena.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.16, sizeAttenuation: true, transparent: true, opacity: 0.7 })));
   }
 
+  /* ---------------- partículas de alisios (flujo atmosférico O←E) ---------------- */
+  _particulasAlisios() {
+    var n = this.ligero ? 120 : 220;
+    this._pAli = [];
+    var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) {
+      var lat = -8 + Math.random() * 16, lng = -175 + Math.random() * 75, radio = 1.035 + Math.random() * 0.015;
+      var v = latLngAVector3(lat, lng, radio);
+      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+      col[i * 3] = 1; col[i * 3 + 1] = 1; col[i * 3 + 2] = 1;
+      this._pAli.push({ lat: lat, lng: lng, radio: radio, vel: 0.5 + Math.random() * 0.5 });
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    this.pAli = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.022, vertexColors: true, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false }));
+    this.escena.add(this.pAli);
+  }
+
+  /* ---------------- foco de calor costero (estacional, Pacífico oriental) ---------------- */
+  _focoCalor() {
+    var n = this.ligero ? 260 : 520;
+    this._fcPts = [];
+    var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    this._fcLngMin = -110; this._fcLngMax = -83;
+    var latMin = -8, latMax = 8, lngC = (this._fcLngMin + this._fcLngMax) / 2, latC = 0, sLat = (latMax - latMin) / 2, sLng = (this._fcLngMax - this._fcLngMin) / 2;
+    var i = 0, intentos = 0;
+    while (i < n && intentos < n * 25) {
+      intentos++;
+      var lat = latMin + Math.random() * (latMax - latMin);
+      var lng = this._fcLngMin + Math.random() * (this._fcLngMax - this._fcLngMin);
+      var dLat = (lat - latC) / sLat, dLng = (lng - lngC) / sLng, dist = Math.sqrt(dLat * dLat + dLng * dLng);
+      if (Math.random() > Math.exp(-dist * dist * 1.2)) { continue; }
+      var radio = 1.014 + Math.random() * 0.016, v = latLngAVector3(lat, lng, radio);
+      pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+      var c = new THREE.Color().lerpColors(new THREE.Color(0xff2200), new THREE.Color(0xffd000), Math.max(0, 1 - dist));
+      c.lerp(new THREE.Color(0xff7a00), 0.25);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      this._fcPts.push({ latBase: lat, lngBase: lng, radio: radio, fase: Math.random() * 6.28 });
+      i++;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos.slice(0, i * 3), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col.slice(0, i * 3), 3));
+    this.foco = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.058, vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.escena.add(this.foco);
+  }
+
+  // Intensidad estacional (ago-dic 2026): campana 0.30→0.70→1.0→1.0→0.35.
+  _intensidadFoco(mes) {
+    var p = String(mes || '').split('-');
+    if (p.length < 2 || +p[0] !== 2026) { return 0; }
+    var curva = { 8: 0.30, 9: 0.70, 10: 1.0, 11: 1.0, 12: 0.35 };
+    return curva[+p[1]] || 0;
+  }
+
+  /* ---------------- mapa de Nariño (GeoJSON coloreado por riesgo mensual) ---------------- */
+  _mapaNarino() {
+    var self = this;
+    if (!CFG.geojson) { return; }
+    this.mapaGrupo = new THREE.Group();
+    this.escena.add(this.mapaGrupo);
+
+    var serieRiesgo = {};
+    var pintar = function () {
+      fetch(CFG.geojson, { cache: 'force-cache' }).then(function (r) { return r.json(); }).then(function (gj) {
+        (gj.features || []).forEach(function (feat) {
+          var props = feat.properties || {};
+          var divipola = String(props.MPIO_CDPMP || props.divipola || '');
+          var nombre = props.MPIO_CNMBR || props.nombre || 'Municipio';
+          var matR = new THREE.MeshBasicMaterial({ color: 0x2e7d32, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+          var matB = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+          var gMun = new THREE.Group();
+          featurePoligonos(feat).forEach(function (anillos) {
+            var av = anillosAVectores(anillos, 1.013);
+            var ext = av[0];
+            if (!ext || ext.length < 3) { return; }
+            var p = new Float32Array(ext.length * 3);
+            ext.forEach(function (v, k) { p[k * 3] = v.x; p[k * 3 + 1] = v.y; p[k * 3 + 2] = v.z; });
+            var geoR = new THREE.BufferGeometry();
+            geoR.setAttribute('position', new THREE.BufferAttribute(p, 3));
+            geoR.setIndex(triangularFan(ext));
+            geoR.computeVertexNormals();
+            gMun.add(new THREE.Mesh(geoR, matR));
+            gMun.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ext.concat([ext[0]])), matB));
+          });
+          self.mapaGrupo.add(gMun);
+          self._mapaMuns.push({ divipola: divipola, nombre: nombre, matR: matR, matB: matB, serie: serieRiesgo[divipola] || null });
+        });
+        self._mapaMes(self.estado.mes || CFG.mesActual);
+      }).catch(function () { /* sin mapa: el resto del globo sigue */ });
+    };
+
+    if (CFG.rest) {
+      fetch(CFG.rest + '/mapa-narino').then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.municipios) { serieRiesgo = d.municipios; }
+        pintar();
+      }).catch(pintar);
+    } else { pintar(); }
+  }
+
+  // Recolorea los municipios para el mes activo.
+  _mapaMes(mes) {
+    if (!this._mapaMuns || !this._mapaMuns.length) { return; }
+    this._mapaMuns.forEach(function (m) {
+      var reg = null;
+      if (m.serie && m.serie.serie) {
+        for (var i = 0; i < m.serie.serie.length; i++) { if (m.serie.serie[i].mes === mes) { reg = m.serie.serie[i]; break; } }
+        if (!reg && m.serie.serie.length) { reg = m.serie.serie[m.serie.serie.length - 1]; }
+      }
+      if (reg) {
+        var c = new THREE.Color(reg.color);
+        m.matR.color.copy(c);
+        m.matR.opacity = 0.5 + Math.min(1, reg.riesgo) * 0.42;
+        m.matB.color.copy(c).offsetHSL(0, 0, 0.18);
+      }
+    });
+  }
+
   /* ---------------- API: aplicar ONI ---------------- */
   setOni(oni, mes, fase) {
     this.estado.oniObjetivo = +oni || 0;
     this.estado.nivel = nivelPorOni(this.estado.oniObjetivo);
     this.estado.colorMarcObj = new THREE.Color(COLORES_ALERTA[this.estado.nivel] || COLORES_ALERTA.verde);
+    if (mes) {
+      this.estado.mes = mes;
+      this._focoObjetivo = this._intensidadFoco(mes);
+      this._mapaMes(mes);
+    }
     if (this.cinta && mes) {
       this.cinta.textContent = this._mesTxt(mes) + ' · ONI ' + (oni >= 0 ? '+' : '') + (+oni).toFixed(1) + (fase ? ' · ' + fase : '');
     }
@@ -414,6 +562,40 @@ class GloboMAN {
       self.heat.geometry.attributes.position.needsUpdate = true;
       self.heat.geometry.attributes.color.needsUpdate = true;
       self.heat.material.opacity = 0.32 + Math.min(0.45, oniN * 0.35);
+
+      // Partículas de alisios: fluyen de E→O (lng decrece); frenan y se enfrían al subir el ONI.
+      var velFlujo = Math.max(0, 1.2 - e.oni * 0.9);
+      var pa = self.pAli.geometry.attributes.position.array, ca = self.pAli.geometry.attributes.color.array;
+      var cCal = new THREE.Color(0xffffff), cFrio = new THREE.Color(0x6db4ff), mez = Math.min(1, e.oni / 1.2);
+      for (var ia = 0; ia < self._pAli.length; ia++) {
+        var ptA = self._pAli[ia];
+        ptA.lng -= velFlujo * ptA.vel * dt * 8;
+        if (ptA.lng < -175) { ptA.lng = -100; }
+        if (ptA.lng > -100) { ptA.lng = -175; }
+        var vA = latLngAVector3(ptA.lat, ptA.lng, ptA.radio);
+        pa[ia * 3] = vA.x; pa[ia * 3 + 1] = vA.y; pa[ia * 3 + 2] = vA.z;
+        var cA = new THREE.Color().lerpColors(cCal, cFrio, mez);
+        ca[ia * 3] = cA.r; ca[ia * 3 + 1] = cA.g; ca[ia * 3 + 2] = cA.b;
+      }
+      self.pAli.geometry.attributes.position.needsUpdate = true;
+      self.pAli.geometry.attributes.color.needsUpdate = true;
+
+      // Foco de calor costero: opacidad estacional interpolada + deriva al oeste + respiración.
+      self._focoOpacidad += (self._focoObjetivo - self._focoOpacidad) * Math.min(1, dt * 1.2);
+      var opFC = Math.max(0, self._focoOpacidad);
+      self.foco.material.opacity = opFC * 0.85;
+      self.foco.visible = opFC > 0.005;
+      if (opFC > 0.05) {
+        var pf = self.foco.geometry.attributes.position.array, tsFC = ahora * 0.001;
+        for (var ifc = 0; ifc < self._fcPts.length; ifc++) {
+          var ptF = self._fcPts[ifc];
+          ptF.lngBase -= 0.35 * dt;
+          if (ptF.lngBase < self._fcLngMin) { ptF.lngBase = self._fcLngMax; }
+          var vF = latLngAVector3(ptF.latBase + Math.sin(tsFC * 0.7 + ptF.fase) * 0.4, ptF.lngBase + Math.cos(tsFC * 0.5 + ptF.fase) * 0.6, ptF.radio);
+          pf[ifc * 3] = vF.x; pf[ifc * 3 + 1] = vF.y; pf[ifc * 3 + 2] = vF.z;
+        }
+        self.foco.geometry.attributes.position.needsUpdate = true;
+      }
 
       // Nubes: se disipan y migran al este con el ONI.
       var opNube = Math.max(0.05, 0.7 - oniN * 0.55);
