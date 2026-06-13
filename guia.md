@@ -249,6 +249,9 @@ Cada elemento es un shortcode autónomo. `municipio` admite código DIVIPOLA o n
 | `[man_historico]` | Series históricas y episodios ENSO 2015–2024 (D3plus) | municipio, desde, hasta |
 | `[man_globo]` | Globo 3D Three.js cinematográfico con animación del fenómeno | calidad, autorotar |
 | `[man_timeline]` | Línea de tiempo del globo (slider de meses ONI) | inicio, fin |
+| `[man_prediccion]` | Predicción del ONI hasta el mes objetivo (línea + banda + umbrales + probabilidad por trimestre + texto predictivo); modelo propio contrastado con el ensamble NOAA/IRI | hasta, modelo, probabilidad |
+| `[man_estadisticas]` | Gráficos estadísticos prediseñados D3plus (ONI, probabilidad de fase, riesgo por subregión) con tooltip/leyenda | tipo, hasta, mes, alto |
+| `[man_animacion]` | Animación explicativa del mecanismo ENSO con Anime.js (alisios, piscina cálida, termoclina, convección); compara Neutral/El Niño/La Niña | estado, autoplay |
 | `[man_mapa]` | Mapa coroplético de Nariño por municipio (Leaflet + D3) | variable, mes |
 | `[man_mar]` | Nivel del mar + oleaje Pacífico (IOC + Marine) | estacion |
 | `[man_salud]` | Casos dengue/EDA/IRA vs clima (D3plus correlación) | evento, año |
@@ -328,12 +331,23 @@ Plantillas + reglas (no requiere IA externa, funciona offline):
 // subregión y nivel de riesgo. Tono institucional, claro, sin tecnicismos.
 ```
 
-### 5.5 Pronóstico probabilístico de fase
-- **Fuente primaria:** plumas/probabilidades del IRI/CPC (El Niño / Neutral / La Niña por trimestre). Se cachean y se grafican como área apilada.
+### 5.5 Pronóstico probabilístico de fase y proyección del ONI
+- **Fuente primaria:** plumas/probabilidades del IRI/CPC (El Niño / Neutral / La Niña por trimestre). Se cachean y se grafican como área apilada/banda.
 - **Suavizado local:** media móvil de 3 meses sobre el ONI (coincide con la definición del ONI).
 - **Proyección municipal:** se cruza la probabilidad de fase con la respuesta histórica del municipio (El Niño 2015-16 y 2023-24) para estimar el rango esperado de T° y lluvia.
 
-> **Honestidad estadística.** Mostrar siempre la incertidumbre (BoxWhisker / banda) y la «barrera de predictibilidad de primavera boreal». No presentar pronósticos largos como certezas: usar «probable», «favorecido», con porcentajes.
+**Motor predictivo implementado (`class-man-forecast.php`).** Algoritmo de regresión/pronóstico transparente y auditable que **calcula** la trayectoria del ONI hasta el mes objetivo (p. ej. feb-2027), expuesto por `/wp-json/man/v1/prediccion` y el shortcode `[man_prediccion]`:
+
+1. **Regresión lineal por mínimos cuadrados** (`regresion_lineal`) sobre la cola observada del ONI → pendiente, intercepto y R².
+2. **Tendencia lineal amortiguada con reversión a la media** (`proyectar_oni`, estilo Holt «damped trend»):
+   `nivel_h = nivel_{h-1} + b·φ^h − λ·(nivel_{h-1} − μ)`, con `b` = pendiente, `φ` amortiguamiento, `λ` reversión a la climatología `μ` (ENSO-neutral).
+3. **Banda de incertidumbre creciente** `σ_h = σ0 + α·√h`, **ampliada en la primavera boreal (MAM)** por la barrera de predictibilidad.
+4. **Probabilidad de fase por integración gaussiana** (`probabilidad_gaussiana`) sobre los umbrales NOAA ±0,5 °C, usando una CDF normal (aprox. Abramowitz-Stegun). Devuelve % de El Niño / Neutral / La Niña por mes y por trimestre móvil.
+5. **Texto predictivo** (`MAN_Texto::prediccion`): punto de partida, pico previsto, situación y probabilidad en el objetivo, y advertencia de incertidumbre.
+
+El resultado se **contrasta con el ensamble oficial NOAA-CPC/IRI** (semilla con su banda): la línea central usa el ensamble cuando está disponible y el modelo propio se dibuja como segunda opinión.
+
+> **Honestidad estadística.** Mostrar siempre la incertidumbre (banda / probabilidades) y la «barrera de predictibilidad de primavera boreal». No presentar pronósticos largos como certezas: usar «probable», «favorecido», con porcentajes.
 
 ---
 
@@ -346,6 +360,7 @@ D3plus v3 vía CDN. Cada gráfico con paleta institucional y tooltip en español
 | Gráfico D3plus | Dato que representa | Shortcode |
 |----------------|---------------------|-----------|
 | LinePlot | Evolución ONI observado + proyectado (15 meses) | `[man_historico]`, `[man_estado]` |
+| Línea + banda (D3) | Predicción del ONI hasta feb-2027 con incertidumbre, umbrales de fase y reveal animado | `[man_prediccion]` |
 | StackedArea | Precipitación acumulada por subregión | `[man_historico]` |
 | BarChart | Anomalía de T° por municipio (top severos) | `[man_mapa]` |
 | Geomap | Coroplético 64 municipios por variable | `[man_mapa]` |
@@ -354,7 +369,10 @@ D3plus v3 vía CDN. Cada gráfico con paleta institucional y tooltip en español
 | Treemap | Población expuesta por nivel de riesgo | `[man_mapa]` |
 | Radar | Perfil ambiental municipal (T°, lluvia, viento, riesgo) | `[man_estado]` |
 
-> **Patrón de carga.** Reutilizar el skill `d3plus-wordpress`: enqueue por `wp_enqueue_scripts`, paso de datos PHP→JS por `wp_localize_script`, contenedor SVG responsivo y accesible (aria-label con el texto de análisis).
+> **Patrón de carga (implementado en `[man_estadisticas]`).** D3plus se registra por CDN y se encola por `wp_enqueue_scripts`; los datos llegan de la REST interna (`/prediccion`, `/departamento`); contenedor responsivo y accesible (`aria-label`). Si D3plus no cargara, el componente cae a un SVG simple (`MANcore.lineaSimple`) — resiliencia. Ver `assets/js/estadisticas.js`.
+
+### 6.1.1 Animación explicativa con Anime.js (`[man_animacion]`)
+Esquema vectorial (SVG) del corte ecuatorial del Pacífico que **anima la transición** entre Neutral / El Niño / La Niña con [Anime.js](https://animejs.com/documentation/) v3 (global): se interpolan posición/escala de la piscina cálida, opacidad y fuerza de los vientos alisios (más un viento anómalo del oeste en El Niño), inclinación de la termoclina (atributo `y2`), afloramiento frío y convección (lluvias). Autoplay con pausa fuera del viewport (IntersectionObserver) y respeto a `prefers-reduced-motion`. Ver `assets/js/animacion.js`.
 
 ### 6.2 D3.js puro (controles finos)
 - **Semáforo ENSO animado:** gauge D3 que transiciona entre La Niña–Neutral–El Niño según ONI vigente.

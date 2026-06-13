@@ -64,6 +64,13 @@ final class MAN_Rest {
 			'permission_callback' => $publico,
 		) );
 
+		register_rest_route( self::NS, '/prediccion', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_prediccion' ),
+			'permission_callback' => $publico,
+			'args'                => array( 'hasta' => array( 'sanitize_callback' => 'sanitize_text_field' ) ),
+		) );
+
 		register_rest_route( self::NS, '/mar', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_mar' ),
@@ -87,6 +94,12 @@ final class MAN_Rest {
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'abierto_oni' ),
 			'permission_callback' => $publico,
+		) );
+		register_rest_route( self::NS, '/abierto/prediccion', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'abierto_prediccion' ),
+			'permission_callback' => $publico,
+			'args'                => array( 'hasta' => array( 'sanitize_callback' => 'sanitize_text_field' ) ),
 		) );
 		register_rest_route( self::NS, '/abierto/(?P<divipola>[0-9]{5})', array(
 			'methods'             => 'GET',
@@ -141,6 +154,11 @@ final class MAN_Rest {
 		return rest_ensure_response( self::construir_historico() );
 	}
 
+	public function ruta_prediccion( $req ) {
+		$hasta = self::sanitizar_objetivo( $req->get_param( 'hasta' ) );
+		return rest_ensure_response( self::construir_prediccion( $hasta ) );
+	}
+
 	public function ruta_mar( $req ) {
 		$estacion = sanitize_text_field( (string) $req->get_param( 'estacion' ) );
 		return rest_ensure_response( self::construir_mar( $estacion ) );
@@ -173,6 +191,18 @@ final class MAN_Rest {
 			$serie,
 			'monitor-ambiental-narino_oni',
 			'Serie del índice ONI (observado y proyectado)'
+		);
+	}
+
+	public function abierto_prediccion( $req ) {
+		$hasta = self::sanitizar_objetivo( $req->get_param( 'hasta' ) );
+		$pred  = self::construir_prediccion( $hasta );
+		$serie = isset( $pred['serie'] ) ? $pred['serie'] : array();
+		return self::responder_abierto(
+			$req,
+			$serie,
+			'monitor-ambiental-narino_prediccion_oni_' . $hasta,
+			'Predicción del índice ONI (observado, ensamble oficial y modelo del plugin) hasta ' . $hasta
 		);
 	}
 
@@ -444,6 +474,292 @@ final class MAN_Rest {
 			'contexto'  => isset( $h['contexto_enso_reciente'] ) ? $h['contexto_enso_reciente'] : null,
 			'fuente'    => 'NOAA/CPC · IDEAM (episodios ENSO)',
 		);
+	}
+
+	/**
+	 * Predicción de la trayectoria del ONI hasta el mes objetivo (p. ej. feb-2027).
+	 *
+	 * Une el ONI observado, el ensamble oficial NOAA-CPC/IRI (semilla, con su
+	 * banda) y la proyección propia del plugin (tendencia amortiguada con
+	 * reversión a la media), y deriva probabilidades de fase por trimestre.
+	 *
+	 * @param string $hasta Mes objetivo AAAA-MM.
+	 * @return array
+	 */
+	public static function construir_prediccion( $hasta ) {
+		$hasta     = self::sanitizar_objetivo( $hasta );
+		$oni       = self::construir_oni();
+		$serie_oni = isset( $oni['serie'] ) ? $oni['serie'] : array();
+
+		// 1) Separar observado del proyectado oficial; recoger bandas de la semilla.
+		$observado = array();
+		foreach ( $serie_oni as $s ) {
+			if ( empty( $s['proyectado'] ) ) {
+				$observado[] = array( 'mes' => $s['mes'], 'oni' => (float) $s['oni'] );
+			}
+		}
+		// Si no hay marcas de proyección, todo el histórico es observado.
+		if ( empty( $observado ) ) {
+			foreach ( $serie_oni as $s ) {
+				$observado[] = array( 'mes' => $s['mes'], 'oni' => (float) $s['oni'] );
+			}
+		}
+		if ( empty( $observado ) ) {
+			return array(
+				'objetivo_mes'   => $hasta,
+				'serie'          => array(),
+				'texto_analisis' => 'Aún no hay serie ONI suficiente para proyectar. Sincronice la fuente NOAA ONI.',
+				'fuente'         => 'NOAA/CPC ONI',
+			);
+		}
+
+		// Banda y central del ensamble oficial desde la semilla datos_globo.
+		$banda_seed  = array();
+		$ens_central = array();
+		$globo       = self::datos_globo();
+		if ( ! empty( $globo['global']['meses'] ) ) {
+			foreach ( $globo['global']['meses'] as $m ) {
+				if ( isset( $m['oni_banda_min'], $m['oni_banda_max'] ) ) {
+					$banda_seed[ $m['mes'] ] = array(
+						'min' => (float) $m['oni_banda_min'],
+						'max' => (float) $m['oni_banda_max'],
+					);
+				}
+				$proy = isset( $m['tipo_dato'] ) && 'observado' !== $m['tipo_dato'];
+				if ( $proy ) {
+					$ens_central[ $m['mes'] ] = (float) $m['oni'];
+				}
+			}
+		}
+
+		$ult_obs     = end( $observado );
+		$ult_obs_mes = $ult_obs['mes'];
+		if ( $hasta <= $ult_obs_mes ) {
+			$hasta = '2027-02';
+		}
+
+		// 2) Proyección propia del plugin (algoritmo de regresión/pronóstico).
+		$modelo         = MAN_Forecast::proyectar_oni( $observado, $hasta );
+		$modelo_por_mes = array();
+		foreach ( $modelo as $row ) {
+			$modelo_por_mes[ $row['mes'] ] = $row;
+		}
+
+		// 3) Serie unificada para la gráfica.
+		$serie       = array();
+		$central_map = array();
+		foreach ( $observado as $p ) {
+			$serie[]                 = array(
+				'mes'        => $p['mes'],
+				'oni'        => round( $p['oni'], 2 ),
+				'banda_min'  => null,
+				'banda_max'  => null,
+				'modelo_oni' => null,
+				'tipo'       => 'observado',
+				'fase'       => MAN_Enso::clasificar_fase( $p['oni'] ),
+			);
+			$central_map[ $p['mes'] ] = (float) $p['oni'];
+		}
+
+		$mes    = $ult_obs_mes;
+		$guarda = 0;
+		while ( $mes < $hasta && $guarda < 60 ) {
+			$mes = MAN_Forecast::sumar_meses( $mes, 1 );
+			$guarda++;
+
+			$mod     = isset( $modelo_por_mes[ $mes ] ) ? $modelo_por_mes[ $mes ] : null;
+			$central = isset( $ens_central[ $mes ] ) ? $ens_central[ $mes ] : ( $mod ? $mod['oni'] : null );
+			if ( null === $central ) {
+				continue;
+			}
+
+			if ( isset( $banda_seed[ $mes ] ) ) {
+				$bmin = $banda_seed[ $mes ]['min'];
+				$bmax = $banda_seed[ $mes ]['max'];
+			} elseif ( $mod ) {
+				$bmin = $mod['banda_min'];
+				$bmax = $mod['banda_max'];
+			} else {
+				$bmin = null;
+				$bmax = null;
+			}
+
+			$serie[]               = array(
+				'mes'        => $mes,
+				'oni'        => round( $central, 2 ),
+				'banda_min'  => ( null !== $bmin ) ? round( $bmin, 2 ) : null,
+				'banda_max'  => ( null !== $bmax ) ? round( $bmax, 2 ) : null,
+				'modelo_oni' => $mod ? round( $mod['oni'], 2 ) : null,
+				'tipo'       => 'proyectado',
+				'fase'       => MAN_Enso::clasificar_fase( $central ),
+			);
+			$central_map[ $mes ] = (float) $central;
+		}
+
+		// 4) Estado actual (última observación) y objetivo.
+		$actual = array(
+			'mes'        => $ult_obs_mes,
+			'oni'        => round( $ult_obs['oni'], 2 ),
+			'fase'       => MAN_Enso::clasificar_fase( $ult_obs['oni'] ),
+			'intensidad' => MAN_Enso::intensidad( $ult_obs['oni'] ),
+		);
+
+		$objetivo = null;
+		foreach ( $serie as $row ) {
+			if ( $row['mes'] === $hasta ) {
+				$sigma = isset( $modelo_por_mes[ $hasta ] ) ? (float) $modelo_por_mes[ $hasta ]['sigma'] : 0.3;
+				if ( null !== $row['banda_min'] && null !== $row['banda_max'] ) {
+					$sigma = max( 0.05, ( $row['banda_max'] - $row['banda_min'] ) / 2 );
+				}
+				$objetivo = array(
+					'mes'        => $row['mes'],
+					'oni'        => $row['oni'],
+					'fase'       => MAN_Enso::clasificar_fase( $row['oni'] ),
+					'intensidad' => MAN_Enso::intensidad( $row['oni'] ),
+					'banda'      => array( 'min' => $row['banda_min'], 'max' => $row['banda_max'] ),
+					'prob'       => MAN_Forecast::probabilidad_gaussiana( $row['oni'], $sigma ),
+				);
+				break;
+			}
+		}
+
+		// 5) Pico (máximo |ONI|) en la parte proyectada.
+		$pico   = null;
+		$maxabs = -1.0;
+		foreach ( $serie as $row ) {
+			if ( 'proyectado' !== $row['tipo'] ) {
+				continue;
+			}
+			if ( abs( $row['oni'] ) > $maxabs ) {
+				$maxabs = abs( $row['oni'] );
+				$pico   = array(
+					'mes'        => $row['mes'],
+					'oni'        => $row['oni'],
+					'fase'       => MAN_Enso::clasificar_fase( $row['oni'] ),
+					'intensidad' => MAN_Enso::intensidad( $row['oni'] ),
+				);
+			}
+		}
+
+		// 6) Probabilidad de fase por trimestre móvil.
+		$prob_trim = self::probabilidad_trimestres( $central_map, $modelo_por_mes, $banda_seed, $ult_obs_mes, $hasta );
+
+		// 7) Diagnóstico de la regresión sobre la cola observada reciente.
+		$cola = array();
+		foreach ( array_slice( $observado, -6 ) as $p ) {
+			$cola[] = $p['oni'];
+		}
+		$reg = MAN_Forecast::regresion_lineal( $cola );
+
+		$texto = MAN_Texto::prediccion(
+			array(
+				'actual'   => $actual,
+				'objetivo' => $objetivo,
+				'pico'     => $pico,
+			)
+		);
+
+		return array(
+			'objetivo_mes'    => $hasta,
+			'actual'          => $actual,
+			'objetivo'        => $objetivo,
+			'pico'            => $pico,
+			'serie'           => $serie,
+			'prob_trimestres' => $prob_trim,
+			'regresion'       => array(
+				'pendiente_mensual' => round( (float) $reg['pendiente'], 3 ),
+				'r2'                => $reg['r2'],
+				'meses_ajuste'      => $reg['n'],
+			),
+			'metodologia'     => 'Tendencia lineal amortiguada (Holt) por mínimos cuadrados sobre la cola observada del ONI, con reversión a la media climatológica y banda de incertidumbre creciente con el horizonte (ampliada en la primavera boreal). Clasificación de fase por gaussiana sobre los umbrales NOAA ±0,5 °C. Contraste con el ensamble oficial NOAA-CPC/IRI cuando está disponible.',
+			'texto_analisis'  => $texto,
+			'fuente'          => 'NOAA/CPC ONI · IRI/CPC ENSO plume · Modelo estadístico del plugin',
+		);
+	}
+
+	/**
+	 * Probabilidad de fase por trimestre móvil (DJF…NDJ) en la ventana de
+	 * pronóstico, promediando el ONI central y su incertidumbre.
+	 *
+	 * @param array  $central_map mes => ONI central.
+	 * @param array  $modelo      mes => fila del modelo (con sigma).
+	 * @param array  $banda_seed  mes => {min,max} del ensamble oficial.
+	 * @param string $desde       Último mes observado (excluido).
+	 * @param string $hasta       Mes objetivo (incluido como centro si cabe).
+	 * @return array[]
+	 */
+	private static function probabilidad_trimestres( $central_map, $modelo, $banda_seed, $desde, $hasta ) {
+		$abrev = array(
+			1 => 'DJF', 2 => 'JFM', 3 => 'FMA', 4 => 'MAM',
+			5 => 'AMJ', 6 => 'MJJ', 7 => 'JJA', 8 => 'JAS',
+			9 => 'ASO', 10 => 'SON', 11 => 'OND', 12 => 'NDJ',
+		);
+
+		$out    = array();
+		$centro = $desde;
+		$guarda = 0;
+		// Recorre como centro cada mes proyectado (centro > último observado).
+		while ( $guarda < 60 ) {
+			$centro = MAN_Forecast::sumar_meses( $centro, 1 );
+			$guarda++;
+			if ( $centro > $hasta ) {
+				break;
+			}
+
+			$prev = MAN_Forecast::sumar_meses( $centro, -1 );
+			$next = MAN_Forecast::sumar_meses( $centro, 1 );
+			$tres = array( $prev, $centro, $next );
+
+			$suma  = 0.0;
+			$cnt   = 0;
+			$sig_s = 0.0;
+			$sig_c = 0;
+			foreach ( $tres as $mm ) {
+				if ( isset( $central_map[ $mm ] ) ) {
+					$suma += $central_map[ $mm ];
+					$cnt++;
+				}
+				if ( isset( $banda_seed[ $mm ] ) ) {
+					$sig_s += max( 0.05, ( $banda_seed[ $mm ]['max'] - $banda_seed[ $mm ]['min'] ) / 2 );
+					$sig_c++;
+				} elseif ( isset( $modelo[ $mm ]['sigma'] ) ) {
+					$sig_s += (float) $modelo[ $mm ]['sigma'];
+					$sig_c++;
+				}
+			}
+			if ( $cnt < 3 ) {
+				continue; // trimestre incompleto: no se reporta.
+			}
+			$prom  = $suma / $cnt;
+			$sigma = $sig_c > 0 ? ( $sig_s / $sig_c ) : 0.3;
+
+			$mm_centro = (int) substr( $centro, 5, 2 );
+			$out[]     = array(
+				'clave'    => isset( $abrev[ $mm_centro ] ) ? $abrev[ $mm_centro ] : '',
+				'etiqueta' => ( isset( $abrev[ $mm_centro ] ) ? $abrev[ $mm_centro ] : '' ) . ' ' . substr( $centro, 0, 4 ),
+				'centro'   => $centro,
+				'oni'      => round( $prom, 2 ),
+				'fase'     => MAN_Enso::clasificar_fase( $prom ),
+			) + MAN_Forecast::probabilidad_gaussiana( $prom, $sigma );
+		}
+		return $out;
+	}
+
+	/**
+	 * Sanitiza el mes objetivo de la predicción (por defecto febrero de 2027).
+	 *
+	 * @param mixed $valor Valor recibido.
+	 * @return string AAAA-MM.
+	 */
+	private static function sanitizar_objetivo( $valor ) {
+		$v = trim( (string) $valor );
+		if ( '' === $v ) {
+			return '2027-02';
+		}
+		if ( preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', $v ) ) {
+			return $v;
+		}
+		return '2027-02';
 	}
 
 	/**

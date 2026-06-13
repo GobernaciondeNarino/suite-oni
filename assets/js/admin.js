@@ -36,4 +36,38 @@
       }
     });
   });
+
+  /* Copiar shortcode al portapapeles (página de Elementos). */
+  function copiar(texto) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(texto);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = texto;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target;
+    if (!b || !b.classList || !b.classList.contains('man-copiar')) { return; }
+    var texto = b.getAttribute('data-copy') || '';
+    var original = b.textContent;
+    copiar(texto).then(function () {
+      b.textContent = '¡Copiado!';
+      setTimeout(function () { b.textContent = original; }, 1600);
+    }).catch(function () {
+      b.textContent = 'Copia manual';
+      setTimeout(function () { b.textContent = original; }, 1600);
+    });
+  });
 })();

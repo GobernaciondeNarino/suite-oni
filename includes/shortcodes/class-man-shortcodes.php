@@ -1,6 +1,6 @@
 <?php
 /**
- * Registro y render de los 6 shortcodes del núcleo.
+ * Registro y render de los shortcodes del núcleo (componentes independientes).
  *
  * Contrato común (Sección 4.1): esqueleto inmediato, carga asíncrona, texto
  * de análisis, error elegante con reintento y atribución de fuentes. El
@@ -40,6 +40,9 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_timeline', array( $this, 'sc_timeline' ) );
 		add_shortcode( 'man_datos', array( $this, 'sc_datos' ) );
 		add_shortcode( 'man_historico', array( $this, 'sc_historico' ) );
+		add_shortcode( 'man_prediccion', array( $this, 'sc_prediccion' ) );
+		add_shortcode( 'man_estadisticas', array( $this, 'sc_estadisticas' ) );
+		add_shortcode( 'man_animacion', array( $this, 'sc_animacion' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
@@ -73,6 +76,12 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-datos', MAN_URL . 'assets/js/datos.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-timeline', MAN_URL . 'assets/js/timeline.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-historico', MAN_URL . 'assets/js/historico.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
+		wp_register_script( 'man-prediccion', MAN_URL . 'assets/js/prediccion.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
+		// Estadísticas con D3plus (gráficos prediseñados con tooltip/leyenda en español).
+		wp_register_script( 'man-estadisticas', MAN_URL . 'assets/js/estadisticas.js', array( 'd3', 'd3plus', 'man-core', 'man-municipios' ), MAN_VERSION, true );
+		// Animaciones explicativas con Anime.js (el globo usa Three.js, registrado aparte).
+		wp_register_script( 'animejs', 'https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js', array(), '3.2.1', true );
+		wp_register_script( 'man-animacion', MAN_URL . 'assets/js/animacion.js', array( 'animejs', 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
@@ -291,6 +300,9 @@ final class MAN_Shortcodes {
 		if ( 'oni' === $recurso ) {
 			$ruta   = 'man/v1/abierto/oni';
 			$titulo = 'Serie del índice ONI';
+		} elseif ( 'prediccion' === $recurso ) {
+			$ruta   = 'man/v1/abierto/prediccion';
+			$titulo = 'Predicción del ONI (observado + ensamble + modelo)';
 		} elseif ( 'municipio' === $recurso ) {
 			$div    = MAN_Security::sanitizar_divipola( $atts['municipio'] );
 			$div    = ( 'departamento' === $div ) ? '52001' : $div;
@@ -339,6 +351,133 @@ final class MAN_Shortcodes {
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-historico>
 			<?php echo $this->skeleton( 'Cargando históricos ENSO…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'NOAA/CPC · IDEAM (episodios ENSO)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_prediccion] — Predicción de la trayectoria del ONI hasta el mes
+	 * objetivo (por defecto febrero de 2027): gráfica animada con banda de
+	 * incertidumbre, umbrales de fase, probabilidades por trimestre y texto
+	 * predictivo. Componente independiente y maquetable por separado.
+	 */
+	public function sc_prediccion( $atts ) {
+		$atts = $this->fusionar( array(
+			'hasta'        => '2027-02',
+			'modelo'       => 'si',   // muestra la línea del modelo propio del plugin.
+			'probabilidad' => 'si',   // muestra las barras de probabilidad por trimestre.
+		), $atts, 'man_prediccion' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-prediccion' );
+
+		$id    = $this->id();
+		$hasta = MAN_Security::sanitizar_mes( $atts['hasta'] );
+		// sanitizar_mes cae al mes actual si el valor es inválido; forzamos un
+		// objetivo futuro razonable por defecto.
+		if ( $hasta <= gmdate( 'Y-m' ) ) {
+			$hasta = '2027-02';
+		}
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-prediccion"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-prediccion
+			data-hasta="<?php echo esc_attr( $hasta ); ?>"
+			data-modelo="<?php echo esc_attr( 'no' === $atts['modelo'] ? 'no' : 'si' ); ?>"
+			data-probabilidad="<?php echo esc_attr( 'no' === $atts['probabilidad'] ? 'no' : 'si' ); ?>">
+			<?php echo $this->skeleton( 'Calculando la predicción del fenómeno…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'NOAA/CPC ONI · IRI/CPC ENSO plume · Modelo estadístico del plugin' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_estadisticas] — Gráficos estadísticos prediseñados con D3plus
+	 * (tooltip y leyenda en español). Componente independiente y maquetable.
+	 *
+	 * tipo: oni (línea ONI observado+proyectado) | probabilidad (barras
+	 * apiladas de fase por trimestre) | riesgo (riesgo medio por subregión).
+	 */
+	public function sc_estadisticas( $atts ) {
+		$atts = $this->fusionar( array(
+			'tipo'  => 'oni',
+			'hasta' => '2027-02',
+			'mes'   => gmdate( 'Y-m' ),
+			'alto'  => '360px',
+		), $atts, 'man_estadisticas' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-estadisticas' );
+
+		$id    = $this->id();
+		$tipo  = sanitize_key( $atts['tipo'] );
+		$hasta = MAN_Security::sanitizar_mes( $atts['hasta'] );
+		if ( $hasta <= gmdate( 'Y-m' ) ) {
+			$hasta = '2027-02';
+		}
+		$mes  = MAN_Security::sanitizar_mes( $atts['mes'] );
+		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '360px';
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-estadisticas"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-estadisticas
+			data-tipo="<?php echo esc_attr( $tipo ); ?>"
+			data-hasta="<?php echo esc_attr( $hasta ); ?>"
+			data-mes="<?php echo esc_attr( $mes ); ?>">
+			<div class="man-estadisticas__lienzo" style="min-height:<?php echo esc_attr( $alto ); ?>"
+				role="img" aria-label="Gráfico estadístico del fenómeno ENSO"></div>
+			<?php echo $this->skeleton( 'Cargando estadísticas…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'NOAA/CPC · IDEAM · D3plus' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_animacion] — Animación explicativa del mecanismo ENSO con Anime.js
+	 * (vientos alisios, piscina cálida, termoclina, convección). Permite
+	 * comparar Neutral / El Niño / La Niña. Componente independiente.
+	 */
+	public function sc_animacion( $atts ) {
+		$atts = $this->fusionar( array(
+			'estado'   => 'el_nino',
+			'autoplay' => 'si',
+		), $atts, 'man_animacion' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-animacion' );
+
+		$id     = $this->id();
+		$estado = sanitize_key( $atts['estado'] );
+		if ( ! in_array( $estado, array( 'neutral', 'el_nino', 'la_nina' ), true ) ) {
+			$estado = 'el_nino';
+		}
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-animacion"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-animacion
+			data-estado="<?php echo esc_attr( $estado ); ?>"
+			data-autoplay="<?php echo esc_attr( 'no' === $atts['autoplay'] ? 'no' : 'si' ); ?>">
+			<div class="man-animacion__escena" role="img"
+				aria-label="Esquema animado del Pacífico ecuatorial durante el fenómeno ENSO"></div>
+			<div class="man-animacion__controles" role="group" aria-label="Fases ENSO">
+				<button type="button" class="man-btn" data-fase="neutral">Neutral</button>
+				<button type="button" class="man-btn" data-fase="el_nino">El Niño</button>
+				<button type="button" class="man-btn" data-fase="la_nina">La Niña</button>
+			</div>
+			<p class="man-animacion__narracion man-analisis" aria-live="polite"></p>
+			<?php echo $this->pie_fuentes( 'Esquema didáctico · NOAA/CPC · Three.js (globo) · Anime.js' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

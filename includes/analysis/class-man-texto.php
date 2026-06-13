@@ -109,4 +109,99 @@ final class MAN_Texto {
 
 		return implode( ' ', $partes );
 	}
+
+	/**
+	 * Texto predictivo de la trayectoria del ONI hasta el mes objetivo.
+	 *
+	 * Tono institucional, claro y honesto con la incertidumbre. Describe el
+	 * estado vigente, el pico previsto, la fase y probabilidad en el objetivo
+	 * (p. ej. febrero de 2027) y la advertencia de predictibilidad.
+	 *
+	 * @param array $d {actual, objetivo, pico} con sub-arreglos {mes, oni, fase,
+	 *                 intensidad, prob:{el_nino,neutral,la_nina}}.
+	 * @return string
+	 */
+	public static function prediccion( array $d ) {
+		$act = isset( $d['actual'] ) ? $d['actual'] : array();
+		$obj = isset( $d['objetivo'] ) ? $d['objetivo'] : array();
+		$pic = isset( $d['pico'] ) ? $d['pico'] : array();
+
+		$partes = array();
+
+		// Frase 1: punto de partida (estado vigente).
+		if ( ! empty( $act['mes'] ) ) {
+			$oni_a   = isset( $act['oni'] ) ? (float) $act['oni'] : 0.0;
+			$signo_a = ( $oni_a >= 0 ? '+' : '' ) . number_format_i18n( $oni_a, 1 );
+			$fase_a  = isset( $act['fase'] ) ? $act['fase'] : MAN_Enso::clasificar_fase( $oni_a );
+			$partes[] = sprintf(
+				'Punto de partida: en %s el ONI es %s °C (fase %s).',
+				self::mes_largo( $act['mes'] ),
+				$signo_a,
+				$fase_a
+			);
+		}
+
+		// Frase 2: pico previsto en la ventana proyectada.
+		if ( ! empty( $pic['mes'] ) ) {
+			$oni_p   = isset( $pic['oni'] ) ? (float) $pic['oni'] : 0.0;
+			$signo_p = ( $oni_p >= 0 ? '+' : '' ) . number_format_i18n( $oni_p, 1 );
+			$fase_p  = isset( $pic['fase'] ) ? $pic['fase'] : MAN_Enso::clasificar_fase( $oni_p );
+			$inten_p = isset( $pic['intensidad'] ) ? $pic['intensidad'] : MAN_Enso::intensidad( $oni_p );
+			if ( 'Neutral' !== $fase_p ) {
+				$partes[] = sprintf(
+					'El modelo proyecta el máximo en torno a %s, con ONI cercano a %s °C (fase %s, intensidad %s).',
+					self::mes_largo( $pic['mes'] ),
+					$signo_p,
+					$fase_p,
+					$inten_p
+				);
+			}
+		}
+
+		// Frase 3: situación en el mes objetivo + probabilidad dominante.
+		if ( ! empty( $obj['mes'] ) ) {
+			$oni_o   = isset( $obj['oni'] ) ? (float) $obj['oni'] : 0.0;
+			$signo_o = ( $oni_o >= 0 ? '+' : '' ) . number_format_i18n( $oni_o, 1 );
+			$fase_o  = isset( $obj['fase'] ) ? $obj['fase'] : MAN_Enso::clasificar_fase( $oni_o );
+			$prob    = isset( $obj['prob'] ) ? $obj['prob'] : array();
+
+			$dom_txt = '';
+			if ( ! empty( $prob ) ) {
+				$etq  = array( 'el_nino' => 'El Niño', 'neutral' => 'condiciones neutrales', 'la_nina' => 'La Niña' );
+				$dom  = 'neutral';
+				$maxv = -1;
+				foreach ( array( 'el_nino', 'neutral', 'la_nina' ) as $k ) {
+					$v = isset( $prob[ $k ] ) ? (float) $prob[ $k ] : 0.0;
+					if ( $v > $maxv ) {
+						$maxv = $v;
+						$dom  = $k;
+					}
+				}
+				$dom_txt = sprintf( ' La probabilidad de %s es de %s%%.', $etq[ $dom ], number_format_i18n( $maxv, 0 ) );
+			}
+
+			$banda_txt = '';
+			if ( isset( $obj['banda']['min'], $obj['banda']['max'] ) ) {
+				$banda_txt = sprintf(
+					' (rango plausible %s a %s °C)',
+					number_format_i18n( (float) $obj['banda']['min'], 1 ),
+					number_format_i18n( (float) $obj['banda']['max'], 1 )
+				);
+			}
+
+			$partes[] = sprintf(
+				'Hacia %s se prevé un ONI cercano a %s °C%s: fase %s.%s',
+				self::mes_largo( $obj['mes'] ),
+				$signo_o,
+				$banda_txt,
+				$fase_o,
+				$dom_txt
+			);
+		}
+
+		// Frase 4: honestidad estadística (obligatoria).
+		$partes[] = 'Proyección estadística del plugin (tendencia amortiguada con reversión a la media), contrastada con el ensamble oficial NOAA-CPC/IRI. La incertidumbre crece con el horizonte y aumenta al cruzar la primavera boreal: son escenarios probables, no certezas. Verifique los boletines vigentes de IDEAM y NOAA-CPC.';
+
+		return implode( ' ', $partes );
+	}
 }
