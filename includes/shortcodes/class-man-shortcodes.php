@@ -254,35 +254,43 @@ final class MAN_Shortcodes {
 	 */
 	public function sc_timeline( $atts ) {
 		$atts = $this->fusionar( array(
-			'inicio' => '',
-			'fin'    => '',
+			'inicio' => '2026-03',
+			'fin'    => '2027-03',
 		), $atts, 'man_timeline' );
 
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_script( 'man-timeline' );
 
-		$id = $this->id();
+		$id     = $this->id();
+		$inicio = MAN_Security::sanitizar_mes( $atts['inicio'] );
+		$fin    = MAN_Security::sanitizar_mes( $atts['fin'] );
 
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>"
 			class="man man-timeline"
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
-			data-man-timeline>
+			data-man-timeline
+			data-inicio="<?php echo esc_attr( $inicio ); ?>"
+			data-fin="<?php echo esc_attr( $fin ); ?>">
 			<div class="man-timeline__cabecera">
 				<strong class="man-timeline__mes" aria-live="polite">—</strong>
 				<span class="man-timeline__oni"></span>
 			</div>
 			<div class="man-timeline__controles">
-				<button type="button" class="man-btn" data-accion="anterior" aria-label="Mes anterior">◀</button>
-				<button type="button" class="man-btn" data-accion="play" aria-label="Reproducir o pausar">▶</button>
-				<button type="button" class="man-btn" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
+				<button type="button" class="man-btn man-btn--icono" data-accion="anterior" aria-label="Mes anterior">◀</button>
+				<button type="button" class="man-btn man-btn--icono" data-accion="play" aria-label="Reproducir o pausar">▶</button>
+				<button type="button" class="man-btn man-btn--icono" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
+				<label class="man-timeline__velocidad">Vel.
+					<select aria-label="Velocidad de reproducción">
+						<option value="1800">0.5×</option>
+						<option value="1200" selected>1×</option>
+						<option value="600">2×</option>
+					</select>
+				</label>
+			</div>
+			<div class="man-timeline__pista">
 				<input type="range" class="man-timeline__slider" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
-				<select class="man-timeline__velocidad" aria-label="Velocidad de reproducción">
-					<option value="1800">0.5×</option>
-					<option value="1200" selected>1×</option>
-					<option value="600">2×</option>
-				</select>
 			</div>
 			<ul class="man-timeline__marcas" aria-hidden="true"></ul>
 			<p class="man-timeline__leyenda">

@@ -8,8 +8,19 @@
   });
 
   function init(cont) {
+    var inicio = cont.getAttribute('data-inicio') || '';
+    var fin = cont.getAttribute('data-fin') || '';
     C.rest('/oni')
-      .then(function (d) { montar(cont, d.serie || []); })
+      .then(function (d) {
+        var serie = d.serie || [];
+        // Acota la ventana a [inicio, fin] (p. ej. 2026-03 → 2027-03). El /oni
+        // puede traer la serie completa de NOAA; aquí solo mostramos la ventana.
+        if (inicio && fin) {
+          var win = serie.filter(function (s) { return s.mes >= inicio && s.mes <= fin; });
+          if (win.length) { serie = win; }
+        }
+        montar(cont, serie);
+      })
       .catch(function () { C.error(cont, 'No se pudo cargar la línea de tiempo ONI.', function () { init(cont); }); });
   }
 
@@ -43,7 +54,7 @@
     // Posición inicial: enero de 2026 (inicio del rango ene-2026 → mar-2027).
     var idx = 0;
 
-    var velocidad = cont.querySelector('.man-timeline__velocidad');
+    var velocidad = cont.querySelector('.man-timeline__velocidad select');
     var intervalo = velocidad ? parseInt(velocidad.value, 10) : 1200;
     var playing = false, timer = null;
 
