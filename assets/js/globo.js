@@ -169,6 +169,7 @@ class GloboMAN {
     };
     this._focoObjetivo = 0;
     this._focoOpacidad = 0;
+    this._focoBloqueado = false;
     this._mapaMuns = [];
     this._mapaMeshes = [];
 
@@ -768,6 +769,17 @@ class GloboMAN {
     window.addEventListener('man:mes', function (e) {
       if (e.detail) { self.setOni(+e.detail.oni, e.detail.mes, e.detail.fase); }
     });
+    // Capas: activar/desactivar elementos del globo desde el menú "Capas".
+    window.addEventListener('man:capa', function (e) {
+      if (!e.detail) { return; }
+      var v = !!e.detail.visible;
+      switch (e.detail.capa) {
+        case 'calor': if (self.heat) { self.heat.visible = v; } break;
+        case 'foco': self._focoBloqueado = !v; if (self.foco && !v) { self.foco.visible = false; } break;
+        case 'nubes': if (self.nubes) { self.nubes.visible = v; } break;
+        case 'mapa': if (self.mapaGrupo) { self.mapaGrupo.visible = v; } break;
+      }
+    });
     window.addEventListener('resize', function () { self.redimensionar(); });
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (es) { self.visible = es[0].isIntersecting; }, { threshold: 0.04 }).observe(this.lienzo);
@@ -879,7 +891,7 @@ class GloboMAN {
       self._focoOpacidad += (self._focoObjetivo - self._focoOpacidad) * Math.min(1, dt * 1.2);
       var opFC = Math.max(0, self._focoOpacidad);
       self.foco.material.opacity = opFC * 0.85;
-      self.foco.visible = opFC > 0.005;
+      self.foco.visible = !self._focoBloqueado && opFC > 0.005;
       if (opFC > 0.05) {
         var pf = self.foco.geometry.attributes.position.array, tsFC = ahora * 0.001;
         for (var ifc = 0; ifc < self._fcPts.length; ifc++) {

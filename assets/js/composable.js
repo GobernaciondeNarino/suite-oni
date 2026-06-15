@@ -87,10 +87,10 @@
       label.appendChild(lbl);
       var slider = document.createElement('input');
       slider.type = 'range'; slider.min = 0; slider.max = win.length - 1; slider.value = 0;
-      slider.className = 'man-timeline__slider';
+      slider.className = 'man-timeline__rango';
       slider.setAttribute('aria-label', 'Mes');
       cont.appendChild(label);
-      var pista = C.el('div', 'man-timeline__pista'); pista.appendChild(slider); cont.appendChild(pista);
+      var pista = C.el('div', 'man-filtro__pista'); pista.appendChild(slider); cont.appendChild(pista);
       function set(i) {
         i = Math.max(0, Math.min(win.length - 1, i));
         slider.value = i; var s = win[i];
