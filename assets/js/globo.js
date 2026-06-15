@@ -28,12 +28,25 @@ function latLngAVector3(lat, lng, radio) {
   );
 }
 
-/* Interpolación de color por ONI: azul neutro → dorado → naranja → rojo. */
+/* Interpolación de color por ONI: azul neutro → dorado → naranja → rojo.
+   Reusa un color "scratch" (sin asignar objetos por fotograma → apto para miles
+   de partículas). Los llamadores leen/copian el resultado de inmediato. */
+var _oc1 = new THREE.Color(0x2196f3), _oc2 = new THREE.Color(0xffeb3b),
+  _oc3 = new THREE.Color(0xff9800), _oc4 = new THREE.Color(0xd32f2f),
+  _ocScratch = new THREE.Color();
 function colorPorOni(oni) {
   var v = Math.max(0, Math.min(2, oni));
-  if (v < 0.5) { return new THREE.Color().lerpColors(new THREE.Color(0x2196f3), new THREE.Color(0xffeb3b), v / 0.5); }
-  if (v < 1.0) { return new THREE.Color().lerpColors(new THREE.Color(0xffeb3b), new THREE.Color(0xff9800), (v - 0.5) / 0.5); }
-  return new THREE.Color().lerpColors(new THREE.Color(0xff9800), new THREE.Color(0xd32f2f), Math.min(1, (v - 1.0) / 1.0));
+  if (v < 0.5) { return _ocScratch.lerpColors(_oc1, _oc2, v / 0.5); }
+  if (v < 1.0) { return _ocScratch.lerpColors(_oc2, _oc3, (v - 0.5) / 0.5); }
+  return _ocScratch.lerpColors(_oc3, _oc4, Math.min(1, (v - 1.0) / 1.0));
+}
+
+/* Longitud aproximada de la costa pacífica americana por latitud (México →
+   Chile), unos grados mar adentro para no pintar sobre el continente. */
+function coastLng(lat) {
+  if (lat >= 8) { return -86 - (lat - 8) * 1.9; }       // Centroamérica → México
+  if (lat <= -14) { return -80 + (lat + 14) * 0.05; }   // Perú → Chile
+  return -82;                                            // franja ecuatorial
 }
 
 function nivelPorOni(oni) {
@@ -363,13 +376,13 @@ class GloboMAN {
 
   /* ---------------- mapa de calor Niño-3.4 ---------------- */
   _heat() {
-    var n = this.ligero ? 280 : 640;
+    var n = this.ligero ? 520 : 1200;
     this._heatPts = [];
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (var i = 0; i < n; i++) {
-      // Banda ecuatorial ancha del Pacífico (oeste frío → este cálido).
-      var lat = -13 + Math.random() * 26;
-      var lng = -180 + Math.random() * 97; // -180 (oeste) → -83 (frente a Sudamérica)
+      // Pacífico ecuatorial + franja costera del Pacífico oriental (México → Chile).
+      var lat = -42 + Math.random() * 70;
+      var lng = -180 + Math.random() * (coastLng(lat) + 180);
       var p = { lat: lat, latBase: lat, lng: lng, radio: 1.012, velocidadBase: 0.5 + Math.random(), ruido: Math.random(), fase: Math.random() * 6.28 };
       this._heatPts.push(p);
       var v = latLngAVector3(lat, lng, p.radio);
@@ -379,7 +392,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.055, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.05, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.34, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
     this.escena.add(this.heat);
   }
 
@@ -814,17 +827,26 @@ class GloboMAN {
       var drift = 0.4 + 1.2 * oniN, tSeg = ahora * 0.001;
       for (var i = 0; i < self._heatPts.length; i++) {
         var pt = self._heatPts[i];
+        var cl = coastLng(pt.lat);
         pt.lng += drift * pt.velocidadBase * dt;
-        if (pt.lng > -83) { pt.lng = -180; }
-        pt.lat = pt.latBase + Math.sin(tSeg * 0.6 + pt.fase) * 0.4;
-        var v = latLngAVector3(pt.lat, pt.lng, pt.radio);
-        pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
-        // Lengua cálida REAL: punta delgada al oeste, se ensancha hacia el este
-        // (continente). El semiancho latitudinal crece con la "esticidad".
-        var est = Math.max(0, Math.min(1, (pt.lng + 180) / 97)); // 0 oeste → 1 este
-        var hw = 1.6 + 7 * est;                                   // semiancho de la banda (°)
-        var band = Math.max(0, 1 - Math.abs(pt.lat) / hw);
-        var warmth = (0.12 + 0.88 * est) * band * band;           // tenue/punta al oeste, intenso/ancho al este
+        if (pt.lng > cl) { pt.lng = -180; }
+        var lt = pt.latBase + Math.sin(tSeg * 0.6 + pt.fase) * 0.4;
+        pt.lat = lt;
+        // Posición en línea (sin asignar Vector3) — eficiente con miles de partículas.
+        var phi = (90 - lt) * 0.0174533, theta = (pt.lng + 180) * 0.0174533, sp = Math.sin(phi);
+        pos[i * 3] = -pt.radio * sp * Math.cos(theta);
+        pos[i * 3 + 1] = pt.radio * Math.cos(phi);
+        pos[i * 3 + 2] = pt.radio * sp * Math.sin(theta);
+        // Eastness relativa a la costa de esa latitud (0 oeste → 1 en la costa).
+        var est = Math.max(0, Math.min(1, (pt.lng + 180) / (cl + 180)));
+        // (a) Lengua ecuatorial: punta delgada al oeste, se ensancha al este.
+        var eqBand = Math.max(0, 1 - Math.abs(lt) / (2 + 6 * est));
+        var tongue = eqBand * eqBand * (0.12 + 0.88 * est);
+        // (b) Pluma costera del Pacífico oriental, ancha en latitud (México→Chile).
+        var aLat = Math.abs(lt + 7);
+        var latEnv = aLat <= 22 ? 1 : Math.max(0, 1 - (aLat - 22) / 14);
+        var coastal = Math.pow(est, 2.6) * latEnv;
+        var warmth = Math.max(tongue, coastal * 0.95);
         var c = colorPorOni(warmth * oniN * 1.7 + pt.ruido * 0.08);
         col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
       }
