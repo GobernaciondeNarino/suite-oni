@@ -255,6 +255,7 @@ final class MAN_Rest {
 				'category'    => $view['category'],
 				'dimensions'  => $view['dimensions'],
 				'measures'    => $view['measures'],
+				'analisis'    => isset( $view['analisis'] ) ? $view['analisis'] : null,
 			),
 			'data'       => $view['data'],
 			'mapping'    => array( 'links' => array() ),

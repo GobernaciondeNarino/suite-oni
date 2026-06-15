@@ -30,6 +30,7 @@
       legend: fig.getAttribute('data-legend') !== '0',
       legendStyle: fig.getAttribute('data-legend-style') || 'text',
       legendPos: fig.getAttribute('data-legend-pos') || 'bottom',
+      analisis: fig.getAttribute('data-analisis') || 'ambos',
       toolbar: fig.getAttribute('data-toolbar') !== '0',
       actions: parseActions(fig.getAttribute('data-actions')),
       grupo: fig.getAttribute('data-grupo') || '',
@@ -72,6 +73,7 @@
         quitarSkeleton(fig);
         if (st.toolbar) { construirToolbar(fig, chartEl, titleEl, st); }
         dibujar(fig, chartEl, st);
+        pintarAnalisis(fig, p, st.analisis);
         if (st.grupo && window.MANGrupo) { window.MANGrupo.payload(st.grupo, p); }
       })
       .catch(function () { C.error(fig, 'No se pudo cargar el gráfico.', function () { cargar(fig, chartEl, titleEl, st); }); });
@@ -98,6 +100,25 @@
         chartEl.classList.remove('is-loading');
       })
       .catch(function () { chartEl.classList.remove('is-loading'); });
+  }
+
+  /* ---------- Análisis (descriptivo + cuantitativo) ---------- */
+  function pintarAnalisis(fig, p, modo) {
+    var prev = fig.querySelector('.man-g__analisis');
+    if (prev) { prev.parentNode.removeChild(prev); }
+    if (modo === 'no') { return; }
+    var a = (p && p.view && p.view.analisis) || null;
+    if (!a) { return; }
+    var box = C.el('div', 'man-g__analisis');
+    if ((modo === 'ambos' || modo === 'descriptivo') && a.descriptivo) {
+      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(a.descriptivo)));
+    }
+    if ((modo === 'ambos' || modo === 'cuantitativo') && a.cuantitativo) {
+      box.appendChild(C.el('p', 'man-g__analisis-num', C.esc(a.cuantitativo)));
+    }
+    if (!box.childNodes.length) { return; }
+    var pie = fig.querySelector('.man-fuentes');
+    if (pie) { fig.insertBefore(box, pie); } else { fig.appendChild(box); }
   }
 
   /* ---------- Barra de herramientas ---------- */
