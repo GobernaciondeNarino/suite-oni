@@ -70,6 +70,24 @@ function titulo(s) {
   return String(s || '').toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
 }
 
+/* Textura de punto suave (degradado radial) → partículas redondas, no cuadradas
+   (estilo "particle-love"). Se reutiliza en todas las capas de partículas. */
+var _texPunto = null;
+function texturaPunto() {
+  if (_texPunto) { return _texPunto; }
+  var c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  var ctx = c.getContext('2d');
+  var g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(32, 32, 32, 0, Math.PI * 2); ctx.fill();
+  _texPunto = new THREE.CanvasTexture(c);
+  return _texPunto;
+}
+
 function esLigero() {
   return CFG.calidad === 'baja' ||
     (CFG.calidad === 'auto' && ((window.devicePixelRatio || 1) > 2 || (navigator.hardwareConcurrency || 4) <= 4));
@@ -102,6 +120,7 @@ class GloboMAN {
     this._focoCalor();
     this._nubes();
     this._teleconexion();
+    this._teleconexionesGlobales();
     this._marcador();
     this._ondas();
     this._estrellas();
@@ -295,12 +314,13 @@ class GloboMAN {
 
   /* ---------------- mapa de calor Niño-3.4 ---------------- */
   _heat() {
-    var n = this.ligero ? 220 : 520;
+    var n = this.ligero ? 280 : 640;
     this._heatPts = [];
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (var i = 0; i < n; i++) {
-      var lat = -8 + Math.random() * 16;
-      var lng = -170 + Math.random() * 60;
+      // Banda ecuatorial ancha del Pacífico (oeste frío → centro/este cálido).
+      var lat = -9 + Math.random() * 18;
+      var lng = -180 + Math.random() * 95;
       var p = { lat: lat, latBase: lat, lng: lng, radio: 1.012, velocidadBase: 0.5 + Math.random(), ruido: Math.random(), fase: Math.random() * 6.28 };
       this._heatPts.push(p);
       var v = latLngAVector3(lat, lng, p.radio);
@@ -310,7 +330,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.05, vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.075, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
     this.escena.add(this.heat);
   }
 
@@ -354,6 +374,34 @@ class GloboMAN {
     this.flujo.userData = { curva: curva, fases: new Float32Array(nf) };
     for (var j = 0; j < nf; j++) { this.flujo.userData.fases[j] = j / nf; }
     this.escena.add(this.flujo);
+  }
+
+  /* Teleconexiones GLOBALES: el fenómeno no afecta solo a Nariño. Arcos suaves
+     desde el Pacífico ecuatorial a regiones canónicamente impactadas por El
+     Niño; aparecen y se intensifican con el ONI. */
+  _teleconexionesGlobales() {
+    this.teleGlobal = [];
+    var origen = latLngAVector3(0, -145, 1.02);
+    // [lat, lng] de impactos típicos: Perú, sur de EE.UU., Cuerno de África,
+    // Australia/Indonesia, sur de Asia.
+    var destinos = [[-8, -79], [33, -112], [3, 40], [-22, 134], [20, 78]];
+    var self = this;
+    destinos.forEach(function (d) {
+      var fin   = latLngAVector3(d[0], d[1], 1.02);
+      var medio = origen.clone().add(fin).multiplyScalar(0.5).normalize().multiplyScalar(1.5);
+      var curva = new THREE.QuadraticBezierCurve3(origen, medio, fin);
+      var line  = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(curva.getPoints(60)),
+        new THREE.LineBasicMaterial({ color: 0xE8A020, transparent: true, opacity: 0 })
+      );
+      self.escena.add(line);
+      self.teleGlobal.push(line);
+      var marc = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturaPunto(), color: 0xffb347, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+      marc.position.copy(fin);
+      marc.scale.set(0.12, 0.12, 0.12);
+      self.escena.add(marc);
+      self.teleGlobal.push(marc);
+    });
   }
 
   /* ---------------- marcador de Nariño ---------------- */
@@ -422,7 +470,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.pAli = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.022, vertexColors: true, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false }));
+    this.pAli = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.03, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false }));
     this.escena.add(this.pAli);
   }
 
@@ -451,7 +499,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos.slice(0, i * 3), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col.slice(0, i * 3), 3));
-    this.foco = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.058, vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.foco = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.075, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.escena.add(this.foco);
   }
 
@@ -682,13 +730,14 @@ class GloboMAN {
       for (var i = 0; i < self._heatPts.length; i++) {
         var pt = self._heatPts[i];
         pt.lng += drift * pt.velocidadBase * dt;
-        if (pt.lng > -110) { pt.lng = -170; }
+        if (pt.lng > -85) { pt.lng = -180; }
         pt.lat = pt.latBase + Math.sin(tSeg * 0.6 + pt.fase) * 0.4;
         var v = latLngAVector3(pt.lat, pt.lng, pt.radio);
         pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
-        var dlat = pt.lat / 8, dlng = (pt.lng + 140) / 30;
-        var prox = 1 - Math.min(1, Math.sqrt(dlat * dlat + dlng * dlng) * 0.7);
-        var c = colorPorOni(oniN * (0.4 + 0.6 * prox) + pt.ruido * 0.15);
+        // Lengua cálida: centro ~lng -128, estrecha en latitud; flancos/oeste fríos.
+        var dlat = pt.lat / 7, dlng = (pt.lng + 128) / 50;
+        var prox = 1 - Math.min(1, Math.sqrt(dlat * dlat + dlng * dlng) * 0.85);
+        var c = colorPorOni(oniN * (0.35 + 0.75 * prox) + pt.ruido * 0.12);
         col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
       }
       self.heat.geometry.attributes.position.needsUpdate = true;
@@ -748,6 +797,15 @@ class GloboMAN {
         var pp = cv.getPoint(fs[k]); pF[k * 3] = pp.x; pF[k * 3 + 1] = pp.y; pF[k * 3 + 2] = pp.z;
       }
       self.flujo.geometry.attributes.position.needsUpdate = true;
+
+      // Teleconexiones globales: aparecen y se intensifican con el ONI.
+      if (self.teleGlobal) {
+        var opG = Math.min(0.5, Math.max(0, (e.oni - 0.4) * 0.6));
+        for (var tg = 0; tg < self.teleGlobal.length; tg++) {
+          var og = self.teleGlobal[tg];
+          og.material.opacity = og.isSprite ? opG * 1.5 : opG;
+        }
+      }
 
       // Marcador: interpola color hacia el nivel de alerta.
       e.colorMarc.lerp(e.colorMarcObj, Math.min(1, dt * 3));
