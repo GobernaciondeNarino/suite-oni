@@ -16,7 +16,64 @@
 
   C.ready(function () {
     Array.prototype.forEach.call(document.querySelectorAll('[data-man-grafico]'), init);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-man-analisis]'), initAnalisisBloque);
   });
+
+  /* ---------- [man_analisis] — bloque de análisis independiente ----------
+     Renderiza SOLO el texto (descriptivo/cuantitativo) de una vista, sin la
+     gráfica. Si pertenece a un grupo, se sincroniza con el gráfico del grupo;
+     si no, pide /render por su cuenta. */
+  function initAnalisisBloque(box) {
+    var st = {
+      view: box.getAttribute('data-view') || 'oni_serie',
+      type: box.getAttribute('data-type') || '',
+      hasta: box.getAttribute('data-hasta') || '2027-02',
+      mes: box.getAttribute('data-mes') || '',
+      modo: box.getAttribute('data-modo') || 'ambos',
+      titulo: box.getAttribute('data-titulo') || '',
+      grupo: box.getAttribute('data-grupo') || ''
+    };
+
+    var pintado = false;
+    function render(p) {
+      if (!p) { return; }
+      pintado = true;
+      pintarAnalisisBloque(box, p, st.modo, st.titulo);
+    }
+    function fetchPropio() {
+      C.rest('/render', { view: st.view, type: st.type, hasta: st.hasta, mes: st.mes })
+        .then(render)
+        .catch(function () { if (!pintado) { C.error(box, 'No se pudo cargar el análisis.', function () { pintado = false; initAnalisisBloque(box); }); } });
+    }
+
+    // Modo composable: escucha el payload del grupo (lo emite el [man_grafico]).
+    // onPayload entrega de inmediato el último payload si ya existe.
+    if (st.grupo && window.MANGrupo) {
+      var est = window.MANGrupo.init(st.grupo, { view: st.view, type: st.type, mes: st.mes, hasta: st.hasta });
+      st.view = est.view || st.view; st.mes = est.mes || st.mes; st.hasta = est.hasta || st.hasta;
+      window.MANGrupo.onPayload(st.grupo, function (payload) { render(payload); });
+      // Si no hay ningún gráfico en el grupo que publique, pedimos por cuenta propia.
+      setTimeout(function () { if (!pintado) { fetchPropio(); } }, 1200);
+      return;
+    }
+
+    fetchPropio();
+  }
+
+  function pintarAnalisisBloque(box, p, modo, titulo) {
+    var a = (p && p.view && p.view.analisis) || null;
+    var sk = box.querySelector('.man-skeleton'); if (sk) { sk.parentNode.removeChild(sk); }
+    box.innerHTML = '';
+    if (titulo) { box.appendChild(C.el('p', 'man-g__analisis-titulo', C.esc(titulo))); }
+    else if (p && p.view && p.view.name) { box.appendChild(C.el('p', 'man-g__analisis-titulo', C.esc(p.view.name))); }
+    if (!a) { box.appendChild(C.el('p', 'man-g__analisis-desc', 'Sin análisis disponible para esta vista.')); return; }
+    if ((modo === 'ambos' || modo === 'descriptivo') && a.descriptivo) {
+      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(a.descriptivo)));
+    }
+    if ((modo === 'ambos' || modo === 'cuantitativo') && a.cuantitativo) {
+      box.appendChild(C.el('p', 'man-g__analisis-num', C.esc(a.cuantitativo)));
+    }
+  }
 
   function init(fig) {
     var chartEl = fig.querySelector('.man-g__chart');

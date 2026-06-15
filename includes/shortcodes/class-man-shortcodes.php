@@ -44,6 +44,7 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_estadisticas', array( $this, 'sc_estadisticas' ) );
 		add_shortcode( 'man_animacion', array( $this, 'sc_animacion' ) );
 		add_shortcode( 'man_grafico', array( $this, 'sc_grafico' ) );
+		add_shortcode( 'man_analisis', array( $this, 'sc_analisis' ) );
 		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
 		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
@@ -312,6 +313,12 @@ final class MAN_Shortcodes {
 			data-fin="<?php echo esc_attr( $fin ); ?>"
 			data-autoplay="<?php echo esc_attr( $autoplay ); ?>">
 
+			<div class="man-timeline__barra-top">
+			<p class="man-timeline__leyenda">
+				<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--obs"></span>Observado</span>
+				<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado</span>
+			</p>
+
 			<div class="man-timeline__identidad">
 				<img class="man-timeline__logo" src="<?php echo esc_url( MAN_URL . 'assets/img/TIC.png' ); ?>"
 					alt="Gobernación de Nariño · Secretaría TIC" onerror="this.style.display='none'" />
@@ -341,15 +348,12 @@ final class MAN_Shortcodes {
 					</div>
 				</details>
 			</div>
+			</div>
 
 			<div class="man-timeline__slider">
 				<span class="man-timeline__divisor" aria-hidden="true"></span>
 				<input type="range" class="man-timeline__rango" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
 				<ul class="man-timeline__marcas" role="group" aria-label="Meses"></ul>
-				<p class="man-timeline__leyenda">
-					<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--obs"></span>Observado</span>
-					<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado</span>
-				</p>
 			</div>
 		</div>
 		<?php
@@ -597,6 +601,63 @@ final class MAN_Shortcodes {
 			'legend_pos'   => $atts['legend_pos'],
 			'analisis'     => $atts['analisis'],
 		) );
+	}
+
+	/**
+	 * [man_analisis] — SOLO el texto de análisis (descriptivo y/o cuantitativo)
+	 * de una vista, SIN la gráfica. Permite separar el gráfico de su descripción
+	 * y maquetarlos en lugares distintos. Si se indica un "grupo", se sincroniza
+	 * con el [man_grafico grupo="…"] del mismo grupo (lee su misma vista/mes).
+	 *
+	 * view  : oni_serie | oni_observado | oni_pronostico | prob_fase |
+	 *         riesgo_subregion | riesgo_municipios | episodios.
+	 * modo  : ambos | descriptivo | cuantitativo.
+	 * grupo : (opcional) enlaza el análisis a un grupo de gráficos.
+	 */
+	public function sc_analisis( $atts ) {
+		$atts = $this->fusionar( array(
+			'view'   => 'oni_serie',
+			'type'   => '',
+			'modo'   => 'ambos',
+			'hasta'  => '2027-02',
+			'mes'    => gmdate( 'Y-m' ),
+			'titulo' => '',
+			'grupo'  => '',
+		), $atts, 'man_analisis' );
+
+		wp_enqueue_style( 'man-grafico-css' );
+		wp_enqueue_script( 'man-grafico' );
+
+		$id     = $this->id();
+		$view   = sanitize_key( $atts['view'] );
+		$type   = sanitize_key( $atts['type'] );
+		$modo   = in_array( $atts['modo'], array( 'ambos', 'descriptivo', 'cuantitativo' ), true ) ? $atts['modo'] : 'ambos';
+		$grupo  = sanitize_key( $atts['grupo'] );
+		$hasta  = MAN_Security::sanitizar_mes( $atts['hasta'] );
+		if ( $hasta <= gmdate( 'Y-m' ) ) {
+			$hasta = '2027-02';
+		}
+		$mes    = MAN_Security::sanitizar_mes( $atts['mes'] );
+		$titulo = sanitize_text_field( $atts['titulo'] );
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-g__analisis man-analisis-bloque"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-analisis
+			data-view="<?php echo esc_attr( $view ); ?>"
+			data-type="<?php echo esc_attr( $type ); ?>"
+			data-modo="<?php echo esc_attr( $modo ); ?>"
+			data-hasta="<?php echo esc_attr( $hasta ); ?>"
+			data-mes="<?php echo esc_attr( $mes ); ?>"
+			data-grupo="<?php echo esc_attr( $grupo ); ?>"
+			data-titulo="<?php echo esc_attr( $titulo ); ?>"
+			aria-live="polite">
+			<?php echo $this->skeleton( 'Calculando el análisis…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 
 	/**

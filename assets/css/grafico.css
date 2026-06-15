@@ -113,6 +113,27 @@
 .man-g__analisis { padding: 4px 16px 12px; border-top: 1px solid var(--man-g-border); margin-top: 4px; }
 .man-g__analisis-desc { font-size: 13px; line-height: 1.5; color: var(--man-g-soft); margin: .35em 0; }
 .man-g__analisis-num { font-size: 13px; line-height: 1.5; color: var(--man-g-ink); font-weight: 600; margin: .35em 0; }
+.man-g__analisis-titulo { font-size: 14px; font-weight: 700; color: var(--man-g-ink); margin: 0 0 .15em; }
+
+/* [man_analisis] — bloque de análisis INDEPENDIENTE (sin la tarjeta del gráfico).
+   Reaprovecha los estilos de texto pero define sus propios tokens y un marco
+   ligero, para poder maquetarlo separado de su gráfica. */
+.man-analisis-bloque {
+  --man-g-bg:     #ffffff;
+  --man-g-border: #e2e8f0;
+  --man-g-ink:    #0f172a;
+  --man-g-soft:   #475569;
+  --man-g-accent-2: #003087;
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: var(--man-g-bg);
+  border: 1px solid var(--man-g-border);
+  border-left: 4px solid var(--man-g-accent-2);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+.man-analisis-bloque.man-g__analisis { border-top: 0; }     /* anula el border-top heredado */
+.man-analisis-bloque .man-skeleton { padding: 0; }
 
 /* Pie y skeleton heredan estilos minimalistas pero con padding de la tarjeta. */
 .man-g .man-skeleton,

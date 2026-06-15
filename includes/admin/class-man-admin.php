@@ -57,7 +57,7 @@ final class MAN_Admin {
 			'nonce' => wp_create_nonce( 'man_admin' ),
 		) );
 		wp_add_inline_style( 'common', '.man-card{background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px 20px;margin:14px 0;max-width:760px}.man-card h2 code{font-size:11px;color:#787c82;background:#f0f0f1;padding:2px 6px;border-radius:4px}.man-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}.man-resultado{margin-left:10px;font-style:italic}.man-tabla-salud td,.man-tabla-salud th{padding:8px 10px}'
-			. '.man-el-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin:10px 0 26px}.man-el-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px}.man-el-card h3{margin:0 0 2px;font-size:14px}.man-el-card h3 code{font-size:12px;background:#eef2f7;color:#1d4ed8;padding:1px 6px;border-radius:4px}.man-el-desc{color:#50575e;margin:.3em 0 .6em;font-size:13px}.man-el-attrs{margin:.2em 0 .7em;padding-left:1.1em;font-size:12px;color:#50575e}.man-el-attrs code{background:#f0f0f1;padding:0 4px;border-radius:3px}.man-el-copy{display:flex;gap:6px;align-items:center}.man-el-input{flex:1;font-family:Menlo,Consolas,monospace;font-size:12px;padding:6px 8px;border:1px solid #c3c4c7;border-radius:4px;background:#f6f7f7}.man-el-card .button{white-space:nowrap}.man-el-intro{max-width:820px}.man-el-grp{margin:22px 0 6px;font-size:15px;border-bottom:1px solid #e0e0e0;padding-bottom:4px}'
+			. '.man-el-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin:10px 0 26px}.man-el-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px}.man-el-card h3{margin:0 0 2px;font-size:14px}.man-el-card h3 code{font-size:12px;background:#eef2f7;color:#1d4ed8;padding:1px 6px;border-radius:4px}.man-el-desc{color:#50575e;margin:.3em 0 .6em;font-size:13px}.man-el-attrs{margin:.2em 0 .7em;padding-left:1.1em;font-size:12px;color:#50575e}.man-el-attrs code{background:#f0f0f1;padding:0 4px;border-radius:3px}.man-el-copy{display:flex;gap:6px;align-items:center}.man-el-input{flex:1;font-family:Menlo,Consolas,monospace;font-size:12px;padding:6px 8px;border:1px solid #c3c4c7;border-radius:4px;background:#f6f7f7}.man-el-card .button{white-space:nowrap}.man-el-intro{max-width:820px}.man-el-grp{margin:22px 0 6px;font-size:15px;border-bottom:1px solid #e0e0e0;padding-bottom:4px}.man-el-callout{background:#f6faf7;border:1px solid #cfe8d6;border-left:4px solid #10A13B;border-radius:8px;padding:14px 20px;margin:14px 0 8px;max-width:920px}.man-el-callout h2{margin:0 0 6px;font-size:15px;color:#0f5132}.man-el-callout ol{margin:.4em 0;padding-left:1.3em}.man-el-callout li{margin:.5em 0;font-size:13px;color:#3c434a;line-height:1.55}.man-el-callout code{font-size:12px;background:#eef2f7;color:#1d4ed8;padding:1px 5px;border-radius:3px}.man-el-callout-nota{font-size:12.5px;color:#50575e;margin:.6em 0 0;border-top:1px dashed #cfe8d6;padding-top:.6em}'
 			. '.man-api-intro{max-width:920px}.man-api-leyenda{display:flex;flex-wrap:wrap;gap:8px 18px;margin:10px 0 4px;font-size:12px;color:#50575e}.man-api-leyenda .man-badge{margin-right:4px}.man-badge{display:inline-block;font-size:11px;font-weight:600;line-height:1.6;padding:0 8px;border-radius:10px;white-space:nowrap}.man-badge-cron{background:#e7f0fb;color:#0b4a8f}.man-badge-navegador{background:#e6f4ea;color:#1e6b32}.man-badge-mixto{background:#fef3e0;color:#8a5300}.man-api-panel{display:none}.man-api-panel.is-activo{display:block;animation:man-fade .18s ease-in}@keyframes man-fade{from{opacity:0}to{opacity:1}}.man-api-panel h2{margin:18px 0 4px;font-size:17px}.man-api-panel>p{max-width:920px;color:#3c434a}.man-tabla-api{max-width:1100px;margin:12px 0 8px}.man-tabla-api td,.man-tabla-api th{padding:9px 12px;vertical-align:top}.man-tabla-api th{font-size:13px}.man-tabla-api td:first-child{font-weight:600;width:24%}.man-tabla-api code{font-size:11px;background:#f0f0f1;padding:1px 5px;border-radius:3px;white-space:nowrap}.man-tabla-api .man-fuente{display:block;color:#50575e;font-size:12px;margin-top:3px}.man-tabla-api .man-lic{color:#646970;font-size:12px}.man-sc-lista code{margin:0 3px 3px 0;display:inline-block}.man-combina{background:#fbfbfc;border:1px solid #dcdcde;border-left:4px solid #10A13B;border-radius:6px;padding:14px 18px;margin:12px 0;max-width:1100px}.man-combina h3{margin:0 0 4px;font-size:15px}.man-combina .man-formula{font-family:Menlo,Consolas,monospace;font-size:12.5px;color:#1d3b6b;background:#eef2f7;padding:6px 10px;border-radius:4px;display:block;margin:6px 0;line-height:1.5}.man-combina p{margin:.4em 0;color:#3c434a;font-size:13px}.man-combina ul{margin:.3em 0 .3em 1.2em;font-size:13px;color:#50575e}.man-api-estado{font-size:11px;font-weight:600;margin-left:6px}.man-api-estado.on{color:#1e6b32}.man-api-estado.off{color:#b32d2e}.man-api-pie{max-width:920px;color:#646970;font-size:12px;margin-top:18px;border-top:1px solid #e0e0e0;padding-top:10px}' );
 	}
 
@@ -130,6 +130,30 @@ final class MAN_Admin {
 				atributo (<code>fondo</code>, <code>acento</code>, <code>borde</code>, <code>radio</code>, <code>sombra</code>,
 				<code>ancho</code>, <code>espaciado</code>).</p>
 
+			<div class="man-el-callout">
+				<h2>Cómo separar un gráfico de su descripción y análisis</h2>
+				<p>Cada gráfico estadístico trae dos párrafos de análisis: uno <strong>descriptivo</strong> (qué muestra, en
+					lenguaje claro) y uno <strong>cuantitativo</strong> (cifras: pendiente, R², máximos, probabilidades). Tienes
+					tres maneras de maquetarlos:</p>
+				<ol>
+					<li><strong>Todo junto (por defecto).</strong> El gráfico muestra su análisis debajo.
+						Controla cuál con <code>analisis="ambos|descriptivo|cuantitativo|no"</code>.<br/>
+						<code>[man_grafico view="oni_serie" type="line" analisis="ambos"]</code></li>
+					<li><strong>Gráfico y texto por separado, en distintos lugares de la página.</strong> Oculta el análisis del
+						gráfico con <code>analisis="no"</code> y coloca el texto donde quieras con el shortcode
+						<code>[man_analisis]</code> apuntando a la misma <code>view</code>:<br/>
+						<code>[man_grafico view="oni_serie" type="line" analisis="no"]</code><br/>
+						<code>[man_analisis view="oni_serie" modo="descriptivo" titulo="Lectura"]</code><br/>
+						<code>[man_analisis view="oni_serie" modo="cuantitativo" titulo="Cifras clave"]</code></li>
+					<li><strong>Enlazados por grupo (se actualizan juntos).</strong> Si das el mismo <code>grupo</code> al gráfico
+						y al análisis, al cambiar la vista/mes con un <code>[man_filtro]</code> el texto se recalcula solo:<br/>
+						<code>[man_grafico grupo="enso" view="oni_serie" analisis="no"]</code> · <code>[man_analisis grupo="enso"]</code></li>
+				</ol>
+				<p class="man-el-callout-nota">En <code>[man_prediccion]</code> se divide igual con el atributo
+					<code>partes</code> (p. ej. <code>partes="grafico"</code> en un sitio y <code>partes="texto,metodologia"</code>
+					en otro). Valores: <code>titulo, chips, grafico, probabilidad, texto, metodologia</code>.</p>
+			</div>
+
 			<?php foreach ( $grupos as $grupo => $items ) : ?>
 				<h2 class="man-el-grp"><?php echo esc_html( $grupo ); ?></h2>
 				<div class="man-el-grid">
@@ -171,14 +195,21 @@ final class MAN_Admin {
 					'tag'     => 'man_grafico',
 					'titulo'  => 'Gráfico avanzado (D3plus)',
 					'desc'    => 'Tarjeta con barra de herramientas: Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y "Cambiar tipo" en vivo. Elige una vista de datos y el tipo de gráfico.',
-					'attrs'   => array( '<code>view</code> — oni_serie | prob_fase | riesgo_subregion | riesgo_municipios | episodios', '<code>type</code> — bar | line | treemap | pie | …', '<code>theme</code> — claro | oscuro', '<code>actions</code>, <code>legend</code>, <code>toolbar</code>, <code>alto</code>' ),
+					'attrs'   => array( '<code>view</code> — oni_serie | prob_fase | riesgo_subregion | riesgo_municipios | episodios', '<code>type</code> — bar | line | treemap | pie | …', '<code>theme</code> — claro | oscuro', '<code>analisis</code> — ambos | descriptivo | cuantitativo | no', '<code>legend_pos</code> — abajo | arriba | derecha | izquierda', '<code>actions</code>, <code>legend</code>, <code>toolbar</code>, <code>alto</code>, <code>grupo</code>' ),
 					'ejemplo' => '[man_grafico view="oni_serie" type="line"]',
+				),
+				array(
+					'tag'     => 'man_analisis',
+					'titulo'  => 'Análisis (solo texto)',
+					'desc'    => 'Solo los párrafos de análisis (descriptivo y/o cuantitativo) de una vista, SIN la gráfica. Sirve para separar el gráfico de su descripción y ubicarlos por separado. Con grupo="…" se sincroniza con el gráfico del mismo grupo.',
+					'attrs'   => array( '<code>view</code> — la misma vista del gráfico', '<code>modo</code> — ambos | descriptivo | cuantitativo', '<code>titulo</code> — encabezado opcional', '<code>grupo</code> — enlázalo a un [man_grafico] del mismo grupo', '<code>hasta</code>, <code>mes</code>' ),
+					'ejemplo' => '[man_analisis view="oni_serie" modo="descriptivo" titulo="Lectura"]',
 				),
 				array(
 					'tag'     => 'man_prediccion',
 					'titulo'  => 'Predicción ENSO',
-					'desc'    => 'Trayectoria del ONI hasta el mes objetivo (feb-2027) con banda de incertidumbre, umbrales de fase, probabilidad por trimestre y texto predictivo. Reveal animado.',
-					'attrs'   => array( '<code>hasta</code> — mes objetivo AAAA-MM', '<code>modelo</code> — si/no (línea del modelo propio)', '<code>probabilidad</code> — si/no (barras por trimestre)' ),
+					'desc'    => 'Trayectoria del ONI hasta el mes objetivo (feb-2027) con banda de incertidumbre, umbrales de fase, probabilidad por trimestre y texto predictivo. Reveal animado. Divisible con "partes".',
+					'attrs'   => array( '<code>hasta</code> — mes objetivo AAAA-MM', '<code>modelo</code> — si/no (línea del modelo propio)', '<code>probabilidad</code> — si/no (barras por trimestre)', '<code>partes</code> — titulo, chips, grafico, probabilidad, texto, metodologia' ),
 					'ejemplo' => '[man_prediccion hasta="2027-02"]',
 				),
 				array(
@@ -244,9 +275,9 @@ final class MAN_Admin {
 				array(
 					'tag'     => 'man_timeline',
 					'titulo'  => 'Línea de tiempo',
-					'desc'    => 'Slider de meses del ONI que controla el globo (emite el evento man:mes).',
-					'attrs'   => array( '<code>inicio</code> — AAAA-MM', '<code>fin</code> — AAAA-MM' ),
-					'ejemplo' => '[man_timeline]',
+					'desc'    => 'Barra de meses del ONI (estilo mockup): leyenda Observado/Proyectado, chip de estado, botones, velocidad, menú "Capas" y slider con gradiente ENSO. Controla el globo (man:mes) y sus capas (man:capa). Autoplay al cargar.',
+					'attrs'   => array( '<code>inicio</code> — AAAA-MM (def. 2026-03)', '<code>fin</code> — AAAA-MM (def. 2027-03)', '<code>autoplay</code> — si/no', '<code>titulo</code> — rótulo de la barra' ),
+					'ejemplo' => '[man_timeline inicio="2026-03" fin="2027-03"]',
 				),
 			),
 			'Mapa y territorio'     => array(
