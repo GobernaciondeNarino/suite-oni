@@ -194,6 +194,15 @@ final class MAN_Api_Config {
 			case 'ioc':
 				$code = isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : '';
 				return rtrim( $url, '/' ) . '/?query=stationlist&code=' . rawurlencode( $code );
+			case 'iri_enso':
+				return $url; // página oficial NOAA/CPC de probabilidades ENSO
+			case 'deficit':
+				return 'https://api.open-meteo.com/v1/forecast?latitude=1.21&longitude=-77.28&daily=precipitation_sum&past_days=7&forecast_days=1&timezone=America%2FBogota';
+			case 'firms':
+				$key = ! empty( $cfg['clave'] ) ? MAN_Security::descifrar( $cfg['clave'] ) : '';
+				$ds  = isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : 'VIIRS_SNPP_NRT';
+				$base = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) : 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
+				return $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $ds ) . '/' . MAN_Sync_Firms::BBOX . '/1';
 			default:
 				return $url;
 		}
