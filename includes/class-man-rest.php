@@ -68,7 +68,13 @@ final class MAN_Rest {
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_prediccion' ),
 			'permission_callback' => $publico,
-			'args'                => array( 'hasta' => array( 'sanitize_callback' => 'sanitize_text_field' ) ),
+			'args'                => array(
+				'hasta'  => array( 'sanitize_callback' => 'sanitize_text_field' ),
+				'fuente' => array(
+					'default'           => 'ambos',
+					'sanitize_callback' => array( $this, 'sanitizar_fuente' ),
+				),
+			),
 		) );
 
 		// Motor de gráficos D3plus ([man_grafico]).
@@ -106,6 +112,12 @@ final class MAN_Rest {
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_pronostico_oni' ),
 			'permission_callback' => $publico,
+			'args'                => array(
+				'fuente' => array(
+					'default'           => 'ambos',
+					'sanitize_callback' => array( $this, 'sanitizar_fuente' ),
+				),
+			),
 		) );
 
 		register_rest_route( self::NS, '/mar', array(
@@ -192,8 +204,20 @@ final class MAN_Rest {
 	}
 
 	public function ruta_prediccion( $req ) {
-		$hasta = self::sanitizar_objetivo( $req->get_param( 'hasta' ) );
-		return rest_ensure_response( self::construir_prediccion( $hasta ) );
+		$hasta  = self::sanitizar_objetivo( $req->get_param( 'hasta' ) );
+		$fuente = self::sanitizar_fuente( $req->get_param( 'fuente' ) );
+		return rest_ensure_response( self::construir_prediccion( $hasta, $fuente ) );
+	}
+
+	/**
+	 * Sanitiza el parámetro de fuente del pronóstico.
+	 *
+	 * @param mixed $v Valor crudo.
+	 * @return string oficial|modelo|ambos
+	 */
+	public static function sanitizar_fuente( $v ) {
+		$v = sanitize_key( (string) $v );
+		return in_array( $v, array( 'oficial', 'modelo', 'ambos' ), true ) ? $v : 'ambos';
 	}
 
 	/**
@@ -216,8 +240,19 @@ final class MAN_Rest {
 	}
 
 	/** Dominio PRONÓSTICO: serie ONI proyectada (sin observado). */
-	public function ruta_pronostico_oni() {
-		return rest_ensure_response( self::construir_oni_dominio( 'pronostico' ) );
+	public function ruta_pronostico_oni( $req = null ) {
+		$salida = self::construir_oni_dominio( 'pronostico' );
+		$fuente = $req ? self::sanitizar_fuente( $req->get_param( 'fuente' ) ) : 'ambos';
+		$salida['fuente_solicitada'] = $fuente;
+		if ( 'modelo' !== $fuente ) {
+			$oc = MAN_Cache::get( 'enso_pronostico_oficial' );
+			$salida['oficial'] = is_array( $oc ) ? $oc : array(
+				'probabilidades' => array(),
+				'estado'         => 'sin_datos',
+				'fuente'         => 'NOAA/CPC (consenso CPC/IRI, oficial)',
+			);
+		}
+		return rest_ensure_response( $salida );
 	}
 
 	/**
@@ -715,10 +750,23 @@ final class MAN_Rest {
 	 * @param string $hasta Mes objetivo AAAA-MM.
 	 * @return array
 	 */
-	public static function construir_prediccion( $hasta ) {
+	public static function construir_prediccion( $hasta, $fuente = 'ambos' ) {
 		$hasta     = self::sanitizar_objetivo( $hasta );
+		$fuente    = self::sanitizar_fuente( $fuente );
 		$oni       = self::construir_oni();
 		$serie_oni = isset( $oni['serie'] ) ? $oni['serie'] : array();
+
+		// Pronóstico oficial en vivo (NOAA/CPC, consenso CPC/IRI). Se adjunta
+		// salvo que se pida solo el modelo propio. No sustituye al modelo.
+		$oficial = null;
+		if ( 'modelo' !== $fuente ) {
+			$oc      = MAN_Cache::get( 'enso_pronostico_oficial' );
+			$oficial = is_array( $oc ) ? $oc : array(
+				'probabilidades' => array(),
+				'estado'         => 'sin_datos',
+				'fuente'         => 'NOAA/CPC (consenso CPC/IRI, oficial)',
+			);
+		}
 
 		// 1) Separar observado del proyectado oficial; recoger bandas de la semilla.
 		$observado = array();
@@ -890,7 +938,9 @@ final class MAN_Rest {
 		);
 
 		return array(
-			'objetivo_mes'    => $hasta,
+			'objetivo_mes'      => $hasta,
+			'fuente_solicitada' => $fuente,
+			'oficial'           => $oficial,
 			'actual'          => $actual,
 			'objetivo'        => $objetivo,
 			'pico'            => $pico,
