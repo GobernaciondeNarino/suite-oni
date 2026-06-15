@@ -499,19 +499,31 @@ class GloboMAN {
   _tooltipMuni(e, muni) {
     var rect = this.cont.getBoundingClientRect();
     var x = e.clientX - rect.left, y = e.clientY - rect.top;
-    var html = '<strong>' + esc(titulo(muni.nombre)) + '</strong>';
+    var data = muni.serie || {};
+    var arr = data.serie || [];
     var reg = null;
-    if (muni.serie && muni.serie.serie) {
-      var s = muni.serie.serie;
-      for (var i = 0; i < s.length; i++) { if (s[i].mes === this.estado.mes) { reg = s[i]; break; } }
-      if (!reg && s.length) { reg = s[s.length - 1]; }
-    }
+    for (var i = 0; i < arr.length; i++) { if (arr[i].mes === this.estado.mes) { reg = arr[i]; break; } }
+    if (!reg && arr.length) { reg = arr[arr.length - 1]; }
+
+    var html = '<strong>' + esc(titulo(muni.nombre)) + '</strong>';
     if (reg) {
-      html += '<span class="tt-nivel" style="background:' + esc(reg.color) + '">RIESGO ' + Math.round(reg.riesgo * 100) + '/100</span>';
-      html += '<span class="tt-linea">' + esc(this._mesTxt(reg.mes)) + ' · DIVIPOLA ' + esc(muni.divipola) + '</span>';
-    } else {
-      html += '<span class="tt-linea">DIVIPOLA ' + esc(muni.divipola) + '</span>';
+      html += '<span class="tt-nivel" style="background:' + esc(reg.color) + '">' + esc(String(reg.nivel || '').toUpperCase()) + ' · ' + Math.round(reg.riesgo * 100) + '/100</span>';
+      html += '<span class="tt-linea">' + esc(this._mesTxt(reg.mes)) + ' · ' + (reg.tipo === 'proyectado' ? 'proyectado' : 'observado') + '</span>';
+      var ind = reg.ind || {};
+      if (ind.deficit_hidrico != null) { html += '<span class="tt-linea">Déficit hídrico: <b>' + esc(ind.deficit_hidrico) + '/100</b></span>'; }
+      if (ind.focos_calor != null) { html += '<span class="tt-linea">Focos de calor: <b>' + esc(ind.focos_calor) + '</b></span>'; }
+      if (ind.area_cultivos_riesgo_pct != null) { html += '<span class="tt-linea">Cultivos en riesgo: <b>' + esc(ind.area_cultivos_riesgo_pct) + '%</b></span>'; }
     }
+    // Lo que puede pasar: pico previsto.
+    if (data.mes_pico) {
+      html += '<span class="tt-linea tt-pico">▲ Pico previsto: <b>' + esc(this._mesTxt(data.mes_pico) || data.mes_pico) + '</b>' + (data.indice_pico != null ? ' (' + Math.round(data.indice_pico * 100) + '/100)' : '') + '</span>';
+    }
+    // Lo que ha pasado: afectación histórica.
+    if (data.historico) {
+      html += '<span class="tt-linea tt-hist">Afectación histórica: <b>' + esc(data.historico) + '</b></span>';
+    }
+    html += '<span class="tt-meta">DIVIPOLA ' + esc(muni.divipola) + (data.regimen ? ' · ' + esc(data.regimen) : '') + '</span>';
+
     this.tip.innerHTML = html;
     this.tip.hidden = false;
     var w = this.tip.offsetWidth || 180, half = w / 2;

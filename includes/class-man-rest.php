@@ -453,46 +453,79 @@ final class MAN_Rest {
 	}
 
 	/**
-	 * Serie ONI (caché de NOAA o semilla local).
+	 * Serie ONI de la VENTANA del fenómeno (2026-01 … 2027-03), fusionando el
+	 * observado oficial de NOAA con el proyectado de la semilla. NOAA es
+	 * autoritativo para los meses pasados; la semilla aporta la proyección a
+	 * futuro que NOAA aún no tiene. Así la línea de tiempo siempre cubre la
+	 * ventana completa, con valores observados reales cuando existen.
 	 *
 	 * @return array
 	 */
 	public static function construir_oni() {
-		$c = MAN_Cache::get( 'oni' );
-		if ( $c && ! empty( $c['serie'] ) ) {
-			return $c;
-		}
-
-		$g = self::datos_globo();
+		// 1) Base: ventana de la semilla (datos_globo), con observado/proyectado.
+		$serie = array();
+		$g     = self::datos_globo();
 		if ( $g && ! empty( $g['global']['meses'] ) ) {
-			$serie  = array();
-			$actual = null;
 			foreach ( $g['global']['meses'] as $m ) {
-				$proy    = isset( $m['tipo_dato'] ) && 'observado' !== $m['tipo_dato'];
-				$serie[] = array(
+				$proy = isset( $m['tipo_dato'] ) && 'observado' !== $m['tipo_dato'];
+				$serie[ $m['mes'] ] = array(
 					'mes'        => $m['mes'],
 					'oni'        => (float) $m['oni'],
 					'fase'       => MAN_Enso::clasificar_fase( $m['oni'] ),
 					'proyectado' => $proy,
 				);
-				$actual = $m;
+			}
+		}
+
+		// 2) Overlay: valores observados de NOAA (autoritativos) sobre la ventana.
+		$c           = MAN_Cache::get( 'oni' );
+		$actualizado = ( $c && isset( $c['actualizado'] ) ) ? $c['actualizado'] : null;
+		if ( $c && ! empty( $c['serie'] ) ) {
+			foreach ( $c['serie'] as $s ) {
+				if ( empty( $s['mes'] ) || ! isset( $serie[ $s['mes'] ] ) ) {
+					continue; // solo dentro de la ventana de la semilla
+				}
+				$serie[ $s['mes'] ]['oni']        = (float) $s['oni'];
+				$serie[ $s['mes'] ]['fase']       = MAN_Enso::clasificar_fase( $s['oni'] );
+				$serie[ $s['mes'] ]['proyectado'] = false; // NOAA = observado
+			}
+		}
+
+		// 3) Sin semilla: usa el caché de NOAA tal cual (o vacío).
+		if ( empty( $serie ) ) {
+			if ( $c && ! empty( $c['serie'] ) ) {
+				return $c;
 			}
 			return array(
-				'actual'      => array(
-					'mes'        => $actual['mes'],
-					'oni'        => (float) $actual['oni'],
-					'fase'       => MAN_Enso::clasificar_fase( $actual['oni'] ),
-					'intensidad' => MAN_Enso::intensidad( $actual['oni'] ),
-				),
-				'serie'       => $serie,
-				'fuente'      => 'Semilla local (datos_globo)',
-				'actualizado' => null,
+				'actual' => array( 'mes' => gmdate( 'Y-m' ), 'oni' => 0, 'fase' => 'Neutral', 'intensidad' => 'sin intensidad' ),
+				'serie'  => array(),
 			);
 		}
 
+		ksort( $serie );
+		$serie = array_values( $serie );
+
+		// 4) "actual" = último mes observado (o el último de la serie).
+		$actual = null;
+		foreach ( $serie as $s ) {
+			if ( empty( $s['proyectado'] ) ) {
+				$actual = $s;
+			}
+		}
+		if ( null === $actual ) {
+			$actual = end( $serie );
+		}
+
 		return array(
-			'actual' => array( 'mes' => gmdate( 'Y-m' ), 'oni' => 0, 'fase' => 'Neutral', 'intensidad' => 'sin intensidad' ),
-			'serie'  => array(),
+			'actual'      => array(
+				'mes'        => $actual['mes'],
+				'oni'        => (float) $actual['oni'],
+				'fase'       => MAN_Enso::clasificar_fase( $actual['oni'] ),
+				'intensidad' => MAN_Enso::intensidad( $actual['oni'] ),
+			),
+			'serie'       => $serie,
+			'fuente'      => $c ? 'NOAA/CPC (observado) + semilla (proyectado)' : 'Semilla local (datos_globo)',
+			'actualizado' => $actualizado,
 		);
 	}
 
@@ -577,12 +610,20 @@ final class MAN_Rest {
 							'mes'    => isset( $s['mes'] ) ? $s['mes'] : '',
 							'riesgo' => round( $riesgo, 3 ),
 							'color'  => $nivel['color'],
+							'nivel'  => $nivel['etiqueta'],
+							'tipo'   => ( isset( $s['tipo_dato'] ) && 'observado' !== $s['tipo_dato'] ) ? 'proyectado' : 'observado',
+							'ind'    => isset( $s['ind'] ) ? $s['ind'] : null,
 						);
 					}
 				}
 				$out[ (string) $divipola ] = array(
-					'nombre' => isset( $m['municipio'] ) ? $m['municipio'] : (string) $divipola,
-					'serie'  => $serie,
+					'nombre'      => isset( $m['municipio'] ) ? $m['municipio'] : (string) $divipola,
+					'regimen'     => isset( $m['regimen'] ) ? $m['regimen'] : '',
+					'mes_pico'    => isset( $m['mes_pico'] ) ? $m['mes_pico'] : '',
+					'indice_pico' => isset( $m['indice_pico'] ) ? round( (float) $m['indice_pico'], 3 ) : null,
+					'nivel_anual' => isset( $m['nivel_riesgo_anual'] ) ? $m['nivel_riesgo_anual'] : '',
+					'historico'   => isset( $m['evidencia_historica'] ) ? $m['evidencia_historica'] : '',
+					'serie'       => $serie,
 				);
 			}
 		}

@@ -166,9 +166,13 @@
   box-shadow: 0 6px 18px rgba(15,23,42,.18); padding: 8px 10px; font-size: 12px;
   transform: translate(-50%, calc(-100% - 12px));
 }
-.man-globo__tip strong { display: block; margin-bottom: 3px; }
+.man-globo__tip strong { display: block; margin-bottom: 3px; font-size: 13px; }
 .man-globo__tip .tt-nivel { display: inline-block; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-bottom: 3px; }
-.man-globo__tip .tt-linea { display: block; color: #50575e; }
+.man-globo__tip .tt-linea { display: block; color: #50575e; line-height: 1.45; }
+.man-globo__tip .tt-linea b { color: #1a1f2c; }
+.man-globo__tip .tt-pico { color: #b45309; margin-top: 2px; }
+.man-globo__tip .tt-hist { color: #6b7280; }
+.man-globo__tip .tt-meta { display: block; margin-top: 4px; font-size: 10px; color: #9aa0aa; }
 
 /* --- [man_datos] --- */
 .man-datos__titulo { font-weight: 600; margin: 0 0 .5em; }
