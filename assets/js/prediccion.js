@@ -20,10 +20,13 @@
   });
 
   function cargar(cont) {
+    var pa = (cont.getAttribute('data-partes') || '').trim();
     var opts = {
       hasta: cont.getAttribute('data-hasta') || '2027-02',
       modelo: cont.getAttribute('data-modelo') !== 'no',
-      probabilidad: cont.getAttribute('data-probabilidad') !== 'no'
+      probabilidad: cont.getAttribute('data-probabilidad') !== 'no',
+      // null = todas las secciones; si no, solo las indicadas.
+      partes: pa ? pa.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : null
     };
     C.rest('/prediccion', { hasta: opts.hasta })
       .then(function (d) { pintar(cont, opts, d); })
@@ -35,26 +38,34 @@
     limpiar(cont);
     var serie = (d && d.serie) || [];
     var cuerpo = C.el('div', 'man-prediccion__cuerpo');
+    // ¿Mostrar esta sección? (permite dividir gráfico y textos en shortcodes distintos.)
+    var ver = function (sec) { return !opts.partes || opts.partes.indexOf(sec) >= 0; };
 
-    cuerpo.appendChild(C.el('p', 'man-titulo', 'Predicción del fenómeno ENSO hasta ' + mesLargo(d.objetivo_mes)));
-
-    cuerpo.appendChild(chips(d));
-
-    if (serie.length) {
-      cuerpo.appendChild(grafica(d, opts));
-    } else {
-      cuerpo.appendChild(C.el('p', 'man-analisis', 'Aún no hay serie ONI suficiente para proyectar.'));
+    if (ver('titulo')) {
+      cuerpo.appendChild(C.el('p', 'man-titulo', 'Predicción del fenómeno ENSO hasta ' + mesLargo(d.objetivo_mes)));
     }
 
-    if (opts.probabilidad && d.prob_trimestres && d.prob_trimestres.length) {
+    if (ver('chips')) {
+      cuerpo.appendChild(chips(d));
+    }
+
+    if (ver('grafico')) {
+      if (serie.length) {
+        cuerpo.appendChild(grafica(d, opts));
+      } else {
+        cuerpo.appendChild(C.el('p', 'man-analisis', 'Aún no hay serie ONI suficiente para proyectar.'));
+      }
+    }
+
+    if (ver('probabilidad') && opts.probabilidad && d.prob_trimestres && d.prob_trimestres.length) {
       cuerpo.appendChild(barrasProb(d.prob_trimestres));
     }
 
-    if (d.texto_analisis) {
+    if (ver('texto') && d.texto_analisis) {
       cuerpo.appendChild(C.el('p', 'man-analisis', C.esc(d.texto_analisis)));
     }
 
-    if (d.regresion || d.metodologia) {
+    if (ver('metodologia') && (d.regresion || d.metodologia)) {
       var meta = 'Método: tendencia amortiguada + reversión a la media.';
       if (d.regresion && d.regresion.pendiente_mensual != null) {
         meta += ' Ajuste reciente: pendiente ' + C.num(d.regresion.pendiente_mensual, 2) +

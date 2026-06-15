@@ -376,13 +376,14 @@ class GloboMAN {
 
   /* ---------------- mapa de calor Niño-3.4 ---------------- */
   _heat() {
-    var n = this.ligero ? 520 : 1200;
+    var n = this.ligero ? 620 : 1500;
     this._heatPts = [];
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (var i = 0; i < n; i++) {
-      // Pacífico ecuatorial + franja costera del Pacífico oriental (México → Chile).
+      // Pacífico ecuatorial + franja costera oriental (México → Chile), y se
+      // extiende al oeste hasta cerca de Australia para desvanecerse sin corte.
       var lat = -42 + Math.random() * 70;
-      var lng = -180 + Math.random() * (coastLng(lat) + 180);
+      var lng = -230 + Math.random() * (coastLng(lat) + 230);
       var p = { lat: lat, latBase: lat, lng: lng, radio: 1.012, velocidadBase: 0.5 + Math.random(), ruido: Math.random(), fase: Math.random() * 6.28 };
       this._heatPts.push(p);
       var v = latLngAVector3(lat, lng, p.radio);
@@ -829,7 +830,7 @@ class GloboMAN {
         var pt = self._heatPts[i];
         var cl = coastLng(pt.lat);
         pt.lng += drift * pt.velocidadBase * dt;
-        if (pt.lng > cl) { pt.lng = -180; }
+        if (pt.lng > cl) { pt.lng = -230; }
         var lt = pt.latBase + Math.sin(tSeg * 0.6 + pt.fase) * 0.4;
         pt.lat = lt;
         // Posición en línea (sin asignar Vector3) — eficiente con miles de partículas.
@@ -848,7 +849,10 @@ class GloboMAN {
         var coastal = Math.pow(est, 2.6) * latEnv;
         var warmth = Math.max(tongue, coastal * 0.95);
         var c = colorPorOni(warmth * oniN * 1.7 + pt.ruido * 0.08);
-        col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+        // Desvanecimiento hacia el oeste (Australia): con blending aditivo,
+        // color→negro = invisible, así no hay corte en la línea de cambio de fecha.
+        var wf = Math.min(1, Math.max(0, (pt.lng + 225) / 42));
+        col[i * 3] = c.r * wf; col[i * 3 + 1] = c.g * wf; col[i * 3 + 2] = c.b * wf;
       }
       self.heat.geometry.attributes.position.needsUpdate = true;
       self.heat.geometry.attributes.color.needsUpdate = true;

@@ -92,9 +92,9 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-grupo', MAN_URL . 'assets/js/grupo.js', array(), MAN_VERSION, true );
 		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core', 'man-grupo' ), MAN_VERSION, true );
 		wp_register_script( 'man-composable', MAN_URL . 'assets/js/composable.js', array( 'man-core', 'man-grupo' ), MAN_VERSION, true );
-		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
+		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core', 'd3plus' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
-		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
+		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios', 'd3plus' ), MAN_VERSION, true );
 		wp_register_script( 'man-estado-api', MAN_URL . 'assets/js/estado-api.js', array( 'man-core' ), MAN_VERSION, true );
 		// Globo: módulo ES (importmap de Three.js impreso aparte).
 		wp_register_script( 'man-globo', MAN_URL . 'assets/js/globo.js', array(), MAN_VERSION, true );
@@ -395,6 +395,7 @@ final class MAN_Shortcodes {
 			'hasta'        => '2027-02',
 			'modelo'       => 'si',   // muestra la línea del modelo propio del plugin.
 			'probabilidad' => 'si',   // muestra las barras de probabilidad por trimestre.
+			'partes'       => '',     // qué secciones mostrar (vacío = todas).
 		), $atts, 'man_prediccion' );
 
 		wp_enqueue_style( 'man-estilos' );
@@ -407,6 +408,9 @@ final class MAN_Shortcodes {
 		if ( $hasta <= gmdate( 'Y-m' ) ) {
 			$hasta = '2027-02';
 		}
+		// Secciones a renderizar (para dividir gráfico y textos en shortcodes
+		// distintos): titulo, chips, grafico, probabilidad, texto, metodologia.
+		$partes = preg_replace( '/[^a-z,]/', '', strtolower( (string) $atts['partes'] ) );
 
 		ob_start();
 		?>
@@ -416,7 +420,8 @@ final class MAN_Shortcodes {
 			data-man-prediccion
 			data-hasta="<?php echo esc_attr( $hasta ); ?>"
 			data-modelo="<?php echo esc_attr( 'no' === $atts['modelo'] ? 'no' : 'si' ); ?>"
-			data-probabilidad="<?php echo esc_attr( 'no' === $atts['probabilidad'] ? 'no' : 'si' ); ?>">
+			data-probabilidad="<?php echo esc_attr( 'no' === $atts['probabilidad'] ? 'no' : 'si' ); ?>"
+			data-partes="<?php echo esc_attr( $partes ); ?>">
 			<?php echo $this->skeleton( 'Calculando la predicción del fenómeno…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'NOAA/CPC ONI · IRI/CPC ENSO plume · Modelo estadístico del plugin' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
