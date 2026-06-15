@@ -88,6 +88,31 @@ function texturaPunto() {
   return _texPunto;
 }
 
+/* Textura de NUBE esponjosa: varios lóbulos suaves superpuestos con base plana,
+   borde difuminado y fondo transparente → parece una nube real (no una bola). */
+var _texNube = null;
+function texturaNube() {
+  if (_texNube) { return _texNube; }
+  var c = document.createElement('canvas');
+  c.width = 160; c.height = 96;
+  var ctx = c.getContext('2d');
+  // Lóbulos [x, y, r] que forman el cúmulo (más altos en el centro, base plana).
+  var lobulos = [
+    [48, 60, 30], [80, 48, 36], [112, 60, 30],
+    [64, 64, 26], [96, 64, 26], [80, 58, 40]
+  ];
+  lobulos.forEach(function (b) {
+    var g = ctx.createRadialGradient(b[0], b[1], 0, b[0], b[1], b[2]);
+    g.addColorStop(0, 'rgba(255,255,255,0.96)');
+    g.addColorStop(0.45, 'rgba(244,248,252,0.6)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b[0], b[1], b[2], 0, Math.PI * 2); ctx.fill();
+  });
+  _texNube = new THREE.CanvasTexture(c);
+  return _texNube;
+}
+
 function esLigero() {
   return CFG.calidad === 'baja' ||
     (CFG.calidad === 'auto' && ((window.devicePixelRatio || 1) > 2 || (navigator.hardwareConcurrency || 4) <= 4));
@@ -338,17 +363,19 @@ class GloboMAN {
   _nubes() {
     this._nubesArr = [];
     this.nubes = new THREE.Group();
-    var cant = this.ligero ? 10 : 16;
+    var cant = this.ligero ? 8 : 12;
+    var tex = texturaNube();
     for (var i = 0; i < cant; i++) {
-      var lat = -3 + Math.random() * 6;
-      var lng = -160 + Math.random() * 25;
-      var m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.05 + Math.random() * 0.03, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false })
-      );
-      m.position.copy(latLngAVector3(lat, lng, 1.06));
-      m.userData = { lat: lat, lngBase: lng, lngActual: lng };
-      this.nubes.add(m); this._nubesArr.push(m);
+      var lat = -4 + Math.random() * 8;
+      var lng = -165 + Math.random() * 30;
+      // Sprite (billboard) con textura de nube → parece una nube real desde cualquier ángulo.
+      var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.5, depthWrite: false }));
+      var esc = 0.11 + Math.random() * 0.07;
+      s.scale.set(esc * 1.7, esc, 1);
+      s.position.copy(latLngAVector3(lat, lng, 1.06));
+      s.userData = { lat: lat, lngBase: lng, lngActual: lng };
+      this.nubes.add(s);
+      this._nubesArr.push(s);
     }
     this.escena.add(this.nubes);
   }
