@@ -119,12 +119,12 @@
     return '' +
       '<svg viewBox="0 0 720 340" class="man-animacion__svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
       '<defs>' +
-      '<linearGradient id="ani-cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dff0fb"/><stop offset="1" stop-color="#bfe0f5"/></linearGradient>' +
-      '<linearGradient id="ani-mar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f6fb0"/><stop offset="1" stop-color="#0b3a63"/></linearGradient>' +
-      '<radialGradient id="ani-calido" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#ff7043"/><stop offset="1" stop-color="#e64a19" stop-opacity="0.15"/></radialGradient>' +
+      '<linearGradient id="ani-cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef3f8"/><stop offset="1" stop-color="#d6e3ee"/></linearGradient>' +
+      '<linearGradient id="ani-mar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b6491"/><stop offset="1" stop-color="#103a59"/></linearGradient>' +
+      '<radialGradient id="ani-calido" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#e8731a"/><stop offset="1" stop-color="#c0392b" stop-opacity="0.12"/></radialGradient>' +
       '</defs>' +
       '<rect x="0" y="0" width="720" height="120" fill="url(#ani-cielo)"/>' +
-      '<circle cx="70" cy="46" r="22" fill="#ffd54a"/>' +
+      '<circle cx="62" cy="40" r="11" fill="#f2c14e" opacity="0.8"/>' +
       '<rect x="0" y="118" width="720" height="200" fill="url(#ani-mar)"/>' +
       // continentes
       '<path d="M0,118 L70,118 L60,180 L0,200 Z" fill="#3c6b3a"/>' +
@@ -157,22 +157,21 @@
     color = color || '#ffffff';
     var x2 = x + len;
     var dir = len < 0 ? -1 : 1;
-    var tip = x2 + dir * 9;
-    var tri = tip + ',' + y + ' ' + x2 + ',' + (y - 5) + ' ' + x2 + ',' + (y + 5);
-    return '<line x1="' + x + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="' + color + '" stroke-width="3" stroke-linecap="round"/>' +
+    var tip = x2 + dir * 8;
+    var tri = tip + ',' + y + ' ' + x2 + ',' + (y - 4) + ' ' + x2 + ',' + (y + 4);
+    return '<line x1="' + x + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="' + color + '" stroke-width="2.2" stroke-linecap="round" opacity="0.92"/>' +
       '<polygon points="' + tri + '" fill="' + color + '"/>';
   }
 
-  /* Nube con tres gotas de lluvia. */
+  /* Nube sobria (forma plana) con lluvia tenue. */
   function nube(cx, cy) {
-    var n = '<g fill="#f4f8fb">' +
-      '<ellipse cx="' + cx + '" cy="' + cy + '" rx="34" ry="18"/>' +
-      '<circle cx="' + (cx - 22) + '" cy="' + cy + '" r="15"/>' +
-      '<circle cx="' + (cx + 24) + '" cy="' + (cy + 2) + '" r="13"/>' +
-      '<circle cx="' + (cx + 2) + '" cy="' + (cy - 12) + '" r="16"/></g>';
+    var n = '<g fill="#e9eef3" opacity="0.92">' +
+      '<rect x="' + (cx - 34) + '" y="' + (cy - 6) + '" width="68" height="20" rx="10"/>' +
+      '<circle cx="' + (cx - 16) + '" cy="' + (cy - 4) + '" r="12"/>' +
+      '<circle cx="' + (cx + 14) + '" cy="' + (cy - 6) + '" r="14"/></g>';
     for (var i = -1; i <= 1; i++) {
-      var lx = cx + i * 16;
-      n += '<line x1="' + lx + '" y1="' + (cy + 20) + '" x2="' + (lx - 4) + '" y2="' + (cy + 40) + '" stroke="#9fd0ff" stroke-width="2" stroke-linecap="round"/>';
+      var lx = cx + i * 15;
+      n += '<line x1="' + lx + '" y1="' + (cy + 16) + '" x2="' + (lx - 3) + '" y2="' + (cy + 34) + '" stroke="#8fb8d6" stroke-width="1.5" stroke-linecap="round"/>';
     }
     return n;
   }
