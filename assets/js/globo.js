@@ -827,7 +827,16 @@ class GloboMAN {
     var html = m.que ? '<p class="man-globo__mec-intro">' + esc(m.que) + '</p>' : '';
     if (m.pasos && m.pasos.length) {
       html += '<ol class="man-globo__pasos">';
-      m.pasos.forEach(function (p) { html += '<li>' + esc(p) + '</li>'; });
+      m.pasos.forEach(function (p) {
+        // Cada paso es un objeto {paso, titulo, texto}; toleramos string suelto.
+        if (p && typeof p === 'object') {
+          var t = esc(p.titulo || ('Paso ' + (p.paso || '')));
+          var d = esc(p.texto || '');
+          html += '<li><strong class="man-globo__paso-tit">' + t + '.</strong> ' + d + '</li>';
+        } else {
+          html += '<li>' + esc(p) + '</li>';
+        }
+      });
       html += '</ol>';
     }
     cuerpo.innerHTML = html;
@@ -837,26 +846,60 @@ class GloboMAN {
   _pintarHistorico(cuerpo) {
     var self = this;
     if (!CFG.rest) { cuerpo.innerHTML = '<p>Sin conexión a datos.</p>'; return; }
-    cuerpo.innerHTML = '<p class="man-globo__mec-intro">Selecciona un episodio para representar su intensidad en el globo.</p>';
+    cuerpo.innerHTML = '<p class="man-globo__mec-intro">Episodios El Niño recientes. Pulsa una tarjeta para representar su intensidad (ONI pico) en el globo.</p>';
     fetch(CFG.rest + '/historico').then(function (r) { return r.json(); }).then(function (d) {
       var eps = (d && d.episodios) || [];
       if (!eps.length) { cuerpo.innerHTML = '<p>No hay episodios históricos.</p>'; return; }
       var cont = document.createElement('div');
       cont.className = 'man-globo__eps';
       eps.forEach(function (e) {
+        var titulo = e.periodo || ((e.inicio || '') + (e.fin ? ' – ' + e.fin : ''));
+        var oni    = (e.oni_pico != null) ? (+e.oni_pico).toFixed(2) : '—';
+        var cat    = String(e.categoria || '').replace(/_/g, ' ');
+        var dur    = e.duracion_meses ? (e.duracion_meses + ' meses') : '';
+        var nar    = e.impactos_narino || {};
+        var bits   = [];
+        if (nar.municipios_afectados) { bits.push(nar.municipios_afectados + ' municipios'); }
+        if (nar.hectareas_afectadas)  { bits.push(self._numEs(nar.hectareas_afectadas) + ' ha'); }
+        if (nar.perdidas_cop)         { bits.push(esc(String(nar.perdidas_cop)) + ' COP'); }
+
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'man-globo__ep';
-        b.innerHTML = '<strong>' + esc(e.periodo || '') + '</strong><span>ONI pico +' + esc(e.oni_pico) + ' · ' + esc(String(e.categoria || '').replace(/_/g, ' ')) + '</span>';
+        b.setAttribute('aria-label', 'Representar el episodio ' + titulo + ' en el globo (ONI pico ' + oni + ')');
+        var html = '';
+        html += '<span class="man-globo__ep-cab">';
+        html +=   '<strong class="man-globo__ep-periodo">' + esc(titulo) + '</strong>';
+        if (cat) { html += '<span class="man-globo__ep-badge man-globo__ep-badge--' + esc(String(e.categoria || '')) + '">' + esc(cat) + '</span>'; }
+        html += '</span>';
+        html += '<span class="man-globo__ep-meta">ONI pico <strong>+' + esc(oni) + '</strong>' + (dur ? ' · ' + esc(dur) : '') + '</span>';
+        if (e.contexto) { html += '<span class="man-globo__ep-ctx">' + esc(e.contexto) + '</span>'; }
+        if (bits.length) { html += '<span class="man-globo__ep-narino"><em>Nariño:</em> ' + bits.join(' · ') + '</span>'; }
+        html += '<span class="man-globo__ep-cta">Ver en el globo →</span>';
+        b.innerHTML = html;
         b.addEventListener('click', function () {
           self.setOni(+e.oni_pico || 0, self.estado.mes, faseNombre(+e.oni_pico || 0));
           self.irACamara('mecanismo');
+          Array.prototype.forEach.call(cont.querySelectorAll('.man-globo__ep'), function (x) { x.classList.remove('is-activo'); });
+          b.classList.add('is-activo');
         });
         cont.appendChild(b);
       });
       cuerpo.appendChild(cont);
+      if (d.fuente) {
+        var pf = document.createElement('p');
+        pf.className = 'man-globo__ep-fuente';
+        pf.textContent = 'Fuente: ' + d.fuente;
+        cuerpo.appendChild(pf);
+      }
       cuerpo.setAttribute('data-listo', '1');
     }).catch(function () { cuerpo.innerHTML = '<p>No se pudieron cargar los episodios.</p>'; });
+  }
+
+  _numEs(n) {
+    var v = Number(n);
+    if (!isFinite(v)) { return String(n); }
+    try { return v.toLocaleString('es-CO'); } catch (e) { return String(v); }
   }
 
   _eventos() {
