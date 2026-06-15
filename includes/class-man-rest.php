@@ -430,12 +430,24 @@ final class MAN_Rest {
 		$litoral = MAN_Municipios::es_litoral( $mun['subregion'] );
 		$pred    = self::pred_municipio( $divipola, $mes );
 		$pesos   = get_option( 'man_pesos_riesgo', array() );
+		$cod     = $mun['divipola'];
+
+		// Impactos derivados de APIs reales (déficit hídrico Open-Meteo, focos
+		// NASA FIRMS). Si no hay dato real, se etiqueta como modelado.
+		$deficit_cache = MAN_Cache::get( 'deficit_municipios' );
+		$focos_cache   = MAN_Cache::get( 'focos_calor' );
+		$deficit_real  = ( is_array( $deficit_cache ) && isset( $deficit_cache['por_muni'][ $cod ]['deficit'] ) )
+			? (int) $deficit_cache['por_muni'][ $cod ]['deficit'] : null;
+		$focos_real    = ( is_array( $focos_cache ) && isset( $focos_cache['por_muni'][ $cod ] ) )
+			? (int) $focos_cache['por_muni'][ $cod ] : null;
+		// Déficit 0..100 → anomalía de lluvia negativa (fracción) para el índice.
+		$anom = ( null !== $deficit_real ) ? round( -1.0 * ( $deficit_real / 100.0 ), 3 ) : 0.0;
 
 		if ( $pred && isset( $pred['indice_riesgo'] ) ) {
 			$riesgo = (float) $pred['indice_riesgo'];
 		} else {
 			$riesgo = MAN_Risk::indice(
-				array( 'oni' => $oni['oni'], 'anom_lluvia' => 0, 'subregion' => $mun['subregion'], 'litoral' => $litoral ),
+				array( 'oni' => $oni['oni'], 'anom_lluvia' => $anom, 'subregion' => $mun['subregion'], 'litoral' => $litoral ),
 				$pesos
 			);
 		}
@@ -447,7 +459,7 @@ final class MAN_Rest {
 			'oni'            => $oni['oni'],
 			'fase'           => $oni['fase'],
 			'intensidad'     => $oni['intensidad'],
-			'anom_lluvia'    => 0,
+			'anom_lluvia'    => $anom,
 			'riesgo'         => $riesgo,
 			'nivel_etiqueta' => $nivel['etiqueta'],
 			'subregion'      => $mun['subregion'],
@@ -455,6 +467,10 @@ final class MAN_Rest {
 		) );
 
 		return array(
+			'deficit'        => $deficit_real,
+			'deficit_fuente' => ( null !== $deficit_real ) ? 'real' : 'modelado',
+			'focos'          => $focos_real,
+			'focos_fuente'   => ( null !== $focos_real ) ? 'real' : 'modelado',
 			'divipola'       => $mun['divipola'],
 			'nombre'         => $mun['nombre'],
 			'lat'            => $mun['lat'],
