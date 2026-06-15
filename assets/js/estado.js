@@ -17,30 +17,57 @@
 
   function pintar(cont, div, d) {
     C.quitarSkeleton(cont);
-    limpiar(cont);
 
-    var oni, fase, intens, texto, riesgo = null, nivelEt = '', color = '';
+    var base;
     if (div === 'departamento') {
-      oni = +d.actual.oni; fase = d.actual.fase; intens = d.actual.intensidad;
-      texto = 'Estado del fenómeno ENSO para el departamento de Nariño. El ONI corresponde al promedio oficial de NOAA/CPC.';
+      base = {
+        oni: +d.actual.oni, fase: d.actual.fase, intens: d.actual.intensidad,
+        texto: 'Estado del fenómeno ENSO para el departamento de Nariño. El ONI corresponde al promedio oficial de NOAA/CPC.',
+        riesgo: null, nivelEt: '', color: ''
+      };
     } else {
-      oni = +d.oni; fase = d.fase; intens = d.intensidad; texto = d.texto_analisis;
-      riesgo = d.riesgo; nivelEt = d.nivel_etiqueta; color = d.color;
+      base = {
+        oni: +d.oni, fase: d.fase, intens: d.intensidad, texto: d.texto_analisis,
+        riesgo: d.riesgo, nivelEt: d.nivel_etiqueta, color: d.color
+      };
     }
 
+    render(cont, base);
+
+    // Interactividad: sincroniza con la línea de tiempo (el gauge sigue el mes).
+    if (!cont._manSync) {
+      cont._manSync = true;
+      window.addEventListener('man:mes', function (e) {
+        if (!e.detail) { return; }
+        base.oni = +e.detail.oni;
+        base.fase = e.detail.fase || base.fase;
+        base.intens = intensidad(base.oni);
+        render(cont, base);
+      });
+    }
+  }
+
+  function render(cont, b) {
+    limpiar(cont);
     var cuerpo = C.el('div', 'man-estado__cuerpo');
-    cuerpo.appendChild(gauge(oni, fase));
+    cuerpo.appendChild(gauge(b.oni, b.fase));
 
     var info = C.el('div', 'man-estado__info');
     info.appendChild(C.el('p', 'man-valores',
-      'ONI <strong>' + (oni >= 0 ? '+' : '') + C.num(oni, 1) + ' °C</strong> · Fase <strong style="color:' + faseColor(oni) + '">' + C.esc(fase) + '</strong> · ' + C.esc(intens)));
-    if (riesgo != null) {
-      info.appendChild(C.el('p', null, 'Riesgo municipal: <span class="man-chip" style="background:' + C.esc(color) + '">' + C.esc(nivelEt) + ' · ' + C.num(riesgo, 2) + '</span>'));
+      'ONI <strong>' + (b.oni >= 0 ? '+' : '') + C.num(b.oni, 1) + ' °C</strong> · Fase <strong style="color:' + faseColor(b.oni) + '">' + C.esc(b.fase) + '</strong> · ' + C.esc(b.intens)));
+    if (b.riesgo != null) {
+      info.appendChild(C.el('p', null, 'Riesgo municipal: <span class="man-chip" style="background:' + C.esc(b.color) + '">' + C.esc(b.nivelEt) + ' · ' + C.num(b.riesgo, 2) + '</span>'));
     }
-    info.appendChild(C.el('p', 'man-analisis', C.esc(texto)));
+    info.appendChild(C.el('p', 'man-analisis', C.esc(b.texto)));
     cuerpo.appendChild(info);
 
-    cont.insertBefore(cuerpo, cont.querySelector('.man-fuentes'));
+    var pie = cont.querySelector('.man-fuentes');
+    if (pie) { cont.insertBefore(cuerpo, pie); } else { cont.appendChild(cuerpo); }
+  }
+
+  function intensidad(oni) {
+    var a = Math.abs(oni);
+    return a < 0.5 ? 'sin intensidad' : (a <= 0.9 ? 'débil' : (a <= 1.4 ? 'moderado' : (a <= 1.9 ? 'fuerte' : 'muy fuerte')));
   }
 
   function gauge(oni, fase) {

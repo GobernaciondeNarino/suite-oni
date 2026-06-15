@@ -128,9 +128,9 @@ class GloboMAN {
     this.renderer.setSize(this._ancho(), this._alto());
     this.lienzo.appendChild(this.renderer.domElement);
 
-    this.escena.add(new THREE.AmbientLight(0xffffff, 0.5));
-    this.escena.add(new THREE.HemisphereLight(0xbfd4ff, 0x202a40, 0.45));
-    var sol = new THREE.DirectionalLight(0xffffff, 1.1);
+    this.escena.add(new THREE.AmbientLight(0xffffff, 0.33));
+    this.escena.add(new THREE.HemisphereLight(0xbfd4ff, 0x14202e, 0.32));
+    var sol = new THREE.DirectionalLight(0xffffff, 1.3);
     sol.position.set(5, 3, 5);
     this.escena.add(sol);
 
@@ -150,10 +150,12 @@ class GloboMAN {
   /* ---------------- tierra + atmósfera ---------------- */
   _globo() {
     var seg = this.ligero ? 48 : 64;
-    this.matGlobo = new THREE.MeshPhongMaterial({ color: 0x1A5276, specular: 0x222a44, shininess: 18 });
+    this.matGlobo = new THREE.MeshPhongMaterial({ color: 0x1A5276, specular: 0x202a40, shininess: 15, emissive: 0x000000 });
     this.globo = new THREE.Mesh(new THREE.SphereGeometry(1, seg, seg), this.matGlobo);
     this.escena.add(this.globo);
-    this._cargarTextura();
+    this._cargarTextura();   // mapa de día (Blue Marble, cascada).
+    this._capasTextura();    // especular (océano), relieve y luces nocturnas.
+    this._capaNubes();       // capa de nubes en rotación.
 
     // Atmósfera fresnel (rim glow azulado).
     var atmMat = new THREE.ShaderMaterial({
@@ -192,6 +194,53 @@ class GloboMAN {
     var t = new THREE.CanvasTexture(c);
     if ('SRGBColorSpace' in THREE) { t.colorSpace = THREE.SRGBColorSpace; }
     this.matGlobo.map = t; this.matGlobo.color = new THREE.Color(0xffffff); this.matGlobo.needsUpdate = true;
+  }
+
+  /* Capas que dan aspecto realista (inspirado en el ejemplo TSL Earth):
+     brillo especular del océano, relieve y luces nocturnas en el lado oscuro.
+     Texturas con CORS (unpkg/three-globe); cada una falla en silencio. */
+  _capasTextura() {
+    if (this.ligero) { return; }
+    var self = this;
+    var loader = new THREE.TextureLoader();
+    loader.crossOrigin = 'anonymous';
+    var base = 'https://unpkg.com/three-globe/example/img/';
+    var carga = function (url, cb) { loader.load(url, cb, undefined, function () { /* sin esa capa */ }); };
+
+    // Especular: el agua refleja la luz del sol (los océanos brillan).
+    carga(base + 'earth-water.png', function (t) {
+      self.matGlobo.specularMap = t;
+      self.matGlobo.specular = new THREE.Color(0x6b7a90);
+      self.matGlobo.shininess = 22;
+      self.matGlobo.needsUpdate = true;
+    });
+    // Relieve sutil (montañas/topografía).
+    carga(base + 'earth-topology.png', function (t) {
+      self.matGlobo.bumpMap = t;
+      self.matGlobo.bumpScale = 0.025;
+      self.matGlobo.needsUpdate = true;
+    });
+    // Luces nocturnas: se ven en el lado oscuro (el día las lava por el brillo).
+    carga(base + 'earth-night.jpg', function (t) {
+      if ('SRGBColorSpace' in THREE) { t.colorSpace = THREE.SRGBColorSpace; }
+      self.matGlobo.emissiveMap = t;
+      self.matGlobo.emissive = new THREE.Color(0xffe7b3);
+      if ('emissiveIntensity' in self.matGlobo) { self.matGlobo.emissiveIntensity = 0.45; }
+      self.matGlobo.needsUpdate = true;
+    });
+  }
+
+  /* Capa de nubes semitransparente en rotación lenta. */
+  _capaNubes() {
+    if (this.ligero) { return; }
+    var self = this;
+    var loader = new THREE.TextureLoader();
+    loader.crossOrigin = 'anonymous';
+    loader.load('https://unpkg.com/three-globe/example/img/clouds/clouds.png', function (t) {
+      var m = new THREE.MeshPhongMaterial({ map: t, transparent: true, opacity: 0.38, depthWrite: false });
+      self.capaNubes = new THREE.Mesh(new THREE.SphereGeometry(1.012, 48, 48), m);
+      self.globo.add(self.capaNubes);
+    }, undefined, function () { /* sin nubes */ });
   }
 
   /* ---------------- anomalía Niño-3.4 (shader) ---------------- */
@@ -722,6 +771,8 @@ class GloboMAN {
         self.ondas.forEach(function (o) { o.material.opacity = 0; });
         self.halo.material.opacity = 0; self.halo.scale.setScalar(1);
       }
+
+      if (self.capaNubes) { self.capaNubes.rotation.y += dt * 0.012; }
 
       self.controles.update();
       self.renderer.render(self.escena, self.camara);
