@@ -309,6 +309,17 @@
 .man-prediccion__barra-seg { height: 100%; }
 .man-prediccion__prob-dom { flex: 0 0 auto; font-size: .82em; }
 
+/* Ficha técnica de la predicción (metodología para investigadores). */
+.man-prediccion__ficha { margin: .7em 0 0; font-size: .85em; }
+.man-prediccion__ficha > summary { cursor: pointer; font-weight: 600; color: var(--man-mute, #6b7280); }
+.man-prediccion__ficha-cuerpo { margin-top: .5em; color: var(--man-mute, #6b7280); }
+.man-prediccion__ficha-cuerpo p { margin: .3em 0; line-height: 1.45; }
+.man-prediccion__ficha-cuerpo strong { color: var(--man-texto, #1a1f2c); }
+.man-prediccion__ficha-h { font-weight: 600; margin-top: .5em !important; }
+.man-prediccion__ficha-cuerpo ul { margin: .2em 0 .5em 1.1em; padding: 0; }
+.man-prediccion__ficha-cuerpo li { margin: .15em 0; }
+.man-prediccion__ficha-nat { font-style: italic; }
+
 /* --- [man_estadisticas] (D3plus) --- */
 .man-estadisticas__lienzo { width: 100%; }
 .man-estadisticas__lienzo svg { max-width: 100%; height: auto; }

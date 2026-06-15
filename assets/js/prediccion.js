@@ -65,13 +65,12 @@
       cuerpo.appendChild(C.el('p', 'man-analisis', C.esc(d.texto_analisis)));
     }
 
-    if (ver('metodologia') && (d.regresion || d.metodologia)) {
-      var meta = 'Método: tendencia amortiguada + reversión a la media.';
-      if (d.regresion && d.regresion.pendiente_mensual != null) {
-        meta += ' Ajuste reciente: pendiente ' + C.num(d.regresion.pendiente_mensual, 2) +
-          ' °C/mes (R² ' + C.num(d.regresion.r2, 2) + ').';
+    if (ver('metodologia')) {
+      if (d.ficha_tecnica) {
+        cuerpo.appendChild(fichaTecnica(d.ficha_tecnica));
+      } else if (d.regresion) {
+        cuerpo.appendChild(C.el('p', 'man-mute-line', 'Método: tendencia amortiguada + reversión a la media. R² ' + C.num(d.regresion.r2, 2) + '.'));
       }
-      cuerpo.appendChild(C.el('p', 'man-mute-line', C.esc(meta)));
     }
 
     cont.insertBefore(cuerpo, cont.querySelector('.man-fuentes'));
@@ -321,6 +320,33 @@
     var arr = [['El Niño', +t.el_nino || 0], ['Neutral', +t.neutral || 0], ['La Niña', +t.la_nina || 0]];
     arr.sort(function (a, b) { return b[1] - a[1]; });
     return arr[0][0] + ' ' + C.num(arr[0][1], 0) + '%';
+  }
+
+  /* ---------- Ficha técnica (metodología profesional) ---------- */
+  function fichaTecnica(f) {
+    var det = C.el('details', 'man-prediccion__ficha');
+    det.appendChild(C.el('summary', null, 'Ficha técnica / metodología'));
+    var b = C.el('div', 'man-prediccion__ficha-cuerpo');
+    if (f.modelo) { b.appendChild(C.el('p', null, '<strong>Modelo:</strong> ' + C.esc(f.modelo))); }
+    if (f.ajuste) {
+      b.appendChild(C.el('p', null, '<strong>Ajuste:</strong> ' + C.num(f.ajuste.meses, 0) + ' meses · pendiente ' +
+        C.num(f.ajuste.pendiente_oni_mes, 2) + ' °C/mes · R² ' + C.num(f.ajuste.r2, 2)));
+    }
+    if (f.confianza) { b.appendChild(C.el('p', null, '<strong>Confianza:</strong> ' + C.esc(f.confianza))); }
+    if (f.clasificacion_fase) { b.appendChild(C.el('p', null, '<strong>Clasificación de fase:</strong> ' + C.esc(f.clasificacion_fase))); }
+    listaFicha(b, 'Supuestos', f.supuestos);
+    listaFicha(b, 'Limitaciones', f.limitaciones);
+    listaFicha(b, 'Referencias', f.referencias);
+    if (f.naturaleza) { b.appendChild(C.el('p', 'man-prediccion__ficha-nat', C.esc(f.naturaleza))); }
+    det.appendChild(b);
+    return det;
+  }
+  function listaFicha(b, titulo, arr) {
+    if (!arr || !arr.length) { return; }
+    b.appendChild(C.el('p', 'man-prediccion__ficha-h', C.esc(titulo) + ':'));
+    var ul = document.createElement('ul');
+    arr.forEach(function (x) { ul.appendChild(C.el('li', null, C.esc(x))); });
+    b.appendChild(ul);
   }
 
   /* ---------- Utilidades SVG ---------- */

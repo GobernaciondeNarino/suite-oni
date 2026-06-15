@@ -845,7 +845,8 @@ final class MAN_Rest {
 					'oni'        => $row['oni'],
 					'fase'       => MAN_Enso::clasificar_fase( $row['oni'] ),
 					'intensidad' => MAN_Enso::intensidad( $row['oni'] ),
-					'banda'      => array( 'min' => $row['banda_min'], 'max' => $row['banda_max'] ),
+					'banda'      => array( 'min' => $row['banda_min'], 'max' => $row['banda_max'], 'nivel' => '≈68% (±1σ)' ),
+					'banda90'    => array( 'min' => round( $row['oni'] - 1.645 * $sigma, 2 ), 'max' => round( $row['oni'] + 1.645 * $sigma, 2 ), 'nivel' => '≈90%' ),
 					'prob'       => MAN_Forecast::probabilidad_gaussiana( $row['oni'], $sigma ),
 				);
 				break;
@@ -901,6 +902,32 @@ final class MAN_Rest {
 				'meses_ajuste'      => $reg['n'],
 			),
 			'metodologia'     => 'Tendencia lineal amortiguada (Holt) por mínimos cuadrados sobre la cola observada del ONI, con reversión a la media climatológica y banda de incertidumbre creciente con el horizonte (ampliada en la primavera boreal). Clasificación de fase por gaussiana sobre los umbrales NOAA ±0,5 °C. Contraste con el ensamble oficial NOAA-CPC/IRI cuando está disponible.',
+			'ficha_tecnica'   => array(
+				'modelo'             => 'Tendencia lineal amortiguada (estilo Holt «damped trend») con reversión a la media climatológica (ENSO ≈ 0).',
+				'ajuste'             => array(
+					'meses'             => (int) $reg['n'],
+					'pendiente_oni_mes' => round( (float) $reg['pendiente'], 3 ),
+					'r2'                => $reg['r2'],
+				),
+				'confianza'          => 'Banda ≈68% (±1σ) y ≈90% (±1,645σ); σ crece con el horizonte (σₕ = σ₀ + α·√h) y se amplía en la primavera boreal (barrera de predictibilidad).',
+				'clasificacion_fase' => 'Probabilidad por integración de una gaussiana N(μ,σ) sobre los umbrales NOAA ±0,5 °C (CDF normal, aprox. Abramowitz-Stegun 7.1.26).',
+				'naturaleza'         => 'Línea base estadística transparente del plugin, contrastada con el ensamble oficial NOAA-CPC/IRI. No sustituye los boletines oficiales de IDEAM y NOAA-CPC.',
+				'supuestos'          => array(
+					'La tendencia reciente del ONI persiste con amortiguamiento creciente.',
+					'Reversión hacia condiciones neutrales (ENSO ≈ 0) a mediano plazo.',
+					'La incertidumbre aumenta con el horizonte de pronóstico.',
+				),
+				'limitaciones'       => array(
+					'Menor habilidad al cruzar la primavera boreal (marzo–mayo).',
+					'No asimila modelos dinámicos ni teleconexiones: es una línea base estadística.',
+					'Escenario de planeación, no pronóstico oficial.',
+				),
+				'referencias'        => array(
+					'NOAA/CPC — Oceanic Niño Index (ONI)',
+					'IRI/CPC — ENSO Prediction Plume',
+					'Hyndman & Athanasopoulos — Forecasting: Principles and Practice (damped trend)',
+				),
+			),
 			'texto_analisis'  => $texto,
 			'fuente'          => 'NOAA/CPC ONI · IRI/CPC ENSO plume · Modelo estadístico del plugin',
 		);
