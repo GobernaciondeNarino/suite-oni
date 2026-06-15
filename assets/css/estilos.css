@@ -95,9 +95,58 @@
 .man-mapa__panel p { margin: .25em 0; }
 
 /* --- [man_globo] --- */
-.man-globo { position: relative; }
+.man-globo { position: relative; overflow: hidden; border-radius: var(--man-borde-radio, 10px); }
 .man-globo__lienzo { width: 100%; min-height: 380px; }
-.man-globo__cinta { font-size: .85em; color: var(--man-mute, #6b7280); margin-top: .4em; text-align: center; }
+
+/* Toolbar flotante semitransparente sobre el globo. */
+.man-globo__controles {
+  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 4;
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.man-globo__btn {
+  font: inherit; font-size: 12px; line-height: 1.2; cursor: pointer;
+  padding: .4em .7em; border-radius: 8px;
+  background: rgba(12, 22, 38, .42); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .28);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  transition: background .15s ease, border-color .15s ease;
+}
+.man-globo__btn:hover { background: rgba(12, 22, 38, .62); border-color: rgba(255, 255, 255, .5); }
+.man-globo__btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* Cintillo de datos clave (pie del globo). */
+.man-globo__cintillo {
+  position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 4;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  padding: .45em .8em; border-radius: 8px; font-size: 12.5px; color: #eaf2fb;
+  background: rgba(12, 22, 38, .5); border: 1px solid rgba(255, 255, 255, .18);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.man-globo__cintillo strong { color: #fff; }
+.man-globo__sep { opacity: .5; }
+.man-globo__cintillo-resumen { flex: 1 1 100%; color: #c9d6e6; font-size: 11.5px; }
+
+/* Drawers (¿cómo se genera? / históricos) — panel lateral sobre el globo. */
+.man-globo__drawer {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 6;
+  width: min(360px, 86%); display: flex; flex-direction: column;
+  background: rgba(255, 255, 255, .97); color: #1a1f2c;
+  border-left: 1px solid #e2e8f0; box-shadow: -8px 0 24px rgba(15, 23, 42, .22);
+}
+.man-globo__drawer[hidden] { display: none; }
+.man-globo__drawer-cab { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #e5e7eb; }
+.man-globo__drawer-x { font-size: 18px; line-height: 1; background: none; border: 0; cursor: pointer; color: #6b7280; }
+.man-globo__drawer-cuerpo { padding: 12px 14px; overflow: auto; font-size: 13px; }
+.man-globo__mec-intro { color: #50575e; margin: 0 0 .6em; }
+.man-globo__pasos { margin: 0; padding-left: 1.1em; }
+.man-globo__pasos li { margin: .35em 0; line-height: 1.45; }
+.man-globo__eps { display: flex; flex-direction: column; gap: 6px; }
+.man-globo__ep { text-align: left; cursor: pointer; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; font: inherit; }
+.man-globo__ep:hover { border-color: #10A13B; background: #fafafa; }
+.man-globo__ep strong { display: block; font-size: 13px; }
+.man-globo__ep span { display: block; font-size: 11.5px; color: #50575e; }
+
+@media (prefers-reduced-motion: reduce) { .man-globo__btn { transition: none; } }
 
 /* --- [man_timeline] (barra estilo mockup) --- */
 .man-timeline--barra {

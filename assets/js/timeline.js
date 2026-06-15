@@ -81,7 +81,10 @@
         li.setAttribute('aria-current', on ? 'true' : 'false');
       });
       window.dispatchEvent(new CustomEvent('man:mes', {
-        detail: { mes: s.mes, oni: s.oni, fase: s.fase, tipo: s.proyectado ? 'proyectado' : 'observado', indice: i }
+        detail: {
+          mes: s.mes, oni: s.oni, fase: s.fase, tipo: s.proyectado ? 'proyectado' : 'observado',
+          prob: s.prob, resumen: s.resumen, indice: i
+        }
       }));
     }
 
