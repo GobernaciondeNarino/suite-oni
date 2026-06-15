@@ -113,6 +113,28 @@ function texturaNube() {
   return _texNube;
 }
 
+/* Mapea lat/lng a una "zona" del fenómeno para el tooltip educativo. */
+function zonaFenomeno(lat, lng) {
+  if (lat >= -14 && lat <= 14 && lng >= -180 && lng <= -78) {
+    if (lng <= -150) {
+      return { titulo: 'Pacífico occidental', lineas: [
+        'Nubes y convección (lluvias): en El Niño se desplazan hacia el este.',
+        'Vientos alisios: soplan de este a oeste a lo largo del ecuador.'
+      ] };
+    }
+    if (lng >= -92 && lat >= -12 && lat <= 6) {
+      return { titulo: 'Pacífico oriental — costa', lineas: [
+        'Calentamiento del mar frente a Sudamérica; se reduce el afloramiento frío.'
+      ] };
+    }
+    return { titulo: 'Lengua cálida del Pacífico (Niño-3.4)', lineas: [
+      'Anomalía de temperatura del mar (SST): el corazón de El Niño.',
+      'Los vientos alisios se debilitan y el agua cálida se desplaza al este.'
+    ] };
+  }
+  return null;
+}
+
 function esLigero() {
   return CFG.calidad === 'baja' ||
     (CFG.calidad === 'auto' && ((window.devicePixelRatio || 1) > 2 || (navigator.hardwareConcurrency || 4) <= 4));
@@ -135,6 +157,7 @@ class GloboMAN {
     this._focoObjetivo = 0;
     this._focoOpacidad = 0;
     this._mapaMuns = [];
+    this._mapaMeshes = [];
 
     this._escena();
     this._globo();
@@ -150,6 +173,7 @@ class GloboMAN {
     this._ondas();
     this._estrellas();
     this._mapaNarino();
+    this._hover();
     this._eventos();
     this._cargaInicial();
     this._quitarSkeleton();
@@ -343,9 +367,9 @@ class GloboMAN {
     this._heatPts = [];
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (var i = 0; i < n; i++) {
-      // Banda ecuatorial ancha del Pacífico (oeste frío → centro/este cálido).
-      var lat = -9 + Math.random() * 18;
-      var lng = -180 + Math.random() * 95;
+      // Banda ecuatorial ancha del Pacífico (oeste frío → este cálido).
+      var lat = -13 + Math.random() * 26;
+      var lng = -180 + Math.random() * 97; // -180 (oeste) → -83 (frente a Sudamérica)
       var p = { lat: lat, latBase: lat, lng: lng, radio: 1.012, velocidadBase: 0.5 + Math.random(), ruido: Math.random(), fase: Math.random() * 6.28 };
       this._heatPts.push(p);
       var v = latLngAVector3(lat, lng, p.radio);
@@ -544,9 +568,6 @@ class GloboMAN {
     if (!CFG.geojson) { return; }
     this.mapaGrupo = new THREE.Group();
     this.escena.add(this.mapaGrupo);
-    this._mapaMeshes = [];
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
 
     var serieRiesgo = {};
     var pintar = function () {
@@ -579,7 +600,6 @@ class GloboMAN {
           self._mapaMuns.push(muni);
         });
         self._mapaMes(self.estado.mes || CFG.mesActual);
-        self._registrarHoverMapa();
       }).catch(function () { /* sin mapa: el resto del globo sigue */ });
     };
 
@@ -591,11 +611,12 @@ class GloboMAN {
     } else { pintar(); }
   }
 
-  // Hover sobre el mapa: tooltip con municipio + riesgo del mes activo (raycaster).
-  _registrarHoverMapa() {
-    if (this._hoverListo) { return; }
-    this._hoverListo = true;
+  // Tooltip al pasar el mouse: municipio (si el mapa está cargado) o el
+  // fenómeno (SST, alisios, nubes…) sobre el globo, con los datos del mes.
+  _hover() {
     var self = this;
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
     var dom = this.renderer.domElement;
     this.tip = document.createElement('div');
     this.tip.className = 'man-globo__tip';
@@ -603,21 +624,57 @@ class GloboMAN {
     this.cont.appendChild(this.tip);
 
     var onMove = function (e) {
-      if (!self._mapaMeshes.length) { return; }
       var rect = dom.getBoundingClientRect();
       self.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       self.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       self.raycaster.setFromCamera(self.mouse, self.camara);
-      var hits = self.raycaster.intersectObjects(self._mapaMeshes, false);
-      if (hits.length && hits[0].object.userData.muni) {
-        self._tooltipMuni(e, hits[0].object.userData.muni);
-        dom.style.cursor = 'pointer';
-      } else {
-        self.tip.hidden = true; dom.style.cursor = '';
+
+      // 1) Municipios (si la capa del mapa está cargada).
+      if (self._mapaMeshes.length) {
+        var hm = self.raycaster.intersectObjects(self._mapaMeshes, false);
+        if (hm.length && hm[0].object.userData.muni) {
+          self._tooltipMuni(e, hm[0].object.userData.muni);
+          dom.style.cursor = 'pointer';
+          return;
+        }
       }
+      // 2) Fenómeno sobre el globo (raycast a la esfera de la Tierra).
+      var hg = self.raycaster.intersectObject(self.globo, false);
+      if (hg.length) { self._tooltipFenomeno(e, hg[0].point); }
+      else { self.tip.hidden = true; dom.style.cursor = ''; }
     };
     dom.addEventListener('pointermove', onMove);
     dom.addEventListener('pointerleave', function () { self.tip.hidden = true; dom.style.cursor = ''; });
+  }
+
+  // Tooltip educativo del fenómeno según la zona y el mes activo.
+  _tooltipFenomeno(e, point) {
+    var p = point.clone().normalize();
+    var lat = 90 - Math.acos(Math.max(-1, Math.min(1, p.y))) * 180 / Math.PI;
+    var lng = Math.atan2(p.z, -p.x) * 180 / Math.PI - 180;
+    if (lng < -180) { lng += 360; }
+
+    var z = zonaFenomeno(lat, lng);
+    if (!z) { this.tip.hidden = true; this.renderer.domElement.style.cursor = ''; return; }
+    this.renderer.domElement.style.cursor = 'help';
+
+    var oni = this.estado.oniObjetivo || 0;
+    var mes = this._mesTxt(this.estado.mes) || '';
+    var meta = (mes ? mes + ' · ' : '') + 'ONI ' + (oni >= 0 ? '+' : '') + oni.toFixed(1) + ' °C' + (this.estado.faseTxt ? ' · ' + this.estado.faseTxt : '');
+    var html = '<strong>' + esc(z.titulo) + '</strong>';
+    z.lineas.forEach(function (l) { html += '<span class="tt-linea">' + esc(l) + '</span>'; });
+    html += '<span class="tt-meta">' + esc(meta) + '</span>';
+
+    this.tip.innerHTML = html;
+    this.tip.hidden = false;
+    var rect = this.cont.getBoundingClientRect();
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    var w = this.tip.offsetWidth || 200, half = w / 2;
+    if (x - half < 6) { x = half + 6; }
+    if (x + half > rect.width - 6) { x = rect.width - half - 6; }
+    this.tip.style.transform = (y - (this.tip.offsetHeight || 80) - 14 < 0) ? 'translate(-50%, 16px)' : 'translate(-50%, calc(-100% - 12px))';
+    this.tip.style.left = x + 'px';
+    this.tip.style.top = y + 'px';
   }
 
   _tooltipMuni(e, muni) {
@@ -680,6 +737,7 @@ class GloboMAN {
   setOni(oni, mes, fase) {
     this.estado.oniObjetivo = +oni || 0;
     this.estado.nivel = nivelPorOni(this.estado.oniObjetivo);
+    this.estado.faseTxt = fase || this.estado.faseTxt || '';
     this.estado.colorMarcObj = new THREE.Color(COLORES_ALERTA[this.estado.nivel] || COLORES_ALERTA.verde);
     if (mes) {
       this.estado.mes = mes;
@@ -757,14 +815,17 @@ class GloboMAN {
       for (var i = 0; i < self._heatPts.length; i++) {
         var pt = self._heatPts[i];
         pt.lng += drift * pt.velocidadBase * dt;
-        if (pt.lng > -85) { pt.lng = -180; }
+        if (pt.lng > -83) { pt.lng = -180; }
         pt.lat = pt.latBase + Math.sin(tSeg * 0.6 + pt.fase) * 0.4;
         var v = latLngAVector3(pt.lat, pt.lng, pt.radio);
         pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
-        // Lengua cálida: centro ~lng -128, estrecha en latitud; flancos/oeste fríos.
-        var dlat = pt.lat / 7, dlng = (pt.lng + 128) / 50;
-        var prox = 1 - Math.min(1, Math.sqrt(dlat * dlat + dlng * dlng) * 0.85);
-        var c = colorPorOni(oniN * (0.35 + 0.75 * prox) + pt.ruido * 0.12);
+        // Lengua cálida REAL: punta delgada al oeste, se ensancha hacia el este
+        // (continente). El semiancho latitudinal crece con la "esticidad".
+        var est = Math.max(0, Math.min(1, (pt.lng + 180) / 97)); // 0 oeste → 1 este
+        var hw = 1.6 + 7 * est;                                   // semiancho de la banda (°)
+        var band = Math.max(0, 1 - Math.abs(pt.lat) / hw);
+        var warmth = (0.12 + 0.88 * est) * band * band;           // tenue/punta al oeste, intenso/ancho al este
+        var c = colorPorOni(warmth * oniN * 1.7 + pt.ruido * 0.08);
         col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
       }
       self.heat.geometry.attributes.position.needsUpdate = true;
