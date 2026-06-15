@@ -246,7 +246,36 @@ final class MAN_Shortcodes {
 			data-calidad="<?php echo esc_attr( sanitize_key( $atts['calidad'] ) ); ?>">
 			<div class="man-globo__lienzo" role="img"
 				aria-label="Globo terráqueo 3D con la anomalía del Pacífico ecuatorial y el foco de Nariño"></div>
-			<div class="man-globo__cinta" aria-live="polite"></div>
+
+			<div class="man-globo__controles" role="toolbar" aria-label="Vista y capas del globo">
+				<button type="button" class="man-globo__btn" data-camara="default" title="Vista global">🌐 Global</button>
+				<button type="button" class="man-globo__btn" data-camara="mecanismo" title="Pacífico ecuatorial — mecanismo">🌎 Mecanismo</button>
+				<button type="button" class="man-globo__btn" data-camara="local" title="Colombia / Nariño — impacto local">📍 Nariño</button>
+				<button type="button" class="man-globo__btn" data-panel="mecanismo" aria-expanded="false" title="¿Cómo se genera El Niño?">📖 ¿Cómo se genera?</button>
+				<button type="button" class="man-globo__btn" data-panel="historico" aria-expanded="false" title="Episodios históricos de El Niño">📊 Históricos</button>
+			</div>
+
+			<div class="man-globo__cintillo" aria-live="polite">
+				<strong class="man-globo__cintillo-mes">—</strong>
+				<span class="man-globo__sep">·</span>
+				<span>ONI <strong class="man-globo__cintillo-oni">—</strong></span>
+				<span class="man-globo__sep">·</span>
+				<span>Prob. El Niño <strong class="man-globo__cintillo-prob">—</strong></span>
+				<span class="man-globo__sep">·</span>
+				<span class="man-globo__cintillo-resumen"></span>
+			</div>
+
+			<div class="man-globo__drawer" data-drawer="mecanismo" hidden>
+				<div class="man-globo__drawer-cab"><strong>¿Cómo se genera El Niño?</strong>
+					<button type="button" class="man-globo__drawer-x" data-cerrar aria-label="Cerrar">✕</button></div>
+				<div class="man-globo__drawer-cuerpo" data-cuerpo="mecanismo"></div>
+			</div>
+			<div class="man-globo__drawer" data-drawer="historico" hidden>
+				<div class="man-globo__drawer-cab"><strong>Episodios históricos de El Niño</strong>
+					<button type="button" class="man-globo__drawer-x" data-cerrar aria-label="Cerrar">✕</button></div>
+				<div class="man-globo__drawer-cuerpo" data-cuerpo="historico"></div>
+			</div>
+
 			<?php echo $this->skeleton( 'Cargando globo 3D…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'NOAA/CPC · NASA Blue Marble · Open-Meteo (CC BY 4.0)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>

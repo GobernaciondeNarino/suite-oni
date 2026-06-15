@@ -38,6 +38,7 @@ final class MAN_Admin {
 		add_submenu_page( 'man-salud', 'Salud de APIs', 'Salud de APIs', 'manage_options', 'man-salud', array( $this, 'pagina_salud' ) );
 		add_submenu_page( 'man-salud', 'Elementos y shortcodes', 'Elementos', 'manage_options', 'man-elementos', array( $this, 'pagina_elementos' ) );
 		add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
+		add_submenu_page( 'man-salud', 'APIs y datos', 'APIs y datos', 'manage_options', 'man-apis-datos', array( $this, 'pagina_apis_datos' ) );
 		add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
 	}
 
@@ -56,7 +57,8 @@ final class MAN_Admin {
 			'nonce' => wp_create_nonce( 'man_admin' ),
 		) );
 		wp_add_inline_style( 'common', '.man-card{background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px 20px;margin:14px 0;max-width:760px}.man-card h2 code{font-size:11px;color:#787c82;background:#f0f0f1;padding:2px 6px;border-radius:4px}.man-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}.man-resultado{margin-left:10px;font-style:italic}.man-tabla-salud td,.man-tabla-salud th{padding:8px 10px}'
-			. '.man-el-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin:10px 0 26px}.man-el-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px}.man-el-card h3{margin:0 0 2px;font-size:14px}.man-el-card h3 code{font-size:12px;background:#eef2f7;color:#1d4ed8;padding:1px 6px;border-radius:4px}.man-el-desc{color:#50575e;margin:.3em 0 .6em;font-size:13px}.man-el-attrs{margin:.2em 0 .7em;padding-left:1.1em;font-size:12px;color:#50575e}.man-el-attrs code{background:#f0f0f1;padding:0 4px;border-radius:3px}.man-el-copy{display:flex;gap:6px;align-items:center}.man-el-input{flex:1;font-family:Menlo,Consolas,monospace;font-size:12px;padding:6px 8px;border:1px solid #c3c4c7;border-radius:4px;background:#f6f7f7}.man-el-card .button{white-space:nowrap}.man-el-intro{max-width:820px}.man-el-grp{margin:22px 0 6px;font-size:15px;border-bottom:1px solid #e0e0e0;padding-bottom:4px}' );
+			. '.man-el-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin:10px 0 26px}.man-el-card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:14px 16px}.man-el-card h3{margin:0 0 2px;font-size:14px}.man-el-card h3 code{font-size:12px;background:#eef2f7;color:#1d4ed8;padding:1px 6px;border-radius:4px}.man-el-desc{color:#50575e;margin:.3em 0 .6em;font-size:13px}.man-el-attrs{margin:.2em 0 .7em;padding-left:1.1em;font-size:12px;color:#50575e}.man-el-attrs code{background:#f0f0f1;padding:0 4px;border-radius:3px}.man-el-copy{display:flex;gap:6px;align-items:center}.man-el-input{flex:1;font-family:Menlo,Consolas,monospace;font-size:12px;padding:6px 8px;border:1px solid #c3c4c7;border-radius:4px;background:#f6f7f7}.man-el-card .button{white-space:nowrap}.man-el-intro{max-width:820px}.man-el-grp{margin:22px 0 6px;font-size:15px;border-bottom:1px solid #e0e0e0;padding-bottom:4px}'
+			. '.man-api-intro{max-width:920px}.man-api-leyenda{display:flex;flex-wrap:wrap;gap:8px 18px;margin:10px 0 4px;font-size:12px;color:#50575e}.man-api-leyenda .man-badge{margin-right:4px}.man-badge{display:inline-block;font-size:11px;font-weight:600;line-height:1.6;padding:0 8px;border-radius:10px;white-space:nowrap}.man-badge-cron{background:#e7f0fb;color:#0b4a8f}.man-badge-navegador{background:#e6f4ea;color:#1e6b32}.man-badge-mixto{background:#fef3e0;color:#8a5300}.man-api-panel{display:none}.man-api-panel.is-activo{display:block;animation:man-fade .18s ease-in}@keyframes man-fade{from{opacity:0}to{opacity:1}}.man-api-panel h2{margin:18px 0 4px;font-size:17px}.man-api-panel>p{max-width:920px;color:#3c434a}.man-tabla-api{max-width:1100px;margin:12px 0 8px}.man-tabla-api td,.man-tabla-api th{padding:9px 12px;vertical-align:top}.man-tabla-api th{font-size:13px}.man-tabla-api td:first-child{font-weight:600;width:24%}.man-tabla-api code{font-size:11px;background:#f0f0f1;padding:1px 5px;border-radius:3px;white-space:nowrap}.man-tabla-api .man-fuente{display:block;color:#50575e;font-size:12px;margin-top:3px}.man-tabla-api .man-lic{color:#646970;font-size:12px}.man-sc-lista code{margin:0 3px 3px 0;display:inline-block}.man-combina{background:#fbfbfc;border:1px solid #dcdcde;border-left:4px solid #10A13B;border-radius:6px;padding:14px 18px;margin:12px 0;max-width:1100px}.man-combina h3{margin:0 0 4px;font-size:15px}.man-combina .man-formula{font-family:Menlo,Consolas,monospace;font-size:12.5px;color:#1d3b6b;background:#eef2f7;padding:6px 10px;border-radius:4px;display:block;margin:6px 0;line-height:1.5}.man-combina p{margin:.4em 0;color:#3c434a;font-size:13px}.man-combina ul{margin:.3em 0 .3em 1.2em;font-size:13px;color:#50575e}.man-api-estado{font-size:11px;font-weight:600;margin-left:6px}.man-api-estado.on{color:#1e6b32}.man-api-estado.off{color:#b32d2e}.man-api-pie{max-width:920px;color:#646970;font-size:12px;margin-top:18px;border-top:1px solid #e0e0e0;padding-top:10px}' );
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -315,6 +317,388 @@ final class MAN_Admin {
 			<?php $this->config->render(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Página de transparencia: qué dato del plugin proviene de qué API/fuente,
+	 * organizado en pestañas por dominio, indicando capa (cron / navegador),
+	 * licencia, shortcodes que lo usan y los datos COMBINADOS de varias fuentes.
+	 *
+	 * Proyecto público de la Gobernación de Nariño; pensada para la comunidad,
+	 * investigadores y periodistas.
+	 */
+	public function pagina_apis_datos() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$config   = get_option( 'man_api_config', array() );
+		$pestanas = $this->mapa_apis_datos();
+		$slugs    = array_keys( $pestanas );
+		?>
+		<div class="wrap">
+			<h1>Monitor Ambiental — APIs y datos</h1>
+			<p class="man-api-intro">Esta página documenta, con fines de <strong>transparencia</strong>, de qué API o fuente
+				oficial proviene cada dato que muestra el plugin, cómo se obtiene y qué componentes lo usan. Es información
+				pública orientada a la ciudadanía, la academia y el periodismo. Para el estado en vivo de cada fuente consulta
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=man-salud' ) ); ?>">Salud de APIs</a> y para reconfigurarlas,
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=man-fuentes' ) ); ?>">Fuentes</a>.</p>
+
+			<p class="man-api-leyenda">
+				<span><span class="man-badge man-badge-cron">Cron</span> sincronización en el servidor (WP-Cron) y caché.</span>
+				<span><span class="man-badge man-badge-navegador">Navegador</span> consumo directo desde el navegador (sin clave, CORS).</span>
+				<span><span class="man-badge man-badge-mixto">Mixto</span> cron o navegador según el volumen.</span>
+			</p>
+
+			<h2 class="nav-tab-wrapper man-api-tabs">
+				<?php foreach ( $pestanas as $slug => $tab ) : ?>
+					<a href="#<?php echo esc_attr( $slug ); ?>" class="nav-tab<?php echo $slug === $slugs[0] ? ' nav-tab-active' : ''; ?>"
+						data-man-tab="<?php echo esc_attr( $slug ); ?>"><?php echo esc_html( $tab['titulo'] ); ?></a>
+				<?php endforeach; ?>
+			</h2>
+
+			<?php foreach ( $pestanas as $slug => $tab ) : ?>
+				<div class="man-api-panel<?php echo $slug === $slugs[0] ? ' is-activo' : ''; ?>" id="man-api-panel-<?php echo esc_attr( $slug ); ?>" data-man-panel="<?php echo esc_attr( $slug ); ?>">
+					<h2><?php echo esc_html( $tab['titulo'] ); ?></h2>
+					<?php if ( ! empty( $tab['intro'] ) ) : ?>
+						<p><?php echo esc_html( $tab['intro'] ); ?></p>
+					<?php endif; ?>
+
+					<table class="widefat striped man-tabla-api">
+						<thead>
+							<tr>
+								<th>Dato que produce</th>
+								<th>API / fuente</th>
+								<th>Obtención</th>
+								<th>Licencia</th>
+								<th>Shortcodes que lo usan</th>
+							</tr>
+						</thead>
+						<tbody>
+						<?php foreach ( $tab['filas'] as $fila ) : ?>
+							<tr>
+								<td><?php echo esc_html( $fila['dato'] ); ?></td>
+								<td>
+									<?php echo esc_html( $fila['fuente'] ); ?>
+									<?php if ( ! empty( $fila['endpoint'] ) ) : ?>
+										<span class="man-fuente"><code><?php echo esc_html( $fila['endpoint'] ); ?></code></span>
+									<?php endif; ?>
+									<?php if ( ! empty( $fila['config'] ) ) : ?>
+										<?php echo $this->estado_fuente( $fila['config'], $config ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML controlado y escapado dentro del helper. ?>
+									<?php endif; ?>
+								</td>
+								<td><?php echo $this->badge_capa( $fila['capa'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML controlado y escapado dentro del helper. ?></td>
+								<td class="man-lic"><?php echo esc_html( $fila['licencia'] ); ?></td>
+								<td class="man-sc-lista">
+									<?php foreach ( $fila['shortcodes'] as $sc ) : ?>
+										<code><?php echo esc_html( $sc ); ?></code>
+									<?php endforeach; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+
+					<?php if ( ! empty( $tab['combinados'] ) ) : ?>
+						<?php foreach ( $tab['combinados'] as $comb ) : ?>
+							<div class="man-combina">
+								<h3><?php echo esc_html( $comb['titulo'] ); ?></h3>
+								<?php if ( ! empty( $comb['formula'] ) ) : ?>
+									<code class="man-formula"><?php echo esc_html( $comb['formula'] ); ?></code>
+								<?php endif; ?>
+								<?php if ( ! empty( $comb['detalle'] ) ) : ?>
+									<p><?php echo esc_html( $comb['detalle'] ); ?></p>
+								<?php endif; ?>
+								<?php if ( ! empty( $comb['fuentes'] ) ) : ?>
+									<ul>
+										<?php foreach ( $comb['fuentes'] as $f ) : ?>
+											<li><?php echo esc_html( $f ); ?></li>
+										<?php endforeach; ?>
+									</ul>
+								<?php endif; ?>
+								<?php if ( ! empty( $comb['shortcodes'] ) ) : ?>
+									<p class="man-sc-lista">Se muestra en:
+										<?php foreach ( $comb['shortcodes'] as $sc ) : ?>
+											<code><?php echo esc_html( $sc ); ?></code>
+										<?php endforeach; ?>
+									</p>
+								<?php endif; ?>
+							</div>
+						<?php endforeach; ?>
+					<?php endif; ?>
+				</div>
+			<?php endforeach; ?>
+
+			<p class="man-api-pie">Atribución obligatoria de fuentes: NOAA/CPC, IRI (Columbia), IDEAM (vía datos.gov.co),
+				Open-Meteo (CC BY 4.0), NASA POWER, IOC/VLIZ Sea Level, INS/SIVIGILA y DANE (cartografía). Los datos abiertos
+				del plugin se publican bajo CC BY 4.0.</p>
+		</div>
+
+		<script>
+		( function () {
+			var tabs = document.querySelectorAll( '.man-api-tabs .nav-tab' );
+			function activar( slug ) {
+				tabs.forEach( function ( t ) {
+					t.classList.toggle( 'nav-tab-active', t.getAttribute( 'data-man-tab' ) === slug );
+				} );
+				document.querySelectorAll( '.man-api-panel' ).forEach( function ( p ) {
+					p.classList.toggle( 'is-activo', p.getAttribute( 'data-man-panel' ) === slug );
+				} );
+			}
+			tabs.forEach( function ( t ) {
+				t.addEventListener( 'click', function ( e ) {
+					e.preventDefault();
+					activar( t.getAttribute( 'data-man-tab' ) );
+				} );
+			} );
+		} )();
+		</script>
+		<?php
+	}
+
+	/**
+	 * Devuelve el HTML de una etiqueta de capa de obtención del dato.
+	 *
+	 * @param string $capa cron | navegador | mixto.
+	 * @return string HTML escapado.
+	 */
+	private function badge_capa( $capa ) {
+		$mapa = array(
+			'cron'      => array( 'Cron (servidor)', 'man-badge-cron' ),
+			'navegador' => array( 'Navegador', 'man-badge-navegador' ),
+			'mixto'     => array( 'Mixto', 'man-badge-mixto' ),
+		);
+		$def = isset( $mapa[ $capa ] ) ? $mapa[ $capa ] : array( ucfirst( $capa ), 'man-badge-mixto' );
+		return '<span class="man-badge ' . esc_attr( $def[1] ) . '">' . esc_html( $def[0] ) . '</span>';
+	}
+
+	/**
+	 * Indica, a partir de la configuración guardada, si una fuente está activa.
+	 *
+	 * @param string $slug   Slug de la fuente en man_api_config.
+	 * @param array  $config Opción man_api_config.
+	 * @return string HTML escapado (o cadena vacía si no está configurada).
+	 */
+	private function estado_fuente( $slug, $config ) {
+		if ( empty( $config[ $slug ] ) ) {
+			return '';
+		}
+		$activa = ! empty( $config[ $slug ]['activa'] );
+		$clase  = $activa ? 'on' : 'off';
+		$texto  = $activa ? 'fuente activa' : 'fuente inactiva';
+		return '<span class="man-api-estado ' . esc_attr( $clase ) . '">● ' . esc_html( $texto ) . '</span>';
+	}
+
+	/**
+	 * Mapa dato→fuente organizado por dominio (pestañas) para la página de
+	 * transparencia. Basado en la Sección 3 y la matriz 3.9 de la guía.
+	 *
+	 * @return array<string,array>
+	 */
+	private function mapa_apis_datos() {
+		return array(
+			'enso'      => array(
+				'titulo' => 'Fenómeno ENSO',
+				'intro'  => 'El estado oficial de El Niño / La Niña proviene de los índices de la NOAA y de las plumas de probabilidad del IRI/CPC. Son fuentes canónicas que cambian lento (mensual/semanal), se sincronizan por cron y se cachean.',
+				'filas'  => array(
+					array(
+						'dato'       => 'Índice ONI (anomalía trimestral móvil) y clasificación de fase e intensidad',
+						'fuente'     => 'NOAA / CPC — archivo ASCII oni.ascii.txt',
+						'endpoint'   => 'cpc.ncep.noaa.gov/data/indices/oni.ascii.txt',
+						'capa'       => 'cron',
+						'licencia'   => 'Dominio público (obra del gobierno de EE. UU.)',
+						'config'     => 'noaa_oni',
+						'shortcodes' => array( '[man_estado]', '[man_globo]', '[man_grafico]', '[man_estadisticas]', '[man_historico]' ),
+					),
+					array(
+						'dato'       => 'Anomalía SST semanal de la región Niño 3.4 (pulso semanal del semáforo)',
+						'fuente'     => 'NOAA / CPC — wksst8110.for (columnas de ancho fijo)',
+						'endpoint'   => 'cpc.ncep.noaa.gov/data/indices/wksst8110.for',
+						'capa'       => 'cron',
+						'licencia'   => 'Dominio público (obra del gobierno de EE. UU.)',
+						'config'     => 'noaa_oni',
+						'shortcodes' => array( '[man_estado]', '[man_globo]' ),
+					),
+					array(
+						'dato'       => 'Plumas / probabilidad de fase (El Niño · Neutral · La Niña) por trimestre',
+						'fuente'     => 'IRI (Columbia) / CPC — ensamble de probabilidades ENSO',
+						'endpoint'   => '',
+						'capa'       => 'cron',
+						'licencia'   => 'IRI/CPC — uso con atribución',
+						'config'     => '',
+						'shortcodes' => array( '[man_prediccion]', '[man_grafico]', '[man_estadisticas]' ),
+					),
+				),
+			),
+			'clima'     => array(
+				'titulo' => 'Clima y pronóstico',
+				'intro'  => 'El pronóstico puntual por municipio lo entrega Open-Meteo directamente al navegador (sin clave, con CORS, bajo licencia CC BY 4.0). El clima histórico y la climatología de referencia provienen de NASA POWER y de los reanálisis de Open-Meteo.',
+				'filas'  => array(
+					array(
+						'dato'       => 'Pronóstico diario y horario 7–16 días (temperatura, precipitación, viento, humedad)',
+						'fuente'     => 'Open-Meteo — Forecast API',
+						'endpoint'   => 'api.open-meteo.com/v1/forecast',
+						'capa'       => 'navegador',
+						'licencia'   => 'CC BY 4.0',
+						'config'     => 'open_meteo',
+						'shortcodes' => array( '[man_pronostico]', '[man_estado]', '[man_mapa]' ),
+					),
+					array(
+						'dato'       => 'Oleaje y altura de olas del Pacífico frente a Tumaco',
+						'fuente'     => 'Open-Meteo — Marine API',
+						'endpoint'   => 'marine-api.open-meteo.com/v1/marine',
+						'capa'       => 'navegador',
+						'licencia'   => 'CC BY 4.0',
+						'config'     => 'open_meteo',
+						'shortcodes' => array( '[man_mar]' ),
+					),
+					array(
+						'dato'       => 'Calidad del aire (PM2.5, PM10, O₃, NO₂) por municipio',
+						'fuente'     => 'Open-Meteo — Air Quality API',
+						'endpoint'   => 'air-quality-api.open-meteo.com/v1/air-quality',
+						'capa'       => 'navegador',
+						'licencia'   => 'CC BY 4.0',
+						'config'     => 'open_meteo',
+						'shortcodes' => array( '[man_pronostico]', '[man_estado]' ),
+					),
+					array(
+						'dato'       => 'Caudal de ríos para alerta hidrológica',
+						'fuente'     => 'Open-Meteo — Flood API (GloFAS)',
+						'endpoint'   => 'flood-api.open-meteo.com/v1/flood',
+						'capa'       => 'navegador',
+						'licencia'   => 'CC BY 4.0',
+						'config'     => 'open_meteo',
+						'shortcodes' => array( '[man_hidrico]' ),
+					),
+					array(
+						'dato'       => 'Clima histórico y climatología de referencia (1991–2020) para cálculo de anomalías',
+						'fuente'     => 'NASA POWER (perfiles agroclimáticos) · Open-Meteo Historical (ERA5)',
+						'endpoint'   => 'power.larc.nasa.gov/api/temporal/daily/point',
+						'capa'       => 'mixto',
+						'licencia'   => 'NASA POWER: uso libre con atribución · ERA5: CC BY 4.0',
+						'config'     => 'nasa_power',
+						'shortcodes' => array( '[man_historico]', '[man_grafico]' ),
+					),
+				),
+			),
+			'territorio' => array(
+				'titulo' => 'Territorio y alertas',
+				'intro'  => 'Las alertas y el pronóstico oficial colombiano provienen del IDEAM a través del portal de datos abiertos datos.gov.co (consultas SoQL, sincronizadas por cron). La cartografía de los 64 municipios es del DANE y se sirve desde un GeoJSON local del plugin.',
+				'filas'  => array(
+					array(
+						'dato'       => 'Alertas por municipio (fenómeno, nivel, fechas, sinopsis) y pronóstico oficial',
+						'fuente'     => 'IDEAM vía datos.gov.co (Socrata/SODA, SoQL)',
+						'endpoint'   => 'datos.gov.co/resource/{dataset-id}.json',
+						'capa'       => 'cron',
+						'licencia'   => 'Datos abiertos de Colombia',
+						'config'     => 'ideam',
+						'shortcodes' => array( '[man_mapa]', '[man_estado]' ),
+					),
+					array(
+						'dato'       => 'Cartografía y límites de los 64 municipios (centroides y polígonos DIVIPOLA)',
+						'fuente'     => 'DANE — GeoJSON local (data/narino_municipios.geojson)',
+						'endpoint'   => '',
+						'capa'       => 'navegador',
+						'licencia'   => 'DANE — datos abiertos',
+						'config'     => '',
+						'shortcodes' => array( '[man_mapa]' ),
+					),
+				),
+			),
+			'mar'       => array(
+				'titulo' => 'Mar',
+				'intro'  => 'El nivel del mar en la costa Pacífica de Nariño proviene del sistema de mareógrafos del IOC/VLIZ (COI-UNESCO), sincronizado por cron. El oleaje complementario se documenta en la pestaña «Clima y pronóstico» (Open-Meteo Marine).',
+				'filas'  => array(
+					array(
+						'dato'       => 'Nivel del mar en tiempo real (mareógrafos) frente a la costa de Nariño',
+						'fuente'     => 'IOC Sea Level Monitoring (VLIZ / COI-UNESCO)',
+						'endpoint'   => 'api.ioc-sealevelmonitoring.org/?query=data',
+						'capa'       => 'cron',
+						'licencia'   => 'IOC/VLIZ — uso con atribución (v2 requiere clave)',
+						'config'     => 'ioc',
+						'shortcodes' => array( '[man_mar]' ),
+					),
+				),
+				'combinados' => array(
+					array(
+						'titulo'     => 'Condición marina costera = IOC (nivel) + Open-Meteo Marine (oleaje)',
+						'formula'    => '',
+						'detalle'    => 'El componente del mar combina el nivel del mar del IOC con el oleaje de Open-Meteo Marine para los 7 municipios costeros (Tumaco, Francisco Pizarro, Mosquera, Olaya Herrera, El Charco, La Tola, Santa Bárbara).',
+						'fuentes'    => array(
+							'IOC Sea Level (nivel del mar, cron)',
+							'Open-Meteo Marine (altura y periodo de olas, navegador, CC BY 4.0)',
+						),
+						'shortcodes' => array( '[man_mar]' ),
+					),
+				),
+			),
+			'salud'     => array(
+				'titulo' => 'Salud',
+				'intro'  => 'Los casos de eventos de vigilancia sensibles al clima (dengue, EDA, IRA) provienen del INS/SIVIGILA a través de datos.gov.co (SoQL, cron). Se usan siempre agregados por municipio y semana epidemiológica; el plugin no maneja datos personales.',
+				'filas'  => array(
+					array(
+						'dato'       => 'Casos de dengue, dengue grave, EDA e IRA por departamento y semana epidemiológica',
+						'fuente'     => 'INS / SIVIGILA vía datos.gov.co (Socrata/SODA, SoQL)',
+						'endpoint'   => 'datos.gov.co/resource/{dataset-dengue}.json',
+						'capa'       => 'cron',
+						'licencia'   => 'Datos abiertos de Colombia',
+						'config'     => 'sivigila',
+						'shortcodes' => array( '[man_salud]' ),
+					),
+				),
+				'combinados' => array(
+					array(
+						'titulo'     => 'Correlación salud–clima = SIVIGILA (casos) + Open-Meteo/NASA POWER (temperatura y lluvia)',
+						'formula'    => '',
+						'detalle'    => 'El componente de salud relaciona los casos de dengue (favorecido por El Niño) con las variables climáticas del mismo periodo para evidenciar la sensibilidad climática del vector.',
+						'fuentes'    => array(
+							'INS/SIVIGILA (casos agregados, cron)',
+							'Open-Meteo / NASA POWER (temperatura y precipitación)',
+						),
+						'shortcodes' => array( '[man_salud]' ),
+					),
+				),
+			),
+			'combinados' => array(
+				'titulo' => 'Datos combinados',
+				'intro'  => 'Estos productos no provienen de una sola API: el plugin los construye combinando varias fuentes y aplicando algoritmos transparentes y auditables (Sección 5 de la especificación). Aquí se explica qué entra en cada uno.',
+				'filas'  => array(
+					array(
+						'dato'       => 'Anomalías por municipio (temperatura y lluvia respecto a lo normal)',
+						'fuente'     => 'Pronóstico Open-Meteo − climatología 1991–2020 (NASA POWER / ERA5)',
+						'endpoint'   => '',
+						'capa'       => 'mixto',
+						'licencia'   => 'Open-Meteo CC BY 4.0 · NASA POWER atribución',
+						'config'     => '',
+						'shortcodes' => array( '[man_mapa]', '[man_estado]', '[man_grafico]' ),
+					),
+				),
+				'combinados' => array(
+					array(
+						'titulo'     => 'Índice de riesgo municipal (0–1, por municipio y mes)',
+						'formula'    => 'riesgo = w1·f_enso(ONI) + w2·g_anom(lluvia) + w3·h_expo(municipio) + w4·k_sector(municipio)',
+						'detalle'    => 'Índice compuesto, heurístico y auditable. El signo del empuje del fenómeno (f_enso) se invierte por subregión: en la zona andina El Niño se asocia a déficit de lluvia y en el litoral Pacífico a más lluvia y oleaje. Los pesos son configurables.',
+						'fuentes'    => array(
+							'NOAA ONI (empuje del fenómeno)',
+							'IDEAM — lluvia y alertas oficiales',
+							'DANE — exposición (población, ladera, costa)',
+							'Predicciones del plugin (escenario del ONI)',
+						),
+						'shortcodes' => array( '[man_mapa]', '[man_grafico]', '[man_estadisticas]' ),
+					),
+					array(
+						'titulo'     => 'Predicción del ONI (trayectoria hasta el mes objetivo, p. ej. feb-2027)',
+						'formula'    => 'nivel_h = nivel_(h-1) + b·φ^h − λ·(nivel_(h-1) − μ);  banda σ_h = σ0 + α·√h',
+						'detalle'    => 'La línea central usa el ensamble oficial NOAA-CPC/IRI cuando está disponible; el modelo estadístico propio (tendencia lineal amortiguada con reversión a la media) se dibuja como segunda opinión. La banda de incertidumbre se amplía en la primavera boreal (MAM) por la barrera de predictibilidad, y la probabilidad de fase se obtiene por integración gaussiana sobre los umbrales NOAA ±0,5 °C.',
+						'fuentes'    => array(
+							'NOAA — ONI observado',
+							'Ensamble NOAA-CPC / IRI (probabilidades por trimestre)',
+							'Modelo estadístico del plugin (class-man-forecast.php)',
+						),
+						'shortcodes' => array( '[man_prediccion]', '[man_grafico]', '[man_estadisticas]' ),
+					),
+				),
+			),
+		);
 	}
 
 	/**

@@ -56,6 +56,7 @@ function nivelPorOni(oni) {
   if (a >= 0.5) { return 'amarillo'; }
   return 'verde';
 }
+function faseNombre(oni) { return oni >= 0.5 ? 'El Niño' : (oni <= -0.5 ? 'La Niña' : 'Neutral'); }
 
 /* Helpers GeoJSON → polígonos sobre la esfera (capa de municipios de Nariño). */
 function featurePoligonos(feat) {
@@ -157,7 +158,10 @@ class GloboMAN {
   constructor(cont) {
     this.cont = cont;
     this.lienzo = cont.querySelector('.man-globo__lienzo') || cont;
-    this.cinta = cont.querySelector('.man-globo__cinta');
+    this.cMes = cont.querySelector('.man-globo__cintillo-mes');
+    this.cOni = cont.querySelector('.man-globo__cintillo-oni');
+    this.cProb = cont.querySelector('.man-globo__cintillo-prob');
+    this.cResumen = cont.querySelector('.man-globo__cintillo-resumen');
     this.ligero = esLigero();
     this.reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.visible = true;
@@ -188,6 +192,7 @@ class GloboMAN {
     this._estrellas();
     this._mapaNarino();
     this._hover();
+    this._controles();
     this._eventos();
     this._cargaInicial();
     this._quitarSkeleton();
@@ -204,6 +209,11 @@ class GloboMAN {
 
     this.camara = new THREE.PerspectiveCamera(45, this._ancho() / this._alto(), 0.1, 100);
     this.camara.position.set(0, 1.2, 4.2);
+    // Cámaras predefinidas (vista global / mecanismo Pacífico / impacto Nariño).
+    this.camDefault = new THREE.Vector3(0, 1.2, 4.2);
+    this.camMecanismo = new THREE.Vector3(-3.5, 0.6, -2.2);
+    this.camLocal = new THREE.Vector3(0.34, 0.35, 1.55);
+    this._camTransicion = null;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: !this.ligero, alpha: false });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.ligero ? 1 : 2));
@@ -749,7 +759,7 @@ class GloboMAN {
   }
 
   /* ---------------- API: aplicar ONI ---------------- */
-  setOni(oni, mes, fase) {
+  setOni(oni, mes, fase, prob, resumen) {
     this.estado.oniObjetivo = +oni || 0;
     this.estado.nivel = nivelPorOni(this.estado.oniObjetivo);
     this.estado.faseTxt = fase || this.estado.faseTxt || '';
@@ -759,15 +769,100 @@ class GloboMAN {
       this._focoObjetivo = this._intensidadFoco(mes);
       this._mapaMes(mes);
     }
-    if (this.cinta && mes) {
-      this.cinta.textContent = this._mesTxt(mes) + ' · ONI ' + (oni >= 0 ? '+' : '') + (+oni).toFixed(1) + (fase ? ' · ' + fase : '');
+    // Cintillo de datos clave (mes · ONI · probabilidad · resumen).
+    if (this.cMes && mes) { this.cMes.textContent = this._mesTxt(mes); }
+    if (this.cOni) { this.cOni.textContent = (oni >= 0 ? '+' : '') + (+oni).toFixed(1) + ' °C'; }
+    if (this.cProb && prob != null) { this.cProb.textContent = Math.round(prob) + '%'; }
+    if (this.cResumen && resumen != null) { this.cResumen.textContent = resumen; }
+  }
+
+  /* ---------------- cámara cinemática ---------------- */
+  irACamara(nombre) {
+    var destino = (nombre === 'mecanismo') ? this.camMecanismo : (nombre === 'local' ? this.camLocal : this.camDefault);
+    var desde = this.camara.position.clone();
+    var medio = desde.clone().add(destino).multiplyScalar(0.5).normalize().multiplyScalar(5.5);
+    // Curva Bezier 3D: la cámara "barre" el globo en arco (no en línea recta).
+    this._camTransicion = { curva: new THREE.QuadraticBezierCurve3(desde, medio, destino.clone()), t: 0, dur: this.reduced ? 0.1 : 1.4 };
+    this.controles.autoRotate = false;
+  }
+
+  /* ---------------- toolbar flotante + drawers ---------------- */
+  _controles() {
+    var self = this;
+    // Cámaras.
+    Array.prototype.forEach.call(this.cont.querySelectorAll('[data-camara]'), function (b) {
+      b.addEventListener('click', function () { self.irACamara(b.getAttribute('data-camara')); });
+    });
+    // Drawers (mecanismo / histórico).
+    Array.prototype.forEach.call(this.cont.querySelectorAll('[data-panel]'), function (b) {
+      b.addEventListener('click', function () { self._toggleDrawer(b.getAttribute('data-panel'), b); });
+    });
+    Array.prototype.forEach.call(this.cont.querySelectorAll('.man-globo__drawer [data-cerrar]'), function (x) {
+      x.addEventListener('click', function () {
+        var d = x.closest('.man-globo__drawer'); if (d) { d.hidden = true; }
+      });
+    });
+  }
+
+  _toggleDrawer(cual, btn) {
+    var self = this;
+    var drawer = this.cont.querySelector('.man-globo__drawer[data-drawer="' + cual + '"]');
+    if (!drawer) { return; }
+    // Cierra los demás.
+    Array.prototype.forEach.call(this.cont.querySelectorAll('.man-globo__drawer'), function (d) { if (d !== drawer) { d.hidden = true; } });
+    Array.prototype.forEach.call(this.cont.querySelectorAll('[data-panel]'), function (b) { if (b !== btn) { b.setAttribute('aria-expanded', 'false'); } });
+    var abrir = drawer.hidden;
+    drawer.hidden = !abrir;
+    if (btn) { btn.setAttribute('aria-expanded', abrir ? 'true' : 'false'); }
+    if (!abrir) { return; }
+    var cuerpo = drawer.querySelector('.man-globo__drawer-cuerpo');
+    if (cuerpo.getAttribute('data-listo')) { return; }
+    if (cual === 'mecanismo') { self._pintarMecanismo(cuerpo); }
+    else if (cual === 'historico') { self._pintarHistorico(cuerpo); }
+  }
+
+  _pintarMecanismo(cuerpo) {
+    var m = this.mecanismo;
+    if (!m) { cuerpo.innerHTML = '<p>No hay información del mecanismo disponible.</p>'; return; }
+    var html = m.que ? '<p class="man-globo__mec-intro">' + esc(m.que) + '</p>' : '';
+    if (m.pasos && m.pasos.length) {
+      html += '<ol class="man-globo__pasos">';
+      m.pasos.forEach(function (p) { html += '<li>' + esc(p) + '</li>'; });
+      html += '</ol>';
     }
+    cuerpo.innerHTML = html;
+    cuerpo.setAttribute('data-listo', '1');
+  }
+
+  _pintarHistorico(cuerpo) {
+    var self = this;
+    if (!CFG.rest) { cuerpo.innerHTML = '<p>Sin conexión a datos.</p>'; return; }
+    cuerpo.innerHTML = '<p class="man-globo__mec-intro">Selecciona un episodio para representar su intensidad en el globo.</p>';
+    fetch(CFG.rest + '/historico').then(function (r) { return r.json(); }).then(function (d) {
+      var eps = (d && d.episodios) || [];
+      if (!eps.length) { cuerpo.innerHTML = '<p>No hay episodios históricos.</p>'; return; }
+      var cont = document.createElement('div');
+      cont.className = 'man-globo__eps';
+      eps.forEach(function (e) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'man-globo__ep';
+        b.innerHTML = '<strong>' + esc(e.periodo || '') + '</strong><span>ONI pico +' + esc(e.oni_pico) + ' · ' + esc(String(e.categoria || '').replace(/_/g, ' ')) + '</span>';
+        b.addEventListener('click', function () {
+          self.setOni(+e.oni_pico || 0, self.estado.mes, faseNombre(+e.oni_pico || 0));
+          self.irACamara('mecanismo');
+        });
+        cont.appendChild(b);
+      });
+      cuerpo.appendChild(cont);
+      cuerpo.setAttribute('data-listo', '1');
+    }).catch(function () { cuerpo.innerHTML = '<p>No se pudieron cargar los episodios.</p>'; });
   }
 
   _eventos() {
     var self = this;
     window.addEventListener('man:mes', function (e) {
-      if (e.detail) { self.setOni(+e.detail.oni, e.detail.mes, e.detail.fase); }
+      if (e.detail) { self.setOni(+e.detail.oni, e.detail.mes, e.detail.fase, e.detail.prob, e.detail.resumen); }
     });
     // Capas: activar/desactivar elementos del globo desde el menú "Capas".
     window.addEventListener('man:capa', function (e) {
@@ -790,7 +885,14 @@ class GloboMAN {
     var self = this;
     if (!CFG.rest) { return; }
     fetch(CFG.rest + '/oni').then(function (r) { return r.json(); }).then(function (d) {
-      if (d && d.actual) { self.setOni(+d.actual.oni, d.actual.mes, d.actual.fase); }
+      self.mecanismo = (d && d.mecanismo) ? d.mecanismo : null;
+      if (d && d.actual) {
+        var prob = null, resumen = '', serie = (d && d.serie) || [];
+        for (var i = 0; i < serie.length; i++) {
+          if (serie[i].mes === d.actual.mes) { prob = serie[i].prob; resumen = serie[i].resumen; break; }
+        }
+        self.setOni(+d.actual.oni, d.actual.mes, d.actual.fase, prob, resumen);
+      }
     }).catch(function () { /* mantiene neutral */ });
   }
 
@@ -958,7 +1060,20 @@ class GloboMAN {
 
       if (self.capaNubes) { self.capaNubes.rotation.y += dt * 0.012; }
 
-      self.controles.update();
+      // Transición cinemática de cámara (Bezier + easing). Mientras dura, no
+      // actualizamos OrbitControls para que no compita con el movimiento.
+      if (self._camTransicion) {
+        var tr = self._camTransicion;
+        tr.t += dt / tr.dur;
+        var kc = Math.min(1, tr.t);
+        var ease = kc < 0.5 ? 2 * kc * kc : 1 - Math.pow(-2 * kc + 2, 2) / 2;
+        var pc = tr.curva.getPoint(ease);
+        self.camara.position.copy(pc);
+        self.camara.lookAt(0, 0, 0);
+        if (kc >= 1) { self._camTransicion = null; }
+      } else {
+        self.controles.update();
+      }
       self.renderer.render(self.escena, self.camara);
     }
     requestAnimationFrame(tick);

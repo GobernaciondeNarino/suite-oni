@@ -500,6 +500,8 @@ final class MAN_Rest {
 					'oni'        => (float) $m['oni'],
 					'fase'       => MAN_Enso::clasificar_fase( $m['oni'] ),
 					'proyectado' => $proy,
+					'prob'       => isset( $m['probabilidad_el_nino_pct'] ) ? (int) $m['probabilidad_el_nino_pct'] : null,
+					'resumen'    => isset( $m['anomalia_pacifico_descripcion'] ) ? $m['anomalia_pacifico_descripcion'] : '',
 				);
 			}
 		}
@@ -552,6 +554,10 @@ final class MAN_Rest {
 			),
 			'serie'       => $serie,
 			'estado'      => ( $g && isset( $g['fenomeno']['estado_actual'] ) ) ? $g['fenomeno']['estado_actual'] : '',
+			'mecanismo'   => ( $g && isset( $g['mecanismo'] ) ) ? array(
+				'que'   => isset( $g['mecanismo']['que_lo_produce'] ) ? $g['mecanismo']['que_lo_produce'] : '',
+				'pasos' => isset( $g['mecanismo']['como_se_genera'] ) ? $g['mecanismo']['como_se_genera'] : array(),
+			) : null,
 			'fuente'      => $c ? 'NOAA/CPC (observado) + semilla (proyectado)' : 'Semilla local (datos_globo)',
 			'actualizado' => $actualizado,
 		);
