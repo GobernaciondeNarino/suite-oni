@@ -44,6 +44,8 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_estadisticas', array( $this, 'sc_estadisticas' ) );
 		add_shortcode( 'man_animacion', array( $this, 'sc_animacion' ) );
 		add_shortcode( 'man_grafico', array( $this, 'sc_grafico' ) );
+		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
+		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
@@ -86,7 +88,10 @@ final class MAN_Shortcodes {
 		// Motor de gráficos D3plus con barra de herramientas ([man_grafico]).
 		wp_register_style( 'man-grafico-css', MAN_URL . 'assets/css/grafico.css', array(), MAN_VERSION );
 		wp_register_script( 'man-renderer', MAN_URL . 'assets/js/renderer.js', array( 'd3plus' ), MAN_VERSION, true );
-		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core' ), MAN_VERSION, true );
+		// Bus de estado por grupo + componentes composables ([man_filtro], [man_panel]).
+		wp_register_script( 'man-grupo', MAN_URL . 'assets/js/grupo.js', array(), MAN_VERSION, true );
+		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core', 'man-grupo' ), MAN_VERSION, true );
+		wp_register_script( 'man-composable', MAN_URL . 'assets/js/composable.js', array( 'man-core', 'man-grupo' ), MAN_VERSION, true );
 		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
@@ -365,19 +370,18 @@ final class MAN_Shortcodes {
 	 * [man_historico] — Episodios ENSO 2015–2024 + ONI pico.
 	 */
 	public function sc_historico( $atts ) {
-		$atts = $this->fusionar( array( 'desde' => '', 'hasta' => '' ), $atts, 'man_historico' );
-		wp_enqueue_style( 'man-estilos' );
-		wp_enqueue_script( 'man-historico' );
-		$id = $this->id();
-		ob_start();
-		?>
-		<div id="<?php echo esc_attr( $id ); ?>" class="man man-historico"
-			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-historico>
-			<?php echo $this->skeleton( 'Cargando históricos ENSO…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'NOAA/CPC · IDEAM (episodios ENSO)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-		</div>
-		<?php
-		return ob_get_clean();
+		$atts = $this->fusionar( array(
+			'desde' => '',
+			'fin'   => '',
+			'alto'  => '360px',
+			'theme' => 'claro',
+		), $atts, 'man_historico' );
+
+		return $this->figura_grafico( 'episodios', 'bar', array(
+			'theme'  => $atts['theme'],
+			'alto'   => $atts['alto'],
+			'fuente' => 'NOAA/CPC · IDEAM (episodios ENSO)',
+		) );
 	}
 
 	/**
@@ -433,36 +437,26 @@ final class MAN_Shortcodes {
 			'hasta' => '2027-02',
 			'mes'   => gmdate( 'Y-m' ),
 			'alto'  => '360px',
+			'theme' => 'claro',
 		), $atts, 'man_estadisticas' );
 
-		wp_enqueue_style( 'man-estilos' );
-		wp_enqueue_script( 'man-estadisticas' );
+		// Mapea el "tipo" amistoso a (vista, gráfico) del motor interactivo.
+		$mapa = array(
+			'oni'          => array( 'oni_serie', 'line' ),
+			'probabilidad' => array( 'prob_fase', 'stacked_bar' ),
+			'riesgo'       => array( 'riesgo_subregion', 'treemap' ),
+			'municipios'   => array( 'riesgo_municipios', 'bar' ),
+		);
+		$tipo = sanitize_key( $atts['tipo'] );
+		$par  = isset( $mapa[ $tipo ] ) ? $mapa[ $tipo ] : $mapa['oni'];
 
-		$id    = $this->id();
-		$tipo  = sanitize_key( $atts['tipo'] );
-		$hasta = MAN_Security::sanitizar_mes( $atts['hasta'] );
-		if ( $hasta <= gmdate( 'Y-m' ) ) {
-			$hasta = '2027-02';
-		}
-		$mes  = MAN_Security::sanitizar_mes( $atts['mes'] );
-		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '360px';
-
-		ob_start();
-		?>
-		<div id="<?php echo esc_attr( $id ); ?>"
-			class="man man-estadisticas"
-			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
-			data-man-estadisticas
-			data-tipo="<?php echo esc_attr( $tipo ); ?>"
-			data-hasta="<?php echo esc_attr( $hasta ); ?>"
-			data-mes="<?php echo esc_attr( $mes ); ?>">
-			<div class="man-estadisticas__lienzo" style="min-height:<?php echo esc_attr( $alto ); ?>"
-				role="img" aria-label="Gráfico estadístico del fenómeno ENSO"></div>
-			<?php echo $this->skeleton( 'Cargando estadísticas…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'NOAA/CPC · IDEAM · D3plus' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-		</div>
-		<?php
-		return ob_get_clean();
+		return $this->figura_grafico( $par[0], $par[1], array(
+			'theme'  => $atts['theme'],
+			'alto'   => $atts['alto'],
+			'hasta'  => $atts['hasta'],
+			'mes'    => $atts['mes'],
+			'fuente' => 'NOAA/CPC · IDEAM · D3plus',
+		) );
 	}
 
 	/**
@@ -526,26 +520,126 @@ final class MAN_Shortcodes {
 			'alto'         => '420px',
 			'hasta'        => '2027-02',
 			'mes'          => gmdate( 'Y-m' ),
+			'grupo'        => '',
 		), $atts, 'man_grafico' );
+
+		return $this->figura_grafico( sanitize_key( $atts['view'] ), sanitize_key( $atts['type'] ), array(
+			'theme'        => $atts['theme'],
+			'actions'      => $atts['actions'],
+			'legend'       => $atts['legend'],
+			'legend_style' => $atts['legend_style'],
+			'toolbar'      => $atts['toolbar'],
+			'alto'         => $atts['alto'],
+			'hasta'        => $atts['hasta'],
+			'mes'          => $atts['mes'],
+			'grupo'        => $atts['grupo'],
+		) );
+	}
+
+	/**
+	 * [man_filtro] — Control composable (vista | tipo | mes) que actualiza, vía
+	 * el grupo, a los [man_grafico grupo="…"] del mismo grupo.
+	 */
+	public function sc_filtro( $atts ) {
+		$atts = $this->fusionar( array(
+			'grupo'   => 'enso',
+			'control' => 'vista',
+			'inicio'  => '2026-03',
+			'fin'     => '2027-03',
+		), $atts, 'man_filtro' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-composable' );
+
+		$id      = $this->id();
+		$grupo   = sanitize_key( $atts['grupo'] );
+		$control = in_array( $atts['control'], array( 'vista', 'tipo', 'mes' ), true ) ? $atts['control'] : 'vista';
+		$inicio  = MAN_Security::sanitizar_mes( $atts['inicio'] );
+		$fin     = MAN_Security::sanitizar_mes( $atts['fin'] );
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-filtro"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-filtro
+			data-grupo="<?php echo esc_attr( $grupo ); ?>"
+			data-control="<?php echo esc_attr( $control ); ?>"
+			data-inicio="<?php echo esc_attr( $inicio ); ?>"
+			data-fin="<?php echo esc_attr( $fin ); ?>">
+			<?php echo $this->skeleton( 'Cargando filtro…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_panel] — Título, descripción y detalles del gráfico vigente del grupo.
+	 */
+	public function sc_panel( $atts ) {
+		$atts = $this->fusionar( array( 'grupo' => 'enso' ), $atts, 'man_panel' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-composable' );
+
+		$id    = $this->id();
+		$grupo = sanitize_key( $atts['grupo'] );
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-panel"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-panel
+			data-grupo="<?php echo esc_attr( $grupo ); ?>">
+			<?php echo $this->skeleton( 'Esperando el gráfico del grupo…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'Detalles del gráfico vigente' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Renderiza la figura del motor de gráficos D3plus (capa 1). Reutilizable
+	 * por [man_grafico], [man_estadisticas] y [man_historico] — un solo motor
+	 * interactivo (ejes, tooltip, leyenda, barra de herramientas) para todos.
+	 *
+	 * @param string $view Id de la vista.
+	 * @param string $type Tipo de gráfico (vacío = por defecto de la vista).
+	 * @param array  $opts {theme, actions, legend, legend_style, toolbar, alto, hasta, mes, fuente}.
+	 * @return string
+	 */
+	private function figura_grafico( $view, $type, $opts = array() ) {
+		$o = array_merge( array(
+			'theme'        => 'claro',
+			'actions'      => '',
+			'legend'       => 'si',
+			'legend_style' => 'text',
+			'toolbar'      => 'si',
+			'alto'         => '420px',
+			'hasta'        => '2027-02',
+			'mes'          => gmdate( 'Y-m' ),
+			'grupo'        => '',
+			'fuente'       => 'NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus',
+		), $opts );
 
 		wp_enqueue_style( 'dashicons' );
 		wp_enqueue_style( 'man-grafico-css' );
 		wp_enqueue_script( 'man-grafico' );
 
-		$id     = $this->id();
-		$view   = sanitize_key( $atts['view'] );
-		$type   = sanitize_key( $atts['type'] );
-		$tema   = in_array( $atts['theme'], array( 'dark', 'oscuro' ), true ) ? 'dark' : 'claro';
-		$alto   = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '420px';
-		$hasta  = MAN_Security::sanitizar_mes( $atts['hasta'] );
+		$id      = $this->id();
+		$grupo   = sanitize_key( $o['grupo'] );
+		$tema    = in_array( $o['theme'], array( 'dark', 'oscuro' ), true ) ? 'dark' : 'claro';
+		$alto    = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $o['alto'] ) ? $o['alto'] : '420px';
+		$hasta   = MAN_Security::sanitizar_mes( $o['hasta'] );
 		if ( $hasta <= gmdate( 'Y-m' ) ) {
 			$hasta = '2027-02';
 		}
-		$mes     = MAN_Security::sanitizar_mes( $atts['mes'] );
-		$actions = preg_replace( '/[^a-z,_]/', '', strtolower( (string) $atts['actions'] ) );
-		$legend  = ( 'no' === $atts['legend'] || '0' === (string) $atts['legend'] ) ? '0' : '1';
-		$lstyle  = 'icons' === $atts['legend_style'] ? 'icons' : 'text';
-		$toolbar = ( 'no' === $atts['toolbar'] || '0' === (string) $atts['toolbar'] ) ? '0' : '1';
+		$mes     = MAN_Security::sanitizar_mes( $o['mes'] );
+		$actions = preg_replace( '/[^a-z,_]/', '', strtolower( (string) $o['actions'] ) );
+		$legend  = ( 'no' === $o['legend'] || '0' === (string) $o['legend'] ) ? '0' : '1';
+		$lstyle  = 'icons' === $o['legend_style'] ? 'icons' : 'text';
+		$toolbar = ( 'no' === $o['toolbar'] || '0' === (string) $o['toolbar'] ) ? '0' : '1';
 
 		ob_start();
 		?>
@@ -559,12 +653,13 @@ final class MAN_Shortcodes {
 			data-legend-style="<?php echo esc_attr( $lstyle ); ?>"
 			data-toolbar="<?php echo esc_attr( $toolbar ); ?>"
 			data-hasta="<?php echo esc_attr( $hasta ); ?>"
-			data-mes="<?php echo esc_attr( $mes ); ?>">
+			data-mes="<?php echo esc_attr( $mes ); ?>"
+			data-grupo="<?php echo esc_attr( $grupo ); ?>">
 			<figcaption class="man-g__title">Gráfico</figcaption>
 			<div class="man-g__chart" id="<?php echo esc_attr( $id ); ?>-chart"
 				style="min-height:<?php echo esc_attr( $alto ); ?>"></div>
 			<?php echo $this->skeleton( 'Cargando gráfico…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<p class="man-fuentes">Fuente: NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus</p>
+			<p class="man-fuentes">Fuente: <?php echo esc_html( $o['fuente'] ); ?></p>
 		</figure>
 		<?php
 		return ob_get_clean();

@@ -33,13 +33,13 @@ Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN
 | `[man_pronostico]` | Pronóstico 7–16 días (Open-Meteo en vivo) | `municipio`, `dias` |
 | `[man_mapa]` | Coroplético de los 64 municipios + panel al clic | `variable`, `mes` |
 | `[man_grafico]` | **Tarjeta de gráfico D3plus con barra de herramientas** (Detalle, Compartir, Datos, Imagen PNG, Descarga JSON y *Cambiar tipo en vivo*) + modales y temas | `view`, `type`, `theme`, `actions`, `legend`, `toolbar`, `alto` |
-| `[man_estadisticas]` | **Gráficos estadísticos D3plus** (ONI, probabilidad de fase por trimestre o riesgo por subregión) con tooltip/leyenda | `tipo`, `hasta`, `mes`, `alto` |
+| `[man_estadisticas]` | **Gráficos estadísticos D3plus** (ONI, probabilidad de fase, riesgo por subregión/municipios) — ahora sobre el **motor interactivo** (tooltip, ejes, leyenda, barra de herramientas) | `tipo`, `hasta`, `mes`, `alto` |
 | `[man_animacion]` | **Animación explicativa (Anime.js)** del mecanismo ENSO: alisios, piscina cálida, termoclina y lluvias; compara Neutral/El Niño/La Niña | `estado`, `autoplay` |
 | `[man_globo]` | Globo 3D cinematográfico (Three.js) | `calidad`, `autorotar` |
 | `[man_timeline]` | Slider de meses ONI que controla el globo | `inicio`, `fin` |
 | `[man_prediccion]` | **Predicción del ONI hasta feb-2027** (línea + banda de incertidumbre + umbrales de fase + probabilidad por trimestre + texto predictivo). Modelo propio del plugin contrastado con el ensamble NOAA/IRI | `hasta`, `modelo`, `probabilidad` |
 | `[man_datos]` | Botón de datos abiertos (JSON/CSV/Ver API) | `recurso`, `municipio`, `mes`, `texto` |
-| `[man_historico]` | Episodios ENSO 2015–2024 (barras ONI pico + tarjetas) | `desde`, `hasta` |
+| `[man_historico]` | Episodios ENSO 2015–2024 (barras ONI pico, **interactivo vía el motor D3plus**: tooltip, leyenda, cambiar tipo) | `alto`, `theme` |
 | `[man_mar]` | Oleaje Pacífico (Open-Meteo Marine) + nivel del mar (IOC) | `estacion` |
 | `[man_salud]` | Dengue sensible al clima (SIVIGILA) | `evento`, `anio` |
 | `[man_hidrico]` | Caudal de ríos (GloFAS) + humedad de suelo | `municipio` |
@@ -72,6 +72,18 @@ Motor genérico de **3 capas** (ver el archivo [`skill`](skill)): el shortcode e
 [man_grafico view="riesgo_subregion" type="treemap" theme="oscuro"]
 [man_grafico view="prob_fase" type="stacked_bar" actions="datos,imagen,cambiar"]
 ```
+
+### Componentes composables (enlazados por `grupo`)
+Para maquetar a la medida, separa el **gráfico**, los **filtros** y el **panel de
+detalles** en shortcodes distintos que se sincronizan por un id de `grupo` (bus
+de eventos `window.MANGrupo`). Un filtro cambia la vista/tipo/mes y el gráfico se
+re-renderiza; el panel muestra los detalles del gráfico vigente.
+```
+[man_filtro grupo="enso" control="vista"] [man_filtro grupo="enso" control="tipo"]
+[man_grafico grupo="enso" view="oni_serie" toolbar="no"]
+[man_panel grupo="enso"]
+```
+`control`: `vista` (elige el conjunto de datos), `tipo` (tipo de gráfico compatible) o `mes` (deslizador 2026-03 → 2027-03).
 
 ### Predicción y métodos predictivos
 `[man_prediccion]` no lee una curva fija: el plugin **calcula** la trayectoria del
