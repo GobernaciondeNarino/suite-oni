@@ -179,4 +179,51 @@ final class MAN_Enso {
 		}
 		return false;
 	}
+
+	/**
+	 * Parsea las probabilidades ENSO oficiales (NOAA/CPC, consenso CPC/IRI).
+	 *
+	 * Tolera tres formas de la misma tabla: CSV, tabla de texto plano y HTML.
+	 * Cada fila válida es «trimestre (3 letras + año)» seguido de tres
+	 * porcentajes en el orden El Niño, Neutral, La Niña.
+	 *
+	 * @param string $texto Cuerpo (CSV, texto o HTML).
+	 * @return array[] Filas {season, el_nino, neutral, la_nina} en % (0..100).
+	 */
+	public static function parse_iri_probabilities( $texto ) {
+		$texto = (string) $texto;
+
+		// Inserta saltos de línea en límites de fila/celda para no fundir la
+		// tabla en una sola línea, y elimina el resto del marcado.
+		$texto = preg_replace( '/<\s*(tr|table|thead|tbody|br|p|div|li)[^>]*>/i', "\n", $texto );
+		$texto = preg_replace( '/<\s*td[^>]*>/i', ' ', $texto );
+		$texto = wp_strip_all_tags( $texto );
+		$texto = html_entity_decode( $texto, ENT_QUOTES, 'UTF-8' );
+
+		$filas  = array();
+		$lineas = preg_split( '/\r\n|\r|\n/', $texto );
+		foreach ( $lineas as $linea ) {
+			$linea = trim( preg_replace( '/\s+/', ' ', $linea ) );
+			if ( '' === $linea ) {
+				continue;
+			}
+			// season = 3 letras + año (4 díg.); luego 3 enteros 0..100.
+			if ( preg_match( '/\b([A-Za-z]{3})\s*(\d{4})\D+(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})\b/', $linea, $m ) ) {
+				$en = (float) $m[3];
+				$ne = (float) $m[4];
+				$ln = (float) $m[5];
+				// Descarta líneas espurias cuya suma no se acerca a 100.
+				if ( ( $en + $ne + $ln ) < 80 || ( $en + $ne + $ln ) > 120 ) {
+					continue;
+				}
+				$filas[] = array(
+					'season'  => strtoupper( $m[1] ) . ' ' . $m[2],
+					'el_nino' => $en,
+					'neutral' => $ne,
+					'la_nina' => $ln,
+				);
+			}
+		}
+		return $filas;
+	}
 }

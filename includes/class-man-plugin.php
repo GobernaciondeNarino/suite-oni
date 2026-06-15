@@ -76,6 +76,9 @@ final class MAN_Plugin {
 		require_once $base . 'sync/class-man-sync-ideam.php';
 		require_once $base . 'sync/class-man-sync-sivigila.php';
 		require_once $base . 'sync/class-man-sync-sealevel.php';
+		require_once $base . 'sync/class-man-sync-iri.php';
+		require_once $base . 'sync/class-man-sync-firms.php';
+		require_once $base . 'sync/class-man-sync-deficit.php';
 		require_once $base . 'sync/class-man-sync.php';
 
 		// Presentación.

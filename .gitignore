@@ -1,0 +1,18 @@
+# Bóveda Obsidian local del usuario (no es parte del plugin)
+/oni/
+
+# Manual de identidad (11.9 MB) — se mantiene en disco como referencia, fuera del repo
+Manual-identidad-grafica.pdf
+
+# Backups locales de datos del mockup (no se publican)
+*-old.json
+*.bak
+
+# Cruft de SO / editores
+Thumbs.db
+.DS_Store
+*.swp
+*~
+
+# Caché regenerable de Claude Code
+/.claude/plugins/cache/
