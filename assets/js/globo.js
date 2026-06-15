@@ -284,19 +284,19 @@ class GloboMAN {
     this.flechas = [];
     this.escena.add(this.alisios);
     var lngs = [-180, -160, -140, -120, -100, 160];
-    var lats = [-3, 0, 3];
+    var lats = [-4, 4];
     var self = this;
     lngs.forEach(function (lng) {
       lats.forEach(function (lat) {
-        var mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+        var mat = new THREE.MeshBasicMaterial({ color: 0xdfeaf5, transparent: true, opacity: 0.5 });
         var flecha = self._flecha(mat);
-        var pos = latLngAVector3(lat, lng, 1.04);
+        var pos = latLngAVector3(lat, lng, 1.05);
         flecha.position.copy(pos);
         // Orienta la flecha tangente al globo, apuntando al oeste (lng decreciente).
-        var oeste = latLngAVector3(lat, lng - 6, 1.04);
+        var oeste = latLngAVector3(lat, lng - 6, 1.05);
         flecha.lookAt(oeste);
-        flecha.userData = { escalaBase: 0.16 };
-        flecha.scale.setScalar(0.16);
+        flecha.userData = { escalaBase: 0.085 };
+        flecha.scale.setScalar(0.085);
         self.alisios.add(flecha);
         self.flechas.push(flecha);
       });
@@ -330,7 +330,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.075, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.055, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
     this.escena.add(this.heat);
   }
 
@@ -457,7 +457,7 @@ class GloboMAN {
 
   /* ---------------- partículas de alisios (flujo atmosférico O←E) ---------------- */
   _particulasAlisios() {
-    var n = this.ligero ? 120 : 220;
+    var n = this.ligero ? 90 : 150;
     this._pAli = [];
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (var i = 0; i < n; i++) {
@@ -470,7 +470,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.pAli = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.03, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false }));
+    this.pAli = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.02, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.55, sizeAttenuation: true, depthWrite: false }));
     this.escena.add(this.pAli);
   }
 
@@ -499,7 +499,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos.slice(0, i * 3), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col.slice(0, i * 3), 3));
-    this.foco = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.075, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.foco = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.06, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.escena.add(this.foco);
   }
 
