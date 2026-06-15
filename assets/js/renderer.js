@@ -96,8 +96,11 @@
     var viz = new Cls().select(node).data(plotData);
     call(viz, 'detectResize', true);
     call(viz, 'legend', opts.legend !== false);
-    call(viz, 'shapeConfig', { labelConfig: { fontFamily: 'inherit' } });
+    // Leyenda abajo por defecto (no come el ancho del gráfico); configurable.
+    call(viz, 'legendPosition', opts.legendPos || 'bottom');
     // Color POR SERIE (no por índice de punto) — corrige la leyenda duplicada.
+    // NO se fija labelConfig.fontFamily: d3plus mide el texto con su fuente para
+    // ajustarlo/truncarlo dentro de cada forma; pisarla con 'inherit' lo rompe.
     call(viz, 'color', colorPorGrupo(plotData, grupo));
     if (opts.legendStyle === 'icons') { call(viz, 'legendConfig', { label: false }); }
 
