@@ -194,4 +194,155 @@ final class MAN_Municipios {
 	private static function clave_nombre( $n ) {
 		return strtoupper( remove_accents( trim( (string) $n ) ) );
 	}
+
+	/* ================================================================= */
+	/* Geometría — focos por municipio y centroides                      */
+	/* ================================================================= */
+
+	/**
+	 * Centroides divipola => [lat, lon] desde la lista maestra.
+	 *
+	 * @return array
+	 */
+	public static function centroides() {
+		$res = array();
+		foreach ( self::todos() as $m ) {
+			$res[ $m['divipola'] ] = array( (float) $m['lat'], (float) $m['lon'] );
+		}
+		return $res;
+	}
+
+	/**
+	 * Punto en polígono por ray casting (anillo exterior, coordenadas lon/lat
+	 * tratadas como plano cartesiano — suficiente a escala municipal).
+	 *
+	 * @param float   $x      Longitud del punto.
+	 * @param float   $y      Latitud del punto.
+	 * @param array[] $anillo Vértices [ [lon,lat], ... ].
+	 * @return bool
+	 */
+	public static function punto_en_poligono( $x, $y, array $anillo ) {
+		$dentro = false;
+		$n      = count( $anillo );
+		for ( $i = 0, $j = $n - 1; $i < $n; $j = $i++ ) {
+			$xi = (float) $anillo[ $i ][0];
+			$yi = (float) $anillo[ $i ][1];
+			$xj = (float) $anillo[ $j ][0];
+			$yj = (float) $anillo[ $j ][1];
+			$dy = ( $yj - $yi );
+			if ( 0.0 === $dy ) {
+				$dy = 1e-12;
+			}
+			$cruza = ( ( $yi > $y ) !== ( $yj > $y ) )
+				&& ( $x < ( $xj - $xi ) * ( $y - $yi ) / $dy + $xi );
+			if ( $cruza ) {
+				$dentro = ! $dentro;
+			}
+		}
+		return $dentro;
+	}
+
+	/**
+	 * Cuenta focos (puntos [lon,lat]) dentro de cada municipio del GeoJSON.
+	 * Si no hay GeoJSON, cae a asignación por centroide más cercano.
+	 *
+	 * @param array[] $puntos Lista [lon, lat].
+	 * @return array divipola => conteo.
+	 */
+	public static function contar_focos_por_municipio( array $puntos ) {
+		$geo = self::cargar_geojson();
+		$res = array();
+
+		if ( $geo && ! empty( $geo['features'] ) ) {
+			foreach ( $geo['features'] as $f ) {
+				$cod = self::codigo_de_feature( $f );
+				if ( '' === $cod || empty( $f['geometry'] ) ) {
+					continue;
+				}
+				$anillos = self::anillos_exteriores( $f['geometry'] );
+				$n = 0;
+				foreach ( $puntos as $pt ) {
+					foreach ( $anillos as $anillo ) {
+						if ( self::punto_en_poligono( $pt[0], $pt[1], $anillo ) ) {
+							$n++;
+							break;
+						}
+					}
+				}
+				if ( $n > 0 ) {
+					$res[ $cod ] = $n;
+				}
+			}
+			return $res;
+		}
+
+		// Fallback sin GeoJSON: centroide más cercano.
+		$cen = self::centroides();
+		foreach ( $puntos as $pt ) {
+			$mejor = '';
+			$mdist = INF;
+			foreach ( $cen as $cod => $ll ) {
+				$d = ( $ll[1] - $pt[0] ) * ( $ll[1] - $pt[0] ) + ( $ll[0] - $pt[1] ) * ( $ll[0] - $pt[1] );
+				if ( $d < $mdist ) {
+					$mdist = $d;
+					$mejor = $cod;
+				}
+			}
+			if ( '' !== $mejor ) {
+				$res[ $mejor ] = isset( $res[ $mejor ] ) ? $res[ $mejor ] + 1 : 1;
+			}
+		}
+		return $res;
+	}
+
+	/**
+	 * Carga el GeoJSON de municipios (semilla en data/).
+	 *
+	 * @return array|null
+	 */
+	public static function cargar_geojson() {
+		$g = MAN_Cache::semilla( 'narino_municipios.geojson' );
+		return is_array( $g ) ? $g : null;
+	}
+
+	/**
+	 * Extrae el DIVIPOLA de un feature, tolerando varias claves de propiedad.
+	 *
+	 * @param array $f Feature GeoJSON.
+	 * @return string
+	 */
+	private static function codigo_de_feature( $f ) {
+		$p = isset( $f['properties'] ) ? $f['properties'] : array();
+		foreach ( array( 'MPIO_CDPMP', 'MPIO_CCDGO', 'DPTOMPIO', 'divipola', 'codigo' ) as $k ) {
+			if ( ! empty( $p[ $k ] ) ) {
+				return (string) $p[ $k ];
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Anillos exteriores de un geometry Polygon/MultiPolygon.
+	 *
+	 * @param array $geom Geometry GeoJSON.
+	 * @return array[] Lista de anillos [ [ [lon,lat], ... ], ... ].
+	 */
+	private static function anillos_exteriores( $geom ) {
+		if ( empty( $geom['type'] ) || empty( $geom['coordinates'] ) ) {
+			return array();
+		}
+		if ( 'Polygon' === $geom['type'] ) {
+			return array( $geom['coordinates'][0] );
+		}
+		if ( 'MultiPolygon' === $geom['type'] ) {
+			$out = array();
+			foreach ( $geom['coordinates'] as $poli ) {
+				if ( ! empty( $poli[0] ) ) {
+					$out[] = $poli[0];
+				}
+			}
+			return $out;
+		}
+		return array();
+	}
 }

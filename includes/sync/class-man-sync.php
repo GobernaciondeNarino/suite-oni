@@ -20,6 +20,9 @@ final class MAN_Sync {
 		'ideam'    => 'MAN_Sync_Ideam',
 		'sivigila' => 'MAN_Sync_Sivigila',
 		'ioc'      => 'MAN_Sync_Sealevel',
+		'iri_enso' => 'MAN_Sync_Iri',
+		'firms'    => 'MAN_Sync_Firms',
+		'deficit'  => 'MAN_Sync_Deficit',
 	);
 
 	public function __construct() {
