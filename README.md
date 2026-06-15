@@ -111,14 +111,20 @@ Pensada para ciudadanía, estudiantes e investigadores. Licencia **CC BY 4.0**.
 
 ```
 GET /wp-json/man/v1/abierto/municipios?mes=2026-10&formato=json
-GET /wp-json/man/v1/abierto/oni?formato=csv
+GET /wp-json/man/v1/abierto/oni?dominio=historico&formato=csv     # observado
+GET /wp-json/man/v1/abierto/oni?dominio=pronostico&formato=json   # proyectado
 GET /wp-json/man/v1/abierto/prediccion?hasta=2027-02&formato=json
 GET /wp-json/man/v1/abierto/52001?formato=json
 ```
 
+**Dominios separados (histórico vs pronóstico).** El backend divide el ONI en
+observado y proyección: `/historico/oni` (medido por NOAA) y `/pronostico/oni`
+(proyección). Las vistas del motor `oni_observado` y `oni_pronostico`, y
+`[man_estadisticas tipo="observado|pronostico"]`, usan esa separación.
+
 El shortcode `[man_datos]` genera los botones de **Descargar JSON**, **Descargar CSV**, **Ver API** y **Copiar URL** (recursos: `municipios`, `oni`, `prediccion`, `municipio`).
 
-REST interna (para el front): `/wp-json/man/v1/municipio/{divipola}`, `/departamento`, `/oni`, `/prediccion`, `/historico`, `/estado-apis`.
+REST interna (para el front): `/wp-json/man/v1/municipio/{divipola}`, `/departamento`, `/oni`, `/historico/oni`, `/pronostico/oni`, `/prediccion`, `/historico`, `/render`, `/estado-apis`.
 
 ---
 

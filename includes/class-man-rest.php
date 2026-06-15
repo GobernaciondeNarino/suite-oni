@@ -96,6 +96,18 @@ final class MAN_Rest {
 			'permission_callback' => $publico,
 		) );
 
+		// Dominios separados: histórico (observado) y pronóstico (proyección).
+		register_rest_route( self::NS, '/historico/oni', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_historico_oni' ),
+			'permission_callback' => $publico,
+		) );
+		register_rest_route( self::NS, '/pronostico/oni', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_pronostico_oni' ),
+			'permission_callback' => $publico,
+		) );
+
 		register_rest_route( self::NS, '/mar', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_mar' ),
@@ -198,6 +210,16 @@ final class MAN_Rest {
 		return rest_ensure_response( self::construir_mapa_narino() );
 	}
 
+	/** Dominio HISTÓRICO: serie ONI observada (sin proyección). */
+	public function ruta_historico_oni() {
+		return rest_ensure_response( self::construir_oni_dominio( 'historico' ) );
+	}
+
+	/** Dominio PRONÓSTICO: serie ONI proyectada (sin observado). */
+	public function ruta_pronostico_oni() {
+		return rest_ensure_response( self::construir_oni_dominio( 'pronostico' ) );
+	}
+
 	/**
 	 * Payload de render para [man_grafico]: {chart, view, data, compatible}.
 	 * Valida la vista (lista blanca) y restringe el tipo a los compatibles.
@@ -265,13 +287,18 @@ final class MAN_Rest {
 	}
 
 	public function abierto_oni( $req ) {
-		$oni   = self::construir_oni();
-		$serie = isset( $oni['serie'] ) ? $oni['serie'] : array();
+		$dom = sanitize_key( (string) $req->get_param( 'dominio' ) );
+		if ( ! in_array( $dom, array( 'historico', 'pronostico' ), true ) ) {
+			$dom = 'todo';
+		}
+		$d     = self::construir_oni_dominio( $dom );
+		$serie = isset( $d['serie'] ) ? $d['serie'] : array();
+		$etq   = ( 'todo' === $dom ) ? 'observado y proyectado' : ( 'historico' === $dom ? 'observado' : 'proyectado' );
 		return self::responder_abierto(
 			$req,
 			$serie,
-			'monitor-ambiental-narino_oni',
-			'Serie del índice ONI (observado y proyectado)'
+			'monitor-ambiental-narino_oni_' . $dom,
+			'Serie del índice ONI (' . $etq . ')'
 		);
 	}
 
@@ -526,6 +553,43 @@ final class MAN_Rest {
 			'serie'       => $serie,
 			'fuente'      => $c ? 'NOAA/CPC (observado) + semilla (proyectado)' : 'Semilla local (datos_globo)',
 			'actualizado' => $actualizado,
+		);
+	}
+
+	/**
+	 * Serie ONI de un solo DOMINIO: 'historico' (observado) o 'pronostico'
+	 * (proyectado). 'todo' devuelve la serie completa. Base de la división del
+	 * backend en histórico vs pronóstico.
+	 *
+	 * @param string $dominio historico | pronostico | todo.
+	 * @return array {dominio, actual, serie, fuente}.
+	 */
+	public static function construir_oni_dominio( $dominio = 'todo' ) {
+		$oni   = self::construir_oni();
+		$serie = isset( $oni['serie'] ) ? $oni['serie'] : array();
+
+		if ( 'historico' === $dominio ) {
+			$serie = array_values( array_filter( $serie, function ( $s ) { return empty( $s['proyectado'] ); } ) );
+		} elseif ( 'pronostico' === $dominio ) {
+			$serie = array_values( array_filter( $serie, function ( $s ) { return ! empty( $s['proyectado'] ); } ) );
+		}
+
+		$actual = isset( $oni['actual'] ) ? $oni['actual'] : null;
+		if ( ! empty( $serie ) ) {
+			$u      = end( $serie );
+			$actual = array(
+				'mes'        => $u['mes'],
+				'oni'        => (float) $u['oni'],
+				'fase'       => MAN_Enso::clasificar_fase( $u['oni'] ),
+				'intensidad' => MAN_Enso::intensidad( $u['oni'] ),
+			);
+		}
+
+		return array(
+			'dominio' => $dominio,
+			'actual'  => $actual,
+			'serie'   => $serie,
+			'fuente'  => isset( $oni['fuente'] ) ? $oni['fuente'] : '',
 		);
 	}
 
