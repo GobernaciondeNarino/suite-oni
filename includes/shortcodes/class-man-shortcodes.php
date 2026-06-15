@@ -443,6 +443,8 @@ final class MAN_Shortcodes {
 		// Mapea el "tipo" amistoso a (vista, gráfico) del motor interactivo.
 		$mapa = array(
 			'oni'          => array( 'oni_serie', 'line' ),
+			'observado'    => array( 'oni_observado', 'line' ),
+			'pronostico'   => array( 'oni_pronostico', 'line' ),
 			'probabilidad' => array( 'prob_fase', 'stacked_bar' ),
 			'riesgo'       => array( 'riesgo_subregion', 'treemap' ),
 			'municipios'   => array( 'riesgo_municipios', 'bar' ),

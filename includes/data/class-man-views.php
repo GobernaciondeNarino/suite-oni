@@ -71,6 +71,22 @@ final class MAN_Views {
 				'measures'    => array( 'oni' ),
 				'default'     => 'line',
 			),
+			'oni_observado'     => array(
+				'name'        => 'ONI observado (histórico)',
+				'description' => 'Índice ONI medido (NOAA/CPC), solo meses observados.',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'oni' ),
+				'default'     => 'line',
+			),
+			'oni_pronostico'    => array(
+				'name'        => 'ONI pronosticado',
+				'description' => 'Índice ONI proyectado hacia el futuro (ensamble + modelo).',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'oni' ),
+				'default'     => 'line',
+			),
 			'prob_fase'         => array(
 				'name'        => 'Probabilidad de fase por trimestre',
 				'description' => 'Probabilidad de El Niño / Neutral / La Niña por trimestre móvil.',
@@ -209,6 +225,16 @@ final class MAN_Views {
 					if ( ! $proy ) {
 						$ultimo_obs = $s;
 					}
+				}
+				return $rows;
+
+			case 'oni_observado':
+			case 'oni_pronostico':
+				$dom  = ( 'oni_observado' === $id ) ? 'historico' : 'pronostico';
+				$d    = MAN_Rest::construir_oni_dominio( $dom );
+				$rows = array();
+				foreach ( ( isset( $d['serie'] ) ? $d['serie'] : array() ) as $s ) {
+					$rows[] = array( 'mes' => $s['mes'], 'oni' => round( (float) $s['oni'], 2 ) );
 				}
 				return $rows;
 
