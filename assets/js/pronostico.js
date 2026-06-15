@@ -34,7 +34,10 @@
 
     var cuerpo = C.el('div', 'man-pronostico__cuerpo');
     cuerpo.appendChild(C.el('p', 'man-titulo', 'Pronóstico ' + C.esc(mun.nombre) + ' · ' + dias + ' días'));
-    cuerpo.appendChild(grafico(fechas, tmax, tmin, prec));
+    var tip = C.el('div', 'man-pronostico__tip');
+    tip.hidden = true;
+    cuerpo.appendChild(grafico(cuerpo, tip, fechas, tmax, tmin, prec));
+    cuerpo.appendChild(tip);
 
     var tprom = promedio(tmax), ptot = total(prec), n = fechas.length;
     var tend = tmax[n - 1] > tmax[0] ? 'Tendencia térmica al alza.' : (tmax[n - 1] < tmax[0] ? 'Tendencia térmica a la baja.' : 'Temperatura estable.');
@@ -46,7 +49,7 @@
     cont.insertBefore(cuerpo, cont.querySelector('.man-fuentes'));
   }
 
-  function grafico(fechas, tmax, tmin, prec) {
+  function grafico(cont, tip, fechas, tmax, tmin, prec) {
     var W = 640, H = 260, m = { t: 16, r: 30, b: 40, l: 34 };
     var iw = W - m.l - m.r, ih = H - m.t - m.b;
     var svg = document.createElementNS(NS, 'svg');
@@ -106,6 +109,27 @@
       t.setAttribute('font-size', '10'); t.setAttribute('fill', 'var(--man-mute,#6b7280)'); t.setAttribute('text-anchor', 'middle');
       t.textContent = f.slice(5);
       svg.appendChild(t);
+    });
+
+    // Capa de interacción: tooltip por día (hover).
+    var bandW = iw / fechas.length;
+    fechas.forEach(function (f, i) {
+      var r = document.createElementNS(NS, 'rect');
+      r.setAttribute('x', x(f) - bandW / 2); r.setAttribute('y', m.t);
+      r.setAttribute('width', bandW); r.setAttribute('height', ih);
+      r.setAttribute('fill', 'transparent');
+      r.style.cursor = 'crosshair';
+      r.addEventListener('mousemove', function (e) {
+        tip.innerHTML = '<strong>' + C.esc(f) + '</strong>' +
+          '<span>Máx: ' + C.num(tmax[i], 1) + ' °C · Mín: ' + C.num(tmin[i], 1) + ' °C</span>' +
+          '<span>Lluvia: ' + C.num(prec[i], 1) + ' mm</span>';
+        tip.hidden = false;
+        var cr = cont.getBoundingClientRect();
+        tip.style.left = (e.clientX - cr.left) + 'px';
+        tip.style.top = (e.clientY - cr.top) + 'px';
+      });
+      r.addEventListener('mouseleave', function () { tip.hidden = true; });
+      svg.appendChild(r);
     });
 
     return svg;

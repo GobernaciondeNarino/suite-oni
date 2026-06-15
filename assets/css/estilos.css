@@ -200,6 +200,17 @@
 .man-panel__dl dt { color: var(--man-mute, #6b7280); }
 .man-panel__dl dd { margin: 0; }
 
+/* --- [man_pronostico] tooltip por día --- */
+.man-pronostico__cuerpo { position: relative; }
+.man-pronostico__tip {
+  position: absolute; z-index: 15; pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: #fff; color: #1a1f2c; border: 1px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, .16); padding: 6px 9px; font-size: 12px; white-space: nowrap;
+}
+.man-pronostico__tip strong { display: block; margin-bottom: 2px; }
+.man-pronostico__tip span { display: block; color: #50575e; }
+
 /* --- [man_datos] --- */
 .man-datos__titulo { font-weight: 600; margin: 0 0 .5em; }
 .man-datos__acciones { display: flex; gap: 8px; flex-wrap: wrap; }
