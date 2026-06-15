@@ -176,7 +176,8 @@ final class MAN_Views {
 		if ( ! isset( $r[ $id ] ) ) {
 			return null;
 		}
-		$m = $r[ $id ];
+		$m     = $r[ $id ];
+		$datos = self::datos( $id, $args );
 		return array(
 			'id'          => $id,
 			'name'        => $m['name'],
@@ -184,8 +185,111 @@ final class MAN_Views {
 			'category'    => $m['category'],
 			'dimensions'  => $m['dimensions'],
 			'measures'    => $m['measures'],
-			'data'        => self::datos( $id, $args ),
+			'data'        => $datos,
+			'analisis'    => self::analisis( $id, $datos ),
 		);
+	}
+
+	/**
+	 * Análisis por vista: párrafo DESCRIPTIVO (qué muestra) + CUANTITATIVO
+	 * (cifras clave calculadas del propio dato). Pensado para ciudadanía,
+	 * investigadores y periodistas.
+	 *
+	 * @param string $id    Id de la vista.
+	 * @param array  $datos Filas de la vista.
+	 * @return array {descriptivo, cuantitativo}
+	 */
+	private static function analisis( $id, $datos ) {
+		$n     = count( $datos );
+		$desc  = '';
+		$cuant = '';
+
+		switch ( $id ) {
+			case 'oni_serie':
+			case 'oni_observado':
+			case 'oni_pronostico':
+				$desc = 'Índice oceánico de El Niño (ONI). El umbral de ±0,5 °C define las fases El Niño (cálida) y La Niña (fría); el resto es neutral. Fuente: NOAA/CPC (observado) y ensamble (proyectado).';
+				if ( $n ) {
+					$pico = $datos[0];
+					$ult  = $datos[ $n - 1 ];
+					foreach ( $datos as $f ) {
+						if ( abs( (float) $f['oni'] ) > abs( (float) $pico['oni'] ) ) {
+							$pico = $f;
+						}
+					}
+					$cuant = sprintf(
+						'Pico de %s °C en %s. Valor más reciente: %s °C (%s). Serie de %d meses.',
+						self::signo( $pico['oni'] ),
+						MAN_Texto::mes_largo( $pico['mes'] ),
+						self::signo( $ult['oni'] ),
+						MAN_Enso::clasificar_fase( $ult['oni'] ),
+						$n
+					);
+				}
+				break;
+
+			case 'prob_fase':
+				$desc = 'Probabilidad de cada fase ENSO por trimestre móvil, obtenida integrando una distribución normal sobre los umbrales NOAA de ±0,5 °C.';
+				if ( $n ) {
+					$mx = $datos[0];
+					foreach ( $datos as $f ) {
+						if ( (float) $f['el_nino'] > (float) $mx['el_nino'] ) {
+							$mx = $f;
+						}
+					}
+					$cuant = sprintf( 'Probabilidad máxima de El Niño: %s%% en %s.', number_format_i18n( (float) $mx['el_nino'], 0 ), $mx['trimestre'] );
+				}
+				break;
+
+			case 'riesgo_subregion':
+				$desc = 'Índice de riesgo ambiental medio por subregión de Nariño (0 a 1): combina afectación histórica, déficit hídrico, exposición (DANE) y régimen climático.';
+				if ( $n ) {
+					$top = $datos[0];
+					$sum = 0.0;
+					foreach ( $datos as $f ) {
+						$sum += (float) $f['riesgo'];
+						if ( (float) $f['riesgo'] > (float) $top['riesgo'] ) {
+							$top = $f;
+						}
+					}
+					$cuant = sprintf( 'Subregión más expuesta: %s (%s). Promedio departamental: %s.', $top['subregion'], number_format_i18n( (float) $top['riesgo'], 2 ), number_format_i18n( $sum / $n, 2 ) );
+				}
+				break;
+
+			case 'riesgo_municipios':
+				$desc = 'Municipios con mayor índice de riesgo en el mes seleccionado (escenario de planeación).';
+				if ( $n ) {
+					$top = $datos[0];
+					foreach ( $datos as $f ) {
+						if ( (float) $f['riesgo'] > (float) $top['riesgo'] ) {
+							$top = $f;
+						}
+					}
+					$cuant = sprintf( 'Mayor riesgo: %s (%s de 1,00).', $top['municipio'], number_format_i18n( (float) $top['riesgo'], 2 ) );
+				}
+				break;
+
+			case 'episodios':
+				$desc = 'Episodios de El Niño que afectaron a Nariño (2015–2024), comparados por su ONI pico.';
+				if ( $n ) {
+					$top = $datos[0];
+					foreach ( $datos as $f ) {
+						if ( (float) $f['oni_pico'] > (float) $top['oni_pico'] ) {
+							$top = $f;
+						}
+					}
+					$cuant = sprintf( 'Episodio más intenso: %s (ONI pico +%s °C).', $top['periodo'], number_format_i18n( (float) $top['oni_pico'], 1 ) );
+				}
+				break;
+		}
+
+		return array( 'descriptivo' => $desc, 'cuantitativo' => $cuant );
+	}
+
+	/** Formatea un número con signo (+/−) y una decimal. */
+	private static function signo( $v ) {
+		$v = (float) $v;
+		return ( $v >= 0 ? '+' : '' ) . number_format_i18n( $v, 1 );
 	}
 
 	/**

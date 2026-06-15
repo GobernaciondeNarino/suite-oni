@@ -419,16 +419,18 @@ final class MAN_Shortcodes {
 	 */
 	public function sc_historico( $atts ) {
 		$atts = $this->fusionar( array(
-			'desde' => '',
-			'fin'   => '',
-			'alto'  => '360px',
-			'theme' => 'claro',
+			'desde'    => '',
+			'fin'      => '',
+			'alto'     => '360px',
+			'theme'    => 'claro',
+			'analisis' => 'ambos',
 		), $atts, 'man_historico' );
 
 		return $this->figura_grafico( 'episodios', 'bar', array(
-			'theme'  => $atts['theme'],
-			'alto'   => $atts['alto'],
-			'fuente' => 'NOAA/CPC · IDEAM (episodios ENSO)',
+			'theme'    => $atts['theme'],
+			'alto'     => $atts['alto'],
+			'analisis' => $atts['analisis'],
+			'fuente'   => 'NOAA/CPC · IDEAM (episodios ENSO)',
 		) );
 	}
 
@@ -486,11 +488,12 @@ final class MAN_Shortcodes {
 	 */
 	public function sc_estadisticas( $atts ) {
 		$atts = $this->fusionar( array(
-			'tipo'  => 'oni',
-			'hasta' => '2027-02',
-			'mes'   => gmdate( 'Y-m' ),
-			'alto'  => '360px',
-			'theme' => 'claro',
+			'tipo'     => 'oni',
+			'hasta'    => '2027-02',
+			'mes'      => gmdate( 'Y-m' ),
+			'alto'     => '360px',
+			'theme'    => 'claro',
+			'analisis' => 'ambos',
 		), $atts, 'man_estadisticas' );
 
 		// Mapea el "tipo" amistoso a (vista, gráfico) del motor interactivo.
@@ -506,11 +509,12 @@ final class MAN_Shortcodes {
 		$par  = isset( $mapa[ $tipo ] ) ? $mapa[ $tipo ] : $mapa['oni'];
 
 		return $this->figura_grafico( $par[0], $par[1], array(
-			'theme'  => $atts['theme'],
-			'alto'   => $atts['alto'],
-			'hasta'  => $atts['hasta'],
-			'mes'    => $atts['mes'],
-			'fuente' => 'NOAA/CPC · IDEAM · D3plus',
+			'theme'    => $atts['theme'],
+			'alto'     => $atts['alto'],
+			'hasta'    => $atts['hasta'],
+			'mes'      => $atts['mes'],
+			'analisis' => $atts['analisis'],
+			'fuente'   => 'NOAA/CPC · IDEAM · D3plus',
 		) );
 	}
 
@@ -577,6 +581,7 @@ final class MAN_Shortcodes {
 			'mes'          => gmdate( 'Y-m' ),
 			'grupo'        => '',
 			'legend_pos'   => 'abajo',
+			'analisis'     => 'ambos',
 		), $atts, 'man_grafico' );
 
 		return $this->figura_grafico( sanitize_key( $atts['view'] ), sanitize_key( $atts['type'] ), array(
@@ -590,6 +595,7 @@ final class MAN_Shortcodes {
 			'mes'          => $atts['mes'],
 			'grupo'        => $atts['grupo'],
 			'legend_pos'   => $atts['legend_pos'],
+			'analisis'     => $atts['analisis'],
 		) );
 	}
 
@@ -678,6 +684,7 @@ final class MAN_Shortcodes {
 			'mes'          => gmdate( 'Y-m' ),
 			'grupo'        => '',
 			'legend_pos'   => 'abajo',
+			'analisis'     => 'ambos',
 			'fuente'       => 'NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus',
 		), $opts );
 
@@ -700,6 +707,7 @@ final class MAN_Shortcodes {
 		$toolbar = ( 'no' === $o['toolbar'] || '0' === (string) $o['toolbar'] ) ? '0' : '1';
 		$posmap  = array( 'abajo' => 'bottom', 'arriba' => 'top', 'derecha' => 'right', 'izquierda' => 'left', 'bottom' => 'bottom', 'top' => 'top', 'right' => 'right', 'left' => 'left' );
 		$lpos    = isset( $posmap[ $o['legend_pos'] ] ) ? $posmap[ $o['legend_pos'] ] : 'bottom';
+		$analisis = in_array( $o['analisis'], array( 'ambos', 'descriptivo', 'cuantitativo', 'no' ), true ) ? $o['analisis'] : 'ambos';
 
 		ob_start();
 		?>
@@ -715,7 +723,8 @@ final class MAN_Shortcodes {
 			data-hasta="<?php echo esc_attr( $hasta ); ?>"
 			data-mes="<?php echo esc_attr( $mes ); ?>"
 			data-grupo="<?php echo esc_attr( $grupo ); ?>"
-			data-legend-pos="<?php echo esc_attr( $lpos ); ?>">
+			data-legend-pos="<?php echo esc_attr( $lpos ); ?>"
+			data-analisis="<?php echo esc_attr( $analisis ); ?>">
 			<figcaption class="man-g__title">Gráfico</figcaption>
 			<div class="man-g__chart" id="<?php echo esc_attr( $id ); ?>-chart"
 				style="min-height:<?php echo esc_attr( $alto ); ?>"></div>

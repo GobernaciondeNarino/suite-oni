@@ -109,6 +109,11 @@
   color: var(--man-g-soft); font-size: 14px;
 }
 
+/* Análisis del gráfico (descriptivo + cuantitativo). */
+.man-g__analisis { padding: 4px 16px 12px; border-top: 1px solid var(--man-g-border); margin-top: 4px; }
+.man-g__analisis-desc { font-size: 13px; line-height: 1.5; color: var(--man-g-soft); margin: .35em 0; }
+.man-g__analisis-num { font-size: 13px; line-height: 1.5; color: var(--man-g-ink); font-weight: 600; margin: .35em 0; }
+
 /* Pie y skeleton heredan estilos minimalistas pero con padding de la tarjeta. */
 .man-g .man-skeleton,
 .man-g .man-fuentes { padding-left: 16px; padding-right: 16px; }
