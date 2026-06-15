@@ -551,6 +551,7 @@ final class MAN_Rest {
 				'intensidad' => MAN_Enso::intensidad( $actual['oni'] ),
 			),
 			'serie'       => $serie,
+			'estado'      => ( $g && isset( $g['fenomeno']['estado_actual'] ) ) ? $g['fenomeno']['estado_actual'] : '',
 			'fuente'      => $c ? 'NOAA/CPC (observado) + semilla (proyectado)' : 'Semilla local (datos_globo)',
 			'actualizado' => $actualizado,
 		);

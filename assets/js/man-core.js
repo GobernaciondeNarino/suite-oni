@@ -147,8 +147,44 @@
     return null;
   }
 
+  /** Línea/área interactiva con D3plus (tooltip, ejes, leyenda) si está
+      disponible; si no, cae al SVG simple. Renderiza dentro de `node`.
+      opts: { area, color(hex), xTitle, yTitle, serie }. */
+  function lineaInteractiva(node, fechas, vals, opts) {
+    opts = opts || {};
+    if (!node) { return; }
+    node.innerHTML = '';
+    if (window.d3plus && (opts.area ? d3plus.AreaPlot : d3plus.LinePlot)) {
+      try {
+        var rows = [];
+        for (var i = 0; i < fechas.length; i++) {
+          if (vals[i] != null) { rows.push({ x: String(fechas[i]), y: +vals[i], serie: opts.serie || 'serie' }); }
+        }
+        var Cls = opts.area ? d3plus.AreaPlot : d3plus.LinePlot;
+        var viz = new Cls().select(node).data(rows).groupBy('serie').x('x').y('y');
+        var g = function (m, a) { if (typeof viz[m] === 'function') { viz[m](a); } };
+        g('detectResize', true);
+        g('legend', false);
+        g('xConfig', { title: opts.xTitle || '' });
+        g('yConfig', { title: opts.yTitle || '' });
+        g('color', function () { return opts.color || '#003087'; });
+        g('tooltipConfig', {
+          title: function () { return opts.yTitle || ''; },
+          tbody: [
+            [opts.xTitle || 'x', function (d) { return d.x; }],
+            [opts.yTitle || 'y', function (d) { return num(d.y, 2); }]
+          ]
+        });
+        viz.render();
+        return;
+      } catch (e) { /* cae al SVG simple */ }
+    }
+    node.appendChild(lineaSimple(fechas, vals, opts));
+  }
+
   window.MANcore = {
     rest: rest,
+    lineaInteractiva: lineaInteractiva,
     externo: externo,
     num: num,
     el: el,

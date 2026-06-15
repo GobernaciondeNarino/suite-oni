@@ -92,9 +92,9 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-grupo', MAN_URL . 'assets/js/grupo.js', array(), MAN_VERSION, true );
 		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core', 'man-grupo' ), MAN_VERSION, true );
 		wp_register_script( 'man-composable', MAN_URL . 'assets/js/composable.js', array( 'man-core', 'man-grupo' ), MAN_VERSION, true );
-		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
+		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core', 'd3plus' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
-		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
+		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios', 'd3plus' ), MAN_VERSION, true );
 		wp_register_script( 'man-estado-api', MAN_URL . 'assets/js/estado-api.js', array( 'man-core' ), MAN_VERSION, true );
 		// Globo: módulo ES (importmap de Three.js impreso aparte).
 		wp_register_script( 'man-globo', MAN_URL . 'assets/js/globo.js', array(), MAN_VERSION, true );
@@ -259,50 +259,69 @@ final class MAN_Shortcodes {
 	 */
 	public function sc_timeline( $atts ) {
 		$atts = $this->fusionar( array(
-			'inicio' => '2026-03',
-			'fin'    => '2027-03',
+			'inicio'   => '2026-03',
+			'fin'      => '2027-03',
+			'autoplay' => 'si',
+			'titulo'   => 'El Niño 2026 · Nariño',
 		), $atts, 'man_timeline' );
 
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_script( 'man-timeline' );
 
-		$id     = $this->id();
-		$inicio = MAN_Security::sanitizar_mes( $atts['inicio'] );
-		$fin    = MAN_Security::sanitizar_mes( $atts['fin'] );
+		$id       = $this->id();
+		$inicio   = MAN_Security::sanitizar_mes( $atts['inicio'] );
+		$fin      = MAN_Security::sanitizar_mes( $atts['fin'] );
+		$autoplay = ( 'no' === $atts['autoplay'] || '0' === (string) $atts['autoplay'] ) ? 'no' : 'si';
 
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>"
-			class="man man-timeline"
+			class="man man-timeline man-timeline--barra"
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
 			data-man-timeline
 			data-inicio="<?php echo esc_attr( $inicio ); ?>"
-			data-fin="<?php echo esc_attr( $fin ); ?>">
-			<div class="man-timeline__cabecera" aria-live="polite">
-				<strong class="man-timeline__mes">—</strong>
-				<span class="man-timeline__oni"></span>
+			data-fin="<?php echo esc_attr( $fin ); ?>"
+			data-autoplay="<?php echo esc_attr( $autoplay ); ?>">
+
+			<div class="man-timeline__identidad">
+				<img class="man-timeline__logo" src="<?php echo esc_url( MAN_URL . 'assets/img/TIC.png' ); ?>"
+					alt="Gobernación de Nariño · Secretaría TIC" onerror="this.style.display='none'" />
+				<span class="man-timeline__separador" aria-hidden="true"></span>
+				<strong class="man-timeline__titulo"><?php echo esc_html( sanitize_text_field( $atts['titulo'] ) ); ?></strong>
+				<span class="man-timeline__estado-chip" aria-live="polite">—</span>
 			</div>
+
 			<div class="man-timeline__controles">
-				<button type="button" class="man-btn man-btn--icono" data-accion="anterior" aria-label="Mes anterior">◀</button>
-				<button type="button" class="man-btn man-btn--icono" data-accion="play" aria-label="Reproducir o pausar">▶</button>
-				<button type="button" class="man-btn man-btn--icono" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
-				<label class="man-timeline__velocidad">Vel.
+				<button type="button" class="man-timeline__btn" data-accion="anterior" aria-label="Mes anterior">◀</button>
+				<button type="button" class="man-timeline__btn man-timeline__btn--play" data-accion="play" aria-label="Reproducir o pausar">▶</button>
+				<button type="button" class="man-timeline__btn" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
+				<label class="man-timeline__velocidad">Velocidad:
 					<select aria-label="Velocidad de reproducción">
-						<option value="1800">0.5×</option>
-						<option value="1200" selected>1×</option>
-						<option value="600">2×</option>
+						<option value="2000">Lento</option>
+						<option value="1200" selected>Normal</option>
+						<option value="600">Rápido</option>
 					</select>
 				</label>
+				<details class="man-timeline__capas">
+					<summary class="man-timeline__capas-summary" title="Activar / desactivar capas del globo">Capas <span aria-hidden="true">▾</span></summary>
+					<div class="man-timeline__capas-menu" role="group" aria-label="Capas visuales del globo">
+						<label class="man-timeline__capas-opcion"><input type="checkbox" data-capa="calor" checked /> <span><strong>Mapa de calor</strong> del Pacífico</span></label>
+						<label class="man-timeline__capas-opcion"><input type="checkbox" data-capa="foco" checked /> <span><strong>Foco de calor</strong> costero <em>(ago–dic)</em></span></label>
+						<label class="man-timeline__capas-opcion"><input type="checkbox" data-capa="nubes" checked /> <span><strong>Nubes</strong> del Pacífico</span></label>
+						<label class="man-timeline__capas-opcion"><input type="checkbox" data-capa="mapa" checked /> <span><strong>Mapa de Nariño</strong></span></label>
+					</div>
+				</details>
 			</div>
-			<div class="man-timeline__pista">
-				<input type="range" class="man-timeline__slider" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
+
+			<div class="man-timeline__slider">
+				<span class="man-timeline__divisor" aria-hidden="true"></span>
+				<input type="range" class="man-timeline__rango" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
+				<ul class="man-timeline__marcas" role="group" aria-label="Meses"></ul>
+				<p class="man-timeline__leyenda">
+					<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--obs"></span>Observado</span>
+					<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado</span>
+				</p>
 			</div>
-			<ul class="man-timeline__marcas" role="group" aria-label="Meses de la ventana"></ul>
-			<p class="man-timeline__leyenda">
-				<span class="man-timeline__pip man-timeline__pip--obs"></span>Observado
-				<span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado
-			</p>
-			<?php echo $this->pie_fuentes( 'NOAA/CPC ONI' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -395,6 +414,7 @@ final class MAN_Shortcodes {
 			'hasta'        => '2027-02',
 			'modelo'       => 'si',   // muestra la línea del modelo propio del plugin.
 			'probabilidad' => 'si',   // muestra las barras de probabilidad por trimestre.
+			'partes'       => '',     // qué secciones mostrar (vacío = todas).
 		), $atts, 'man_prediccion' );
 
 		wp_enqueue_style( 'man-estilos' );
@@ -407,6 +427,9 @@ final class MAN_Shortcodes {
 		if ( $hasta <= gmdate( 'Y-m' ) ) {
 			$hasta = '2027-02';
 		}
+		// Secciones a renderizar (para dividir gráfico y textos en shortcodes
+		// distintos): titulo, chips, grafico, probabilidad, texto, metodologia.
+		$partes = preg_replace( '/[^a-z,]/', '', strtolower( (string) $atts['partes'] ) );
 
 		ob_start();
 		?>
@@ -416,7 +439,8 @@ final class MAN_Shortcodes {
 			data-man-prediccion
 			data-hasta="<?php echo esc_attr( $hasta ); ?>"
 			data-modelo="<?php echo esc_attr( 'no' === $atts['modelo'] ? 'no' : 'si' ); ?>"
-			data-probabilidad="<?php echo esc_attr( 'no' === $atts['probabilidad'] ? 'no' : 'si' ); ?>">
+			data-probabilidad="<?php echo esc_attr( 'no' === $atts['probabilidad'] ? 'no' : 'si' ); ?>"
+			data-partes="<?php echo esc_attr( $partes ); ?>">
 			<?php echo $this->skeleton( 'Calculando la predicción del fenómeno…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'NOAA/CPC ONI · IRI/CPC ENSO plume · Modelo estadístico del plugin' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>

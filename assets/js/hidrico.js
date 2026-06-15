@@ -35,7 +35,10 @@
     if (flood && flood.daily) { fechas = flood.daily.time || []; caudal = flood.daily.river_discharge || []; }
 
     if (fechas.length && caudal.filter(function (v) { return v != null; }).length) {
-      cuerpo.appendChild(C.lineaSimple(fechas, caudal, { color: 'var(--man-acento-tecnico,#003087)', area: true }));
+      var chart = C.el('div', 'man-hidrico__grafico');
+      chart.style.minHeight = '220px';
+      cuerpo.appendChild(chart);
+      C.lineaInteractiva(chart, fechas, caudal, { area: true, color: '#003087', xTitle: 'Día', yTitle: 'Caudal (m³/s)' });
       var ult = ultimo(caudal);
       cuerpo.appendChild(C.el('p', 'man-analisis', 'Caudal estimado del río más cercano: ' + C.num(ult, 1) + ' m³/s (modelo GloFAS).'));
     } else {

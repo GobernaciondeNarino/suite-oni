@@ -27,7 +27,10 @@
     var dd = o.daily || {};
     var fechas = dd.time || [], olas = dd.wave_height_max || [];
     if (fechas.length) {
-      cuerpo.appendChild(C.lineaSimple(fechas, olas, { color: 'var(--man-acento-tecnico,#003087)', area: true }));
+      var chart = C.el('div', 'man-mar__grafico');
+      chart.style.minHeight = '220px';
+      cuerpo.appendChild(chart);
+      C.lineaInteractiva(chart, fechas, olas, { area: true, color: '#003087', xTitle: 'Día', yTitle: 'Altura de ola (m)' });
       var maxOla = Math.max.apply(null, olas.filter(function (v) { return v != null; }));
       cuerpo.appendChild(C.el('p', 'man-analisis',
         'Oleaje máximo previsto de ' + C.num(maxOla, 1) + ' m frente a Tumaco. ' +
