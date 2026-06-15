@@ -46,7 +46,13 @@
         li.textContent = (i === 0 || /-01$/.test(s.mes)) ? (nombre + ' ' + anio.slice(2)) : nombre;
         li.className = 'man-timeline__marca ' + (s.proyectado ? 'es-proy' : 'es-obs');
         li.setAttribute('data-i', i);
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
+        li.setAttribute('aria-label', mesLargo(s.mes) + (s.proyectado ? ' (proyectado)' : ' (observado)'));
         li.addEventListener('click', function () { set(i); });
+        li.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); set(i); }
+        });
         marcas.appendChild(li);
       });
     }
@@ -81,7 +87,9 @@
       lblOni.textContent = 'ONI ' + (s.oni >= 0 ? '+' : '') + C.num(s.oni, 1) + ' · ' + s.fase;
       if (marcas) {
         Array.prototype.forEach.call(marcas.querySelectorAll('.man-timeline__marca'), function (li) {
-          li.classList.toggle('activo', Number(li.getAttribute('data-i')) === i);
+          var on = Number(li.getAttribute('data-i')) === i;
+          li.classList.toggle('activo', on);
+          li.setAttribute('aria-current', on ? 'true' : 'false');
         });
       }
       window.dispatchEvent(new CustomEvent('man:mes', {

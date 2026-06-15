@@ -29,6 +29,7 @@
       mes: fig.getAttribute('data-mes') || '',
       legend: fig.getAttribute('data-legend') !== '0',
       legendStyle: fig.getAttribute('data-legend-style') || 'text',
+      legendPos: fig.getAttribute('data-legend-pos') || 'bottom',
       toolbar: fig.getAttribute('data-toolbar') !== '0',
       actions: parseActions(fig.getAttribute('data-actions')),
       grupo: fig.getAttribute('data-grupo') || '',
@@ -63,7 +64,11 @@
       .then(function (p) {
         st.payload = p;
         st.type = (p.chart && p.chart.key) || st.type;
-        if (titleEl) { titleEl.textContent = (p.view && p.view.name) || 'Gráfico'; }
+        var nombre = (p.view && p.view.name) || 'Gráfico';
+        if (titleEl) { titleEl.textContent = nombre; }
+        // Accesibilidad: el lienzo del gráfico es la "imagen" con su descripción.
+        chartEl.setAttribute('role', 'img');
+        chartEl.setAttribute('aria-label', nombre + (p.view && p.view.description ? '. ' + p.view.description : ''));
         quitarSkeleton(fig);
         if (st.toolbar) { construirToolbar(fig, chartEl, titleEl, st); }
         dibujar(fig, chartEl, st);
@@ -75,7 +80,7 @@
   function dibujar(fig, chartEl, st) {
     try {
       if (!window.MANRenderer) { throw new Error('renderer'); }
-      st.viz = window.MANRenderer.render(chartEl, st.payload, { legend: st.legend, legendStyle: st.legendStyle });
+      st.viz = window.MANRenderer.render(chartEl, st.payload, { legend: st.legend, legendStyle: st.legendStyle, legendPos: st.legendPos });
       fig.setAttribute('data-type', st.type);
       var sel = fig.querySelector('.man-g__swap select');
       if (sel) { sel.value = st.type; }

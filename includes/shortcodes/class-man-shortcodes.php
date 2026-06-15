@@ -278,8 +278,8 @@ final class MAN_Shortcodes {
 			data-man-timeline
 			data-inicio="<?php echo esc_attr( $inicio ); ?>"
 			data-fin="<?php echo esc_attr( $fin ); ?>">
-			<div class="man-timeline__cabecera">
-				<strong class="man-timeline__mes" aria-live="polite">—</strong>
+			<div class="man-timeline__cabecera" aria-live="polite">
+				<strong class="man-timeline__mes">—</strong>
 				<span class="man-timeline__oni"></span>
 			</div>
 			<div class="man-timeline__controles">
@@ -297,7 +297,7 @@ final class MAN_Shortcodes {
 			<div class="man-timeline__pista">
 				<input type="range" class="man-timeline__slider" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
 			</div>
-			<ul class="man-timeline__marcas" aria-hidden="true"></ul>
+			<ul class="man-timeline__marcas" role="group" aria-label="Meses de la ventana"></ul>
 			<p class="man-timeline__leyenda">
 				<span class="man-timeline__pip man-timeline__pip--obs"></span>Observado
 				<span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado
@@ -521,6 +521,7 @@ final class MAN_Shortcodes {
 			'hasta'        => '2027-02',
 			'mes'          => gmdate( 'Y-m' ),
 			'grupo'        => '',
+			'legend_pos'   => 'abajo',
 		), $atts, 'man_grafico' );
 
 		return $this->figura_grafico( sanitize_key( $atts['view'] ), sanitize_key( $atts['type'] ), array(
@@ -533,6 +534,7 @@ final class MAN_Shortcodes {
 			'hasta'        => $atts['hasta'],
 			'mes'          => $atts['mes'],
 			'grupo'        => $atts['grupo'],
+			'legend_pos'   => $atts['legend_pos'],
 		) );
 	}
 
@@ -620,6 +622,7 @@ final class MAN_Shortcodes {
 			'hasta'        => '2027-02',
 			'mes'          => gmdate( 'Y-m' ),
 			'grupo'        => '',
+			'legend_pos'   => 'abajo',
 			'fuente'       => 'NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus',
 		), $opts );
 
@@ -640,6 +643,8 @@ final class MAN_Shortcodes {
 		$legend  = ( 'no' === $o['legend'] || '0' === (string) $o['legend'] ) ? '0' : '1';
 		$lstyle  = 'icons' === $o['legend_style'] ? 'icons' : 'text';
 		$toolbar = ( 'no' === $o['toolbar'] || '0' === (string) $o['toolbar'] ) ? '0' : '1';
+		$posmap  = array( 'abajo' => 'bottom', 'arriba' => 'top', 'derecha' => 'right', 'izquierda' => 'left', 'bottom' => 'bottom', 'top' => 'top', 'right' => 'right', 'left' => 'left' );
+		$lpos    = isset( $posmap[ $o['legend_pos'] ] ) ? $posmap[ $o['legend_pos'] ] : 'bottom';
 
 		ob_start();
 		?>
@@ -654,7 +659,8 @@ final class MAN_Shortcodes {
 			data-toolbar="<?php echo esc_attr( $toolbar ); ?>"
 			data-hasta="<?php echo esc_attr( $hasta ); ?>"
 			data-mes="<?php echo esc_attr( $mes ); ?>"
-			data-grupo="<?php echo esc_attr( $grupo ); ?>">
+			data-grupo="<?php echo esc_attr( $grupo ); ?>"
+			data-legend-pos="<?php echo esc_attr( $lpos ); ?>">
 			<figcaption class="man-g__title">Gráfico</figcaption>
 			<div class="man-g__chart" id="<?php echo esc_attr( $id ); ?>-chart"
 				style="min-height:<?php echo esc_attr( $alto ); ?>"></div>
