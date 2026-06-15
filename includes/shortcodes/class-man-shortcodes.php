@@ -44,6 +44,8 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_estadisticas', array( $this, 'sc_estadisticas' ) );
 		add_shortcode( 'man_animacion', array( $this, 'sc_animacion' ) );
 		add_shortcode( 'man_grafico', array( $this, 'sc_grafico' ) );
+		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
+		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
@@ -86,7 +88,10 @@ final class MAN_Shortcodes {
 		// Motor de gráficos D3plus con barra de herramientas ([man_grafico]).
 		wp_register_style( 'man-grafico-css', MAN_URL . 'assets/css/grafico.css', array(), MAN_VERSION );
 		wp_register_script( 'man-renderer', MAN_URL . 'assets/js/renderer.js', array( 'd3plus' ), MAN_VERSION, true );
-		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core' ), MAN_VERSION, true );
+		// Bus de estado por grupo + componentes composables ([man_filtro], [man_panel]).
+		wp_register_script( 'man-grupo', MAN_URL . 'assets/js/grupo.js', array(), MAN_VERSION, true );
+		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core', 'man-grupo' ), MAN_VERSION, true );
+		wp_register_script( 'man-composable', MAN_URL . 'assets/js/composable.js', array( 'man-core', 'man-grupo' ), MAN_VERSION, true );
 		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios' ), MAN_VERSION, true );
@@ -515,6 +520,7 @@ final class MAN_Shortcodes {
 			'alto'         => '420px',
 			'hasta'        => '2027-02',
 			'mes'          => gmdate( 'Y-m' ),
+			'grupo'        => '',
 		), $atts, 'man_grafico' );
 
 		return $this->figura_grafico( sanitize_key( $atts['view'] ), sanitize_key( $atts['type'] ), array(
@@ -526,7 +532,71 @@ final class MAN_Shortcodes {
 			'alto'         => $atts['alto'],
 			'hasta'        => $atts['hasta'],
 			'mes'          => $atts['mes'],
+			'grupo'        => $atts['grupo'],
 		) );
+	}
+
+	/**
+	 * [man_filtro] — Control composable (vista | tipo | mes) que actualiza, vía
+	 * el grupo, a los [man_grafico grupo="…"] del mismo grupo.
+	 */
+	public function sc_filtro( $atts ) {
+		$atts = $this->fusionar( array(
+			'grupo'   => 'enso',
+			'control' => 'vista',
+			'inicio'  => '2026-03',
+			'fin'     => '2027-03',
+		), $atts, 'man_filtro' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-composable' );
+
+		$id      = $this->id();
+		$grupo   = sanitize_key( $atts['grupo'] );
+		$control = in_array( $atts['control'], array( 'vista', 'tipo', 'mes' ), true ) ? $atts['control'] : 'vista';
+		$inicio  = MAN_Security::sanitizar_mes( $atts['inicio'] );
+		$fin     = MAN_Security::sanitizar_mes( $atts['fin'] );
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-filtro"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-filtro
+			data-grupo="<?php echo esc_attr( $grupo ); ?>"
+			data-control="<?php echo esc_attr( $control ); ?>"
+			data-inicio="<?php echo esc_attr( $inicio ); ?>"
+			data-fin="<?php echo esc_attr( $fin ); ?>">
+			<?php echo $this->skeleton( 'Cargando filtro…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_panel] — Título, descripción y detalles del gráfico vigente del grupo.
+	 */
+	public function sc_panel( $atts ) {
+		$atts = $this->fusionar( array( 'grupo' => 'enso' ), $atts, 'man_panel' );
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-composable' );
+
+		$id    = $this->id();
+		$grupo = sanitize_key( $atts['grupo'] );
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-panel"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-panel
+			data-grupo="<?php echo esc_attr( $grupo ); ?>">
+			<?php echo $this->skeleton( 'Esperando el gráfico del grupo…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'Detalles del gráfico vigente' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 
 	/**
@@ -549,6 +619,7 @@ final class MAN_Shortcodes {
 			'alto'         => '420px',
 			'hasta'        => '2027-02',
 			'mes'          => gmdate( 'Y-m' ),
+			'grupo'        => '',
 			'fuente'       => 'NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus',
 		), $opts );
 
@@ -557,6 +628,7 @@ final class MAN_Shortcodes {
 		wp_enqueue_script( 'man-grafico' );
 
 		$id      = $this->id();
+		$grupo   = sanitize_key( $o['grupo'] );
 		$tema    = in_array( $o['theme'], array( 'dark', 'oscuro' ), true ) ? 'dark' : 'claro';
 		$alto    = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $o['alto'] ) ? $o['alto'] : '420px';
 		$hasta   = MAN_Security::sanitizar_mes( $o['hasta'] );
@@ -581,7 +653,8 @@ final class MAN_Shortcodes {
 			data-legend-style="<?php echo esc_attr( $lstyle ); ?>"
 			data-toolbar="<?php echo esc_attr( $toolbar ); ?>"
 			data-hasta="<?php echo esc_attr( $hasta ); ?>"
-			data-mes="<?php echo esc_attr( $mes ); ?>">
+			data-mes="<?php echo esc_attr( $mes ); ?>"
+			data-grupo="<?php echo esc_attr( $grupo ); ?>">
 			<figcaption class="man-g__title">Gráfico</figcaption>
 			<div class="man-g__chart" id="<?php echo esc_attr( $id ); ?>-chart"
 				style="min-height:<?php echo esc_attr( $alto ); ?>"></div>

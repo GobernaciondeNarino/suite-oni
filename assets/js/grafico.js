@@ -31,8 +31,23 @@
       legendStyle: fig.getAttribute('data-legend-style') || 'text',
       toolbar: fig.getAttribute('data-toolbar') !== '0',
       actions: parseActions(fig.getAttribute('data-actions')),
+      grupo: fig.getAttribute('data-grupo') || '',
       payload: null, viz: null
     };
+
+    // Composable: si pertenece a un grupo, el estado del grupo manda. El gráfico
+    // se re-renderiza cuando un filtro cambia el grupo.
+    if (st.grupo && window.MANGrupo) {
+      var est = window.MANGrupo.init(st.grupo, { view: st.view, type: st.type, mes: st.mes, hasta: st.hasta });
+      st.view = est.view || st.view; st.type = est.type || st.type;
+      st.mes = est.mes || st.mes; st.hasta = est.hasta || st.hasta;
+      window.MANGrupo.subscribe(st.grupo, function (estado) {
+        var cambio = estado.view !== st.view || estado.type !== st.type || estado.mes !== st.mes || estado.hasta !== st.hasta;
+        st.view = estado.view; st.type = estado.type; st.mes = estado.mes; st.hasta = estado.hasta;
+        if (cambio) { cargar(fig, chartEl, titleEl, st); }
+      });
+    }
+
     cargar(fig, chartEl, titleEl, st);
   }
 
@@ -52,6 +67,7 @@
         quitarSkeleton(fig);
         if (st.toolbar) { construirToolbar(fig, chartEl, titleEl, st); }
         dibujar(fig, chartEl, st);
+        if (st.grupo && window.MANGrupo) { window.MANGrupo.payload(st.grupo, p); }
       })
       .catch(function () { C.error(fig, 'No se pudo cargar el gráfico.', function () { cargar(fig, chartEl, titleEl, st); }); });
   }
@@ -122,7 +138,10 @@
       sel.appendChild(o);
     });
     sel.value = st.type;
-    sel.addEventListener('change', function () { reRender(fig, chartEl, st, sel.value); });
+    sel.addEventListener('change', function () {
+      if (st.grupo && window.MANGrupo) { window.MANGrupo.set(st.grupo, { type: sel.value }); }
+      else { reRender(fig, chartEl, st, sel.value); }
+    });
     wrap.appendChild(sel);
     return wrap;
   }

@@ -73,6 +73,18 @@ Motor genérico de **3 capas** (ver el archivo [`skill`](skill)): el shortcode e
 [man_grafico view="prob_fase" type="stacked_bar" actions="datos,imagen,cambiar"]
 ```
 
+### Componentes composables (enlazados por `grupo`)
+Para maquetar a la medida, separa el **gráfico**, los **filtros** y el **panel de
+detalles** en shortcodes distintos que se sincronizan por un id de `grupo` (bus
+de eventos `window.MANGrupo`). Un filtro cambia la vista/tipo/mes y el gráfico se
+re-renderiza; el panel muestra los detalles del gráfico vigente.
+```
+[man_filtro grupo="enso" control="vista"] [man_filtro grupo="enso" control="tipo"]
+[man_grafico grupo="enso" view="oni_serie" toolbar="no"]
+[man_panel grupo="enso"]
+```
+`control`: `vista` (elige el conjunto de datos), `tipo` (tipo de gráfico compatible) o `mes` (deslizador 2026-03 → 2027-03).
+
 ### Predicción y métodos predictivos
 `[man_prediccion]` no lee una curva fija: el plugin **calcula** la trayectoria del
 ONI con un modelo de **tendencia lineal amortiguada (Holt) por mínimos cuadrados**

@@ -201,6 +201,29 @@ final class MAN_Admin {
 					'ejemplo' => '[man_historico]',
 				),
 			),
+			'Composables (enlazados por grupo)' => array(
+				array(
+					'tag'     => 'man_grafico',
+					'titulo'  => 'Gráfico composable',
+					'desc'    => 'El mismo gráfico avanzado, pero con grupo="…": se sincroniza con [man_filtro] y [man_panel] del mismo grupo. Úsalo con toolbar="no" para separar el chrome.',
+					'attrs'   => array( '<code>grupo</code> — id del grupo (ej. enso)', '<code>view</code>, <code>type</code>, <code>toolbar</code>, <code>alto</code>' ),
+					'ejemplo' => '[man_grafico grupo="enso" view="oni_serie" toolbar="no"]',
+				),
+				array(
+					'tag'     => 'man_filtro',
+					'titulo'  => 'Filtro',
+					'desc'    => 'Control que actualiza en vivo los gráficos del grupo: selector de vista, de tipo de gráfico o deslizador de mes.',
+					'attrs'   => array( '<code>grupo</code> — id del grupo', '<code>control</code> — vista | tipo | mes', '<code>inicio</code>, <code>fin</code> (para mes)' ),
+					'ejemplo' => '[man_filtro grupo="enso" control="vista"]',
+				),
+				array(
+					'tag'     => 'man_panel',
+					'titulo'  => 'Panel de detalles',
+					'desc'    => 'Muestra el título, la descripción y los detalles (tipo, categoría, dimensiones, medidas, filas) del gráfico vigente del grupo.',
+					'attrs'   => array( '<code>grupo</code> — id del grupo' ),
+					'ejemplo' => '[man_panel grupo="enso"]',
+				),
+			),
 			'Animación y globo 3D'  => array(
 				array(
 					'tag'     => 'man_animacion',
