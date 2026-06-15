@@ -119,6 +119,72 @@ final class MAN_Views {
 				'measures'    => array( 'oni_pico' ),
 				'default'     => 'bar',
 			),
+
+			// --- Fase 2: vistas sectoriales ---
+			'deficit_municipios' => array(
+				'name'        => 'Déficit hídrico por municipio (real)',
+				'description' => 'Índice de déficit hídrico (0–100) por municipio, derivado de Open-Meteo.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'municipio' ),
+				'measures'    => array( 'deficit' ),
+				'default'     => 'bar',
+			),
+			'focos_municipios'   => array(
+				'name'        => 'Focos de calor por municipio (real)',
+				'description' => 'Focos de calor activos (NASA FIRMS) por municipio, últimos días.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'municipio' ),
+				'measures'    => array( 'focos' ),
+				'default'     => 'bar',
+			),
+			'deficit_serie'      => array(
+				'name'        => 'Déficit hídrico mensual',
+				'description' => 'Evolución mensual del déficit hídrico departamental (escenario).',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'deficit' ),
+				'default'     => 'line',
+			),
+			'precip_caudal'      => array(
+				'name'        => 'Precipitación y nivel de caudal',
+				'description' => 'Precipitación (mm) y nivel de caudal (%) mes a mes (escenario).',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes', 'serie' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'line',
+			),
+			'focos_serie'        => array(
+				'name'        => 'Focos de calor mensuales',
+				'description' => 'Número de focos de calor por mes (escenario).',
+				'category'    => 'statistical',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'focos' ),
+				'default'     => 'bar',
+			),
+			'cultivos_riesgo'    => array(
+				'name'        => 'Área de cultivos en riesgo',
+				'description' => 'Porcentaje de área de cultivos en riesgo, mes a mes (escenario).',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'cultivos_pct' ),
+				'default'     => 'line',
+			),
+			'acueductos'         => array(
+				'name'        => 'Acueductos en racionamiento',
+				'description' => 'Número de municipios con acueductos en racionamiento por mes (escenario).',
+				'category'    => 'statistical',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'acueductos' ),
+				'default'     => 'bar',
+			),
+			'hidro_reduccion'    => array(
+				'name'        => 'Reducción hidroeléctrica',
+				'description' => 'Reducción de generación hidroeléctrica (%) mes a mes (escenario).',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'mes' ),
+				'measures'    => array( 'reduccion_pct' ),
+				'default'     => 'line',
+			),
 		);
 	}
 
@@ -281,6 +347,34 @@ final class MAN_Views {
 					$cuant = sprintf( 'Episodio más intenso: %s (ONI pico +%s °C).', $top['periodo'], number_format_i18n( (float) $top['oni_pico'], 1 ) );
 				}
 				break;
+
+			case 'deficit_municipios':
+				$desc = 'Déficit hídrico por municipio (0–100), derivado en tiempo real de la precipitación de Open-Meteo. Dato REAL.';
+				if ( $n ) {
+					$cuant = sprintf( 'Mayor déficit: %s (%s/100). %d municipios con dato real.', $datos[0]['municipio'], number_format_i18n( (float) $datos[0]['deficit'], 0 ), $n );
+				} else {
+					$cuant = 'Aún sin datos: sincronice la fuente «Déficit hídrico (Open-Meteo)».';
+				}
+				break;
+
+			case 'focos_municipios':
+				$desc = 'Focos de calor activos por municipio (NASA FIRMS, últimos días). Dato REAL.';
+				if ( $n ) {
+					$cuant = sprintf( 'Más focos: %s (%s). %d municipios con focos.', $datos[0]['municipio'], number_format_i18n( (float) $datos[0]['focos'], 0 ), $n );
+				} else {
+					$cuant = 'Aún sin datos: configure la MAP_KEY y sincronice «NASA FIRMS».';
+				}
+				break;
+
+			case 'deficit_serie':
+			case 'precip_caudal':
+			case 'focos_serie':
+			case 'cultivos_riesgo':
+			case 'acueductos':
+			case 'hidro_reduccion':
+				$desc  = 'Serie mensual de planeación (escenario MODELADO). Verificar contra boletines vigentes de IDEAM y NOAA-CPC.';
+				$cuant = $n ? sprintf( 'Serie de %d puntos mensuales.', $n ) : 'Sin datos de semilla disponibles.';
+				break;
 		}
 
 		return array( 'descriptivo' => $desc, 'cuantitativo' => $cuant );
@@ -399,7 +493,99 @@ final class MAN_Views {
 					);
 				}
 				return $rows;
+
+			case 'deficit_municipios':
+				return self::filas_municipio_real( 'deficit_municipios', 'deficit', 'municipio' );
+
+			case 'focos_municipios':
+				return self::filas_municipio_real( 'focos_calor', null, 'municipio' );
+
+			case 'deficit_serie':
+				return self::filas_serie_semilla( 'ambiental', 'deficit_hidrico', 'deficit' );
+
+			case 'focos_serie':
+				return self::filas_serie_semilla( 'ambiental', 'focos_calor', 'focos' );
+
+			case 'cultivos_riesgo':
+				return self::filas_serie_semilla( 'agricola', 'area_cultivos_en_riesgo_pct', 'cultivos_pct' );
+
+			case 'acueductos':
+				return self::filas_serie_semilla( 'recursos', 'acueductos_en_racionamiento', 'acueductos' );
+
+			case 'hidro_reduccion':
+				return self::filas_serie_semilla( 'recursos', 'reduccion_hidroelectrica_pct', 'reduccion_pct' );
+
+			case 'precip_caudal':
+				$rows  = array();
+				foreach ( self::meses_semilla() as $m ) {
+					$a = isset( $m['indicadores']['ambiental'] ) ? $m['indicadores']['ambiental'] : array();
+					if ( isset( $a['precipitacion_mm'] ) ) {
+						$rows[] = array( 'mes' => $m['mes'], 'serie' => 'Precipitación (mm)', 'valor' => (float) $a['precipitacion_mm'] );
+					}
+					if ( isset( $a['nivel_caudal_pct'] ) ) {
+						$rows[] = array( 'mes' => $m['mes'], 'serie' => 'Caudal (%)', 'valor' => (float) $a['nivel_caudal_pct'] );
+					}
+				}
+				return $rows;
 		}
 		return array();
+	}
+
+	/**
+	 * Meses de la semilla narino (para series sectoriales modeladas).
+	 *
+	 * @return array[]
+	 */
+	private static function meses_semilla() {
+		$globo = MAN_Cache::semilla( 'datos_globo_elnino_narino_2026.json' );
+		return ( is_array( $globo ) && ! empty( $globo['narino']['meses'] ) ) ? $globo['narino']['meses'] : array();
+	}
+
+	/**
+	 * Serie temporal {mes, $medida} de un indicador de la semilla.
+	 *
+	 * @param string $bloque    ambiental|agricola|salud|recursos.
+	 * @param string $indicador Clave del indicador.
+	 * @param string $medida    Nombre de la medida de salida.
+	 * @return array[]
+	 */
+	private static function filas_serie_semilla( $bloque, $indicador, $medida ) {
+		$rows = array();
+		foreach ( self::meses_semilla() as $m ) {
+			$b = isset( $m['indicadores'][ $bloque ] ) ? $m['indicadores'][ $bloque ] : array();
+			if ( isset( $b[ $indicador ] ) && is_numeric( $b[ $indicador ] ) ) {
+				$rows[] = array( 'mes' => $m['mes'], $medida => (float) $b[ $indicador ] );
+			}
+		}
+		return $rows;
+	}
+
+	/**
+	 * Top 15 municipios desde una caché real {por_muni: cod => valor|{$medida}}.
+	 *
+	 * @param string      $clave_cache Clave de caché (deficit_municipios|focos_calor).
+	 * @param string|null $subcampo    Subcampo del valor, o null si el valor es escalar.
+	 * @param string      $dim         Nombre de la dimensión (municipio).
+	 * @return array[]
+	 */
+	private static function filas_municipio_real( $clave_cache, $subcampo, $dim ) {
+		$cache = MAN_Cache::get( $clave_cache );
+		$medida = ( 'focos_calor' === $clave_cache ) ? 'focos' : 'deficit';
+		$rows   = array();
+		if ( ! is_array( $cache ) || empty( $cache['por_muni'] ) ) {
+			return $rows;
+		}
+		foreach ( $cache['por_muni'] as $cod => $v ) {
+			$valor = ( null === $subcampo ) ? $v : ( isset( $v[ $subcampo ] ) ? $v[ $subcampo ] : null );
+			if ( null === $valor || ! is_numeric( $valor ) ) {
+				continue;
+			}
+			$mun    = MAN_Municipios::por_divipola( (string) $cod );
+			$rows[] = array( $dim => $mun ? $mun['nombre'] : (string) $cod, $medida => (int) $valor );
+		}
+		usort( $rows, function ( $a, $b ) use ( $medida ) {
+			return (int) $b[ $medida ] <=> (int) $a[ $medida ];
+		} );
+		return array_slice( $rows, 0, 15 );
 	}
 }
