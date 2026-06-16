@@ -59,7 +59,11 @@ final class MAN_Shortcodes {
 	public function registrar_assets() {
 		// Librerías por CDN (sin npm/build).
 		wp_register_script( 'd3', 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js', array(), '7', true );
-		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/@d3plus/core@3.1.4/umd/d3plus-core.full.js', array(), '3.1.4', true );
+		// d3plus v2.x: bundle UMD apto para navegador que expone window.d3plus con
+		// la API (BarChart/LinePlot/… .select().data().groupBy().x().y().render()).
+		// NO usar @d3plus/core@3.x: ese bundle referencia `process`/`require` y
+		// rompe en el navegador (window.d3plus queda undefined → no pintan gráficos).
+		wp_register_script( 'd3plus', 'https://cdn.jsdelivr.net/npm/d3plus@2.0.0/build/d3plus.full.min.js', array(), '2.0.0', true );
 		wp_register_style( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', array(), '1.9.4' );
 		wp_register_script( 'leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', array(), '1.9.4', true );
 
