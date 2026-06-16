@@ -221,6 +221,7 @@
 .man-timeline__marca:focus-visible { outline: 2px solid #10A13B; outline-offset: 1px; border-radius: 3px; }
 .man-timeline__marca.activo { font-weight: 700; color: #10A13B; }
 .man-timeline__leyenda { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .35rem .8rem; margin: 0; padding: 0; font-size: .74rem; color: #4a5568; flex-shrink: 0; }
+.man-timeline__heat-leyenda { display: inline-block; width: 38px; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: .35rem; background: linear-gradient(to right, #1d4ed8, #5aa9e6, #eef3e8, #f59e0b, #b91c1c); }
 .man-timeline__leyenda-item { display: inline-flex; align-items: center; gap: .35rem; }
 .man-timeline__pip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .man-timeline__pip--obs { background: #2e7d32; }

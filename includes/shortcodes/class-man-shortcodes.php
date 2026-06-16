@@ -326,6 +326,7 @@ final class MAN_Shortcodes {
 			<p class="man-timeline__leyenda">
 				<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--obs"></span>Observado</span>
 				<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado</span>
+				<span class="man-timeline__leyenda-item"><span class="man-timeline__heat-leyenda" aria-hidden="true"></span>ONI: frío → cálido</span>
 			</p>
 
 			<div class="man-timeline__identidad">
