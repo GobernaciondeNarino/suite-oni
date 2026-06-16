@@ -244,17 +244,61 @@ final class MAN_Views {
 		}
 		$m     = $r[ $id ];
 		$datos = self::datos( $id, $args );
+		// Vistas de magnitud que se colorean como mapa de calor (barras/treemap).
+		$heatmap = in_array( $id, array( 'deficit_municipios', 'focos_municipios', 'focos_serie', 'acueductos', 'riesgo_municipios', 'riesgo_subregion', 'episodios' ), true );
 		return array(
-			'id'            => $id,
-			'name'          => $m['name'],
-			'description'   => $m['description'],
-			'category'      => $m['category'],
-			'dimensions'    => $m['dimensions'],
-			'measures'      => $m['measures'],
-			'data'          => $datos,
-			'analisis'      => self::analisis( $id, $datos ),
-			'como_funciona' => self::como_funciona( $id ),
+			'id'              => $id,
+			'name'            => $m['name'],
+			'description'     => $m['description'],
+			'descripcion_larga' => self::descripcion_larga( $id ),
+			'category'        => $m['category'],
+			'dimensions'      => $m['dimensions'],
+			'measures'        => $m['measures'],
+			'data'            => $datos,
+			'analisis'        => self::analisis( $id, $datos ),
+			'como_funciona'   => self::como_funciona( $id ),
+			'heatmap'         => $heatmap,
 		);
+	}
+
+	/**
+	 * Textos largos (descripción y análisis, ≥375 caracteres) por vista,
+	 * cargados de includes/data/textos-graficos.php (cacheados en memoria).
+	 *
+	 * @return array<string,array{descripcion:string,analisis:string}>
+	 */
+	private static function textos_largos() {
+		static $t = null;
+		if ( null === $t ) {
+			$ruta = MAN_DIR . 'includes/data/textos-graficos.php';
+			$t    = is_readable( $ruta ) ? include $ruta : array();
+			if ( ! is_array( $t ) ) {
+				$t = array();
+			}
+		}
+		return $t;
+	}
+
+	/**
+	 * Descripción larga (≥375 caracteres) de una vista, para [man_descripcion].
+	 *
+	 * @param string $id Id de la vista.
+	 * @return string
+	 */
+	public static function descripcion_larga( $id ) {
+		$t = self::textos_largos();
+		return isset( $t[ $id ]['descripcion'] ) ? $t[ $id ]['descripcion'] : '';
+	}
+
+	/**
+	 * Análisis cualitativo largo (≥375 caracteres) de una vista.
+	 *
+	 * @param string $id Id de la vista.
+	 * @return string
+	 */
+	public static function analisis_largo( $id ) {
+		$t = self::textos_largos();
+		return isset( $t[ $id ]['analisis'] ) ? $t[ $id ]['analisis'] : '';
 	}
 
 	/**
@@ -404,6 +448,12 @@ final class MAN_Views {
 				$desc  = 'Serie mensual de planeación (escenario MODELADO). Verificar contra boletines vigentes de IDEAM y NOAA-CPC.';
 				$cuant = $n ? sprintf( 'Serie de %d puntos mensuales.', $n ) : 'Sin datos de semilla disponibles.';
 				break;
+		}
+
+		// El párrafo cualitativo usa el texto largo (≥375 car.) cuando existe.
+		$largo = self::analisis_largo( $id );
+		if ( '' !== $largo ) {
+			$desc = $largo;
 		}
 
 		return array( 'descriptivo' => $desc, 'cuantitativo' => $cuant );

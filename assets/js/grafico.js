@@ -69,8 +69,8 @@
     else if (v.name) { box.appendChild(C.el('p', 'man-g__analisis-titulo', C.esc(v.name))); }
 
     var algo = false;
-    if (modo === 'descripcion' && v.description) {
-      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(v.description))); algo = true;
+    if (modo === 'descripcion' && (v.descripcion_larga || v.description)) {
+      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(v.descripcion_larga || v.description))); algo = true;
     }
     if (modo === 'como_funciona' && v.como_funciona) {
       box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(v.como_funciona))); algo = true;
