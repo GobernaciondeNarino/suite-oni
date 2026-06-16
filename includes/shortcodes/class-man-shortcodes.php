@@ -45,6 +45,11 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_animacion', array( $this, 'sc_animacion' ) );
 		add_shortcode( 'man_grafico', array( $this, 'sc_grafico' ) );
 		add_shortcode( 'man_analisis', array( $this, 'sc_analisis' ) );
+		// Piezas separadas del análisis (para maquetar cada parte por su cuenta).
+		add_shortcode( 'man_descripcion', array( $this, 'sc_descripcion' ) );
+		add_shortcode( 'man_analisis_cualitativo', array( $this, 'sc_analisis_cualitativo' ) );
+		add_shortcode( 'man_analisis_cuantitativo', array( $this, 'sc_analisis_cuantitativo' ) );
+		add_shortcode( 'man_explicacion', array( $this, 'sc_explicacion' ) );
 		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
 		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
@@ -628,14 +633,69 @@ final class MAN_Shortcodes {
 			'titulo' => '',
 			'grupo'  => '',
 		), $atts, 'man_analisis' );
+		$modo = in_array( $atts['modo'], array( 'ambos', 'descriptivo', 'cuantitativo', 'descripcion', 'como_funciona' ), true ) ? $atts['modo'] : 'ambos';
+		return $this->bloque_analisis( $atts, $modo );
+	}
 
+	/**
+	 * [man_descripcion] — SOLO la descripción breve de la vista (qué muestra).
+	 */
+	public function sc_descripcion( $atts ) {
+		$atts = $this->fusionar( $this->defaults_bloque(), $atts, 'man_descripcion' );
+		return $this->bloque_analisis( $atts, 'descripcion' );
+	}
+
+	/**
+	 * [man_analisis_cualitativo] — SOLO el párrafo cualitativo (interpretación).
+	 */
+	public function sc_analisis_cualitativo( $atts ) {
+		$atts = $this->fusionar( $this->defaults_bloque(), $atts, 'man_analisis_cualitativo' );
+		return $this->bloque_analisis( $atts, 'descriptivo' );
+	}
+
+	/**
+	 * [man_analisis_cuantitativo] — SOLO las cifras clave calculadas del dato.
+	 */
+	public function sc_analisis_cuantitativo( $atts ) {
+		$atts = $this->fusionar( $this->defaults_bloque(), $atts, 'man_analisis_cuantitativo' );
+		return $this->bloque_analisis( $atts, 'cuantitativo' );
+	}
+
+	/**
+	 * [man_explicacion] — "¿Cómo funciona?" de la vista (qué calcula y su fuente).
+	 */
+	public function sc_explicacion( $atts ) {
+		$atts = $this->fusionar( $this->defaults_bloque(), $atts, 'man_explicacion' );
+		return $this->bloque_analisis( $atts, 'como_funciona' );
+	}
+
+	/** Atributos por defecto de los bloques de texto separados. */
+	private function defaults_bloque() {
+		return array(
+			'view'   => 'oni_serie',
+			'type'   => '',
+			'hasta'  => '2027-02',
+			'mes'    => gmdate( 'Y-m' ),
+			'titulo' => '',
+			'grupo'  => '',
+		);
+	}
+
+	/**
+	 * Render compartido del bloque de texto [data-man-analisis] (lo hidrata
+	 * grafico.js). $modo: ambos | descriptivo | cuantitativo | descripcion | como_funciona.
+	 *
+	 * @param array  $atts Atributos del shortcode.
+	 * @param string $modo Pieza a mostrar.
+	 * @return string
+	 */
+	private function bloque_analisis( $atts, $modo ) {
 		wp_enqueue_style( 'man-grafico-css' );
 		wp_enqueue_script( 'man-grafico' );
 
 		$id     = $this->id();
 		$view   = sanitize_key( $atts['view'] );
 		$type   = sanitize_key( $atts['type'] );
-		$modo   = in_array( $atts['modo'], array( 'ambos', 'descriptivo', 'cuantitativo' ), true ) ? $atts['modo'] : 'ambos';
 		$grupo  = sanitize_key( $atts['grupo'] );
 		$hasta  = MAN_Security::sanitizar_mes( $atts['hasta'] );
 		if ( $hasta <= gmdate( 'Y-m' ) ) {
@@ -647,7 +707,7 @@ final class MAN_Shortcodes {
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>"
-			class="man man-g__analisis man-analisis-bloque"
+			class="man man-g__analisis man-analisis-bloque man-analisis--<?php echo esc_attr( $modo ); ?>"
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
 			data-man-analisis
 			data-view="<?php echo esc_attr( $view ); ?>"
@@ -658,7 +718,7 @@ final class MAN_Shortcodes {
 			data-grupo="<?php echo esc_attr( $grupo ); ?>"
 			data-titulo="<?php echo esc_attr( $titulo ); ?>"
 			aria-live="polite">
-			<?php echo $this->skeleton( 'Calculando el análisis…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->skeleton( 'Calculando…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();
