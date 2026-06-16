@@ -98,7 +98,20 @@
       grupo = '_metric'; yField = '_value';
       stacked = (key === 'stacked_bar');
     } else if (key === 'line' || key === 'area') {
-      grupo = dims[1] || dims[0];
+      if (dims.length > 1 && dims[1]) {
+        grupo = dims[1];
+      } else {
+        // Una sola dimensión: TODOS los puntos forman UNA serie. Si agrupáramos
+        // por X (mes), cada punto sería su propio grupo y la línea no se dibuja.
+        grupo = '_serie';
+        var nombreSerie = view.name || etiqueta(yField);
+        plotData = base.map(function (r) {
+          var o = {};
+          for (var kk in r) { if (Object.prototype.hasOwnProperty.call(r, kk)) { o[kk] = r[kk]; } }
+          o._serie = nombreSerie;
+          return o;
+        });
+      }
     }
 
     // 2) Instancia y configuración común.
@@ -156,7 +169,7 @@
     function tbodyRico() {
       var t = [];
       if (dimX != null) { t.push([etiqueta(dimX), function (r) { return r[dimX] != null ? r[dimX] : ''; }]); }
-      if (grupo && grupo !== dimX && grupo !== '_metric') { t.push([etiqueta(grupo), function (r) { return r[grupo] != null ? r[grupo] : ''; }]); }
+      if (grupo && grupo !== dimX && grupo !== '_metric' && grupo !== '_serie') { t.push([etiqueta(grupo), function (r) { return r[grupo] != null ? r[grupo] : ''; }]); }
       if (grupo === '_metric') { t.push(['Serie', function (r) { return r._metric != null ? r._metric : ''; }]); }
       var ms = (yField === '_value') ? ['_value'] : measures;
       ms.forEach(function (m) { t.push([etiqueta(m), function (r) { return fmt(r[m]); }]); });

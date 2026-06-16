@@ -200,7 +200,14 @@ class GloboMAN {
   }
 
   _ancho() { return this.lienzo.clientWidth || 480; }
-  _alto() { return Math.max(340, Math.round((this.lienzo.clientWidth || 480) * 0.62)); }
+  _alto() {
+    // Usa la altura REAL del contenedor (p. ej. 95vh por CSS) cuando existe; el
+    // aspect de la cámara se calcula con ella, así el planeta NO se deforma.
+    // Si el contenedor no tiene altura propia, cae a la proporción del ancho.
+    var h = this.lienzo.clientHeight || 0;
+    if (h > 120) { return h; }
+    return Math.max(340, Math.round((this.lienzo.clientWidth || 480) * 0.62));
+  }
 
   /* ---------------- escena base ---------------- */
   _escena() {

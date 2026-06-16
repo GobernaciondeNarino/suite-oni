@@ -96,7 +96,7 @@
 
 /* --- [man_globo] --- */
 .man-globo { position: relative; overflow: hidden; border-radius: var(--man-borde-radio, 10px); }
-.man-globo__lienzo { width: 100%; min-height: 380px; }
+.man-globo__lienzo { width: 100%; height: 95vh; min-height: 380px; }
 
 /* Toolbar flotante semitransparente sobre el globo. */
 .man-globo__controles {
