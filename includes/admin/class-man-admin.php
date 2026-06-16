@@ -119,9 +119,16 @@ final class MAN_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$grupos = $this->catalogo_shortcodes();
+		$apis = $this->catalogo_por_api();
+		$keys = array_keys( $apis );
 		?>
 		<div class="wrap">
+			<style>
+				.man-el-tabs{margin-top:14px}
+				.man-el-pieza{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#50575e;margin:8px 0 2px}
+				.man-el-card .man-el-copy{margin-bottom:4px}
+				.man-el-api-intro{color:#50575e;max-width:60em}
+			</style>
 			<h1>Monitor Ambiental — Elementos y shortcodes</h1>
 			<p class="man-el-intro">Cada elemento es un <strong>componente independiente</strong>. Copia su shortcode y pégalo
 				en cualquier página, entrada o widget (incluido el bloque <em>Shortcode</em> o el widget HTML de Elementor) para
@@ -154,38 +161,181 @@ final class MAN_Admin {
 					en otro). Valores: <code>titulo, chips, grafico, probabilidad, texto, metodologia</code>.</p>
 			</div>
 
-			<?php foreach ( $grupos as $grupo => $items ) : ?>
-				<h2 class="man-el-grp"><?php echo esc_html( $grupo ); ?></h2>
-				<div class="man-el-grid">
-					<?php foreach ( $items as $sc ) : ?>
-						<div class="man-el-card">
-							<h3><?php echo esc_html( $sc['titulo'] ); ?> <code><?php echo esc_html( '[' . $sc['tag'] . ']' ); ?></code></h3>
-							<p class="man-el-desc"><?php echo esc_html( $sc['desc'] ); ?></p>
-							<?php if ( ! empty( $sc['attrs'] ) ) : ?>
-								<ul class="man-el-attrs">
-									<?php foreach ( $sc['attrs'] as $attr ) : ?>
-										<li><?php echo wp_kses( $attr, array( 'code' => array() ) ); ?></li>
-									<?php endforeach; ?>
-								</ul>
-							<?php endif; ?>
-							<div class="man-el-copy">
-								<input type="text" class="man-el-input" readonly
-									value="<?php echo esc_attr( $sc['ejemplo'] ); ?>"
-									onfocus="this.select()" />
-								<button type="button" class="button button-primary man-copiar"
-									data-copy="<?php echo esc_attr( $sc['ejemplo'] ); ?>">Copiar</button>
-							</div>
-						</div>
-					<?php endforeach; ?>
+			<h2 class="nav-tab-wrapper man-el-tabs">
+				<?php foreach ( $keys as $i => $k ) : $pid = 'man-api-' . sanitize_title( $k ); ?>
+					<a href="#<?php echo esc_attr( $pid ); ?>" class="nav-tab<?php echo 0 === $i ? ' nav-tab-active' : ''; ?>" data-man-tab="<?php echo esc_attr( $pid ); ?>"><?php echo esc_html( $apis[ $k ]['etiqueta'] ); ?></a>
+				<?php endforeach; ?>
+			</h2>
+
+			<?php foreach ( $keys as $i => $k ) : $api = $apis[ $k ]; $pid = 'man-api-' . sanitize_title( $k ); ?>
+				<div class="man-el-panel" id="<?php echo esc_attr( $pid ); ?>"<?php echo 0 === $i ? '' : ' style="display:none"'; ?>>
+					<p class="man-el-api-intro"><?php echo esc_html( $api['intro'] ); ?></p>
+					<div class="man-el-grid">
+						<?php foreach ( $api['elementos'] as $el ) { $this->tarjeta_elemento( $el ); } ?>
+					</div>
 				</div>
 			<?php endforeach; ?>
+		</div>
+		<script>
+		(function(){
+			var tabs = document.querySelectorAll('.man-el-tabs [data-man-tab]');
+			Array.prototype.forEach.call(tabs, function(t){
+				t.addEventListener('click', function(e){
+					e.preventDefault();
+					Array.prototype.forEach.call(tabs, function(x){ x.classList.remove('nav-tab-active'); });
+					t.classList.add('nav-tab-active');
+					Array.prototype.forEach.call(document.querySelectorAll('.man-el-panel'), function(p){ p.style.display = 'none'; });
+					var el = document.getElementById(t.getAttribute('data-man-tab'));
+					if (el) { el.style.display = ''; }
+				});
+			});
+		})();
+		</script>
+		<?php
+	}
+
+	/**
+	 * Renderiza una tarjeta de elemento. Si es un gráfico (tipo=grafico),
+	 * muestra sus shortcodes SEPARADOS (gráfica, descripción, análisis
+	 * cualitativo, análisis cuantitativo, ¿cómo funciona?). Si es un elemento
+	 * simple, muestra su único shortcode.
+	 *
+	 * @param array $el Definición del elemento.
+	 */
+	private function tarjeta_elemento( $el ) {
+		$tipo = isset( $el['tipo'] ) ? $el['tipo'] : 'simple';
+		?>
+		<div class="man-el-card">
+			<h3><?php echo esc_html( $el['titulo'] ); ?>
+				<?php if ( ! empty( $el['tag'] ) ) : ?><code><?php echo esc_html( '[' . $el['tag'] . ']' ); ?></code><?php endif; ?>
+			</h3>
+			<p class="man-el-desc"><?php echo esc_html( $el['desc'] ); ?></p>
+			<?php
+			if ( 'grafico' === $tipo ) {
+				$v  = $el['view'];
+				$ty = isset( $el['type'] ) ? $el['type'] : '';
+				$piezas = array(
+					'Gráfica'               => '[man_grafico view="' . $v . '"' . ( $ty ? ' type="' . $ty . '"' : '' ) . ']',
+					'Descripción'           => '[man_descripcion view="' . $v . '"]',
+					'Análisis cualitativo'  => '[man_analisis_cualitativo view="' . $v . '"]',
+					'Análisis cuantitativo' => '[man_analisis_cuantitativo view="' . $v . '"]',
+					'¿Cómo funciona?'       => '[man_explicacion view="' . $v . '"]',
+				);
+				foreach ( $piezas as $etq => $sc ) {
+					?>
+					<span class="man-el-pieza"><?php echo esc_html( $etq ); ?></span>
+					<div class="man-el-copy">
+						<input type="text" class="man-el-input" readonly value="<?php echo esc_attr( $sc ); ?>" onfocus="this.select()" />
+						<button type="button" class="button man-copiar" data-copy="<?php echo esc_attr( $sc ); ?>">Copiar</button>
+					</div>
+					<?php
+				}
+			} else {
+				if ( ! empty( $el['attrs'] ) ) {
+					echo '<ul class="man-el-attrs">';
+					foreach ( $el['attrs'] as $attr ) {
+						echo '<li>' . wp_kses( $attr, array( 'code' => array() ) ) . '</li>';
+					}
+					echo '</ul>';
+				}
+				?>
+				<div class="man-el-copy">
+					<input type="text" class="man-el-input" readonly value="<?php echo esc_attr( $el['ejemplo'] ); ?>" onfocus="this.select()" />
+					<button type="button" class="button button-primary man-copiar" data-copy="<?php echo esc_attr( $el['ejemplo'] ); ?>">Copiar</button>
+				</div>
+				<?php
+			}
+			?>
 		</div>
 		<?php
 	}
 
 	/**
+	 * Catálogo de elementos organizado por FUENTE DE DATOS (API), para las
+	 * pestañas de la página de Elementos. Incluye una pestaña "Combinados"
+	 * para los gráficos que resultan de varias APIs. Cada gráfico se ofrece en
+	 * sus piezas separadas (gráfica, descripción, análisis cualitativo,
+	 * cuantitativo y "¿cómo funciona?").
+	 *
+	 * @return array<string,array>
+	 */
+	private function catalogo_por_api() {
+		$g = function ( $view, $type, $titulo, $desc ) {
+			return array( 'tipo' => 'grafico', 'view' => $view, 'type' => $type, 'titulo' => $titulo, 'desc' => $desc );
+		};
+		$s = function ( $tag, $titulo, $desc, $ejemplo, $attrs = array() ) {
+			return array( 'tipo' => 'simple', 'tag' => $tag, 'titulo' => $titulo, 'desc' => $desc, 'ejemplo' => $ejemplo, 'attrs' => $attrs );
+		};
+		return array(
+			'noaa'       => array(
+				'etiqueta'  => 'NOAA/CPC (ENSO)',
+				'intro'     => 'Índice ONI observado y pronóstico oficial del Pacífico ecuatorial. Sincronización por cron.',
+				'elementos' => array(
+					$g( 'oni_serie', 'line', 'Evolución del ONI', 'ONI observado + proyectado, mes a mes.' ),
+					$g( 'oni_observado', 'line', 'ONI observado', 'Solo el ONI medido por NOAA/CPC.' ),
+					$g( 'oni_pronostico', 'line', 'ONI pronosticado', 'Tramo proyectado (oficial + modelo del plugin).' ),
+					$g( 'prob_fase', 'stacked_bar', 'Probabilidad de fase', 'El Niño / Neutral / La Niña por trimestre.' ),
+					$g( 'episodios', 'bar', 'Episodios históricos', 'ONI pico de los eventos 2015–2024.' ),
+					$s( 'man_estado', 'Estado actual', 'Semáforo ENSO + ONI vigente, fase e intensidad.', '[man_estado municipio="departamento"]', array( '<code>municipio</code>', '<code>compacto</code>' ) ),
+					$s( 'man_prediccion', 'Predicción ENSO', 'Trayectoria del ONI con banda de incertidumbre y probabilidad por trimestre.', '[man_prediccion hasta="2027-02"]', array( '<code>hasta</code>', '<code>partes</code>' ) ),
+					$s( 'man_globo', 'Globo 3D', 'Globo con la anomalía SST del Pacífico y el foco de Nariño.', '[man_globo calidad="auto"]', array( '<code>calidad</code>', '<code>autorotar</code>' ) ),
+					$s( 'man_timeline', 'Línea de tiempo', 'Slider de meses del ONI que controla el globo.', '[man_timeline]', array( '<code>inicio</code>', '<code>fin</code>', '<code>autoplay</code>' ) ),
+				),
+			),
+			'openmeteo'  => array(
+				'etiqueta'  => 'Open-Meteo',
+				'intro'     => 'Pronóstico, oleaje, caudal y déficit hídrico DERIVADO de la precipitación (CC BY 4.0). Consumo directo del navegador y derivados por cron.',
+				'elementos' => array(
+					$g( 'deficit_municipios', 'bar', 'Déficit hídrico por municipio', 'REAL, derivado de la precipitación reciente.' ),
+					$g( 'deficit_serie', 'line', 'Déficit hídrico mensual', 'Serie del escenario de planeación.' ),
+					$g( 'precip_caudal', 'line', 'Precipitación y caudal', 'Dos series mensuales superpuestas.' ),
+					$s( 'man_pronostico', 'Pronóstico 7–16 días', 'Pronóstico en vivo por municipio con gráfico y texto.', '[man_pronostico municipio="52001" dias="14"]', array( '<code>municipio</code>', '<code>dias</code>' ) ),
+					$s( 'man_hidrico', 'Recursos hídricos', 'Caudal de ríos (GloFAS) y humedad de suelo.', '[man_hidrico municipio="52001"]', array( '<code>municipio</code>' ) ),
+				),
+			),
+			'firms'      => array(
+				'etiqueta'  => 'NASA FIRMS',
+				'intro'     => 'Focos de calor activos detectados por satélite (VIIRS/MODIS) en Nariño. Requiere MAP_KEY gratuita.',
+				'elementos' => array(
+					$g( 'focos_municipios', 'bar', 'Focos de calor por municipio', 'REAL, últimos días.' ),
+					$g( 'focos_serie', 'bar', 'Focos de calor mensuales', 'Serie del escenario.' ),
+				),
+			),
+			'ioc'        => array(
+				'etiqueta'  => 'IOC (nivel del mar)',
+				'intro'     => 'Mareógrafos del IOC/VLIZ (COI-UNESCO) en la costa Pacífica (Tumaco).',
+				'elementos' => array(
+					$s( 'man_mar', 'Mar y oleaje', 'Nivel del mar (IOC) + oleaje del Pacífico (Open-Meteo Marine).', '[man_mar]', array( '<code>estacion</code>' ) ),
+				),
+			),
+			'sivigila'   => array(
+				'etiqueta'  => 'SIVIGILA (salud)',
+				'intro'     => 'Casos de dengue sensibles al clima (INS/SIVIGILA vía datos.gov.co).',
+				'elementos' => array(
+					$s( 'man_salud', 'Salud y clima', 'Casos de dengue por año.', '[man_salud evento="dengue"]', array( '<code>evento</code>', '<code>anio</code>' ) ),
+				),
+			),
+			'combinados' => array(
+				'etiqueta'  => 'Combinados (varias APIs)',
+				'intro'     => 'Gráficos y mapas que RESULTAN DE COMBINAR varias fuentes: NOAA (ENSO) + IDEAM (alertas) + Open-Meteo (lluvia/déficit) + exposición DANE + escenario.',
+				'elementos' => array(
+					$g( 'riesgo_subregion', 'treemap', 'Riesgo por subregión', 'ENSO + anomalía de lluvia + exposición + sector.' ),
+					$g( 'riesgo_municipios', 'bar', 'Riesgo por municipio', 'Los 15 municipios con mayor riesgo del mes.' ),
+					$g( 'cultivos_riesgo', 'line', 'Cultivos en riesgo', 'Derivado del déficit hídrico + escenario.' ),
+					$g( 'acueductos', 'bar', 'Acueductos en racionamiento', 'Escenario de recursos por mes.' ),
+					$g( 'hidro_reduccion', 'line', 'Reducción hidroeléctrica', 'Escenario de recursos por mes.' ),
+					$s( 'man_mapa', 'Mapa coroplético', '64 municipios por variable (NOAA + IDEAM + escenario).', '[man_mapa variable="riesgo" mes="2026-10"]', array( '<code>variable</code>', '<code>mes</code>' ) ),
+					$s( 'man_datos', 'Descarga de datos', 'JSON/CSV/Ver API/Copiar URL (CC BY 4.0).', '[man_datos recurso="prediccion" texto="Descarga la predicción"]', array( '<code>recurso</code>', '<code>municipio</code>', '<code>mes</code>' ) ),
+					$s( 'man_estado_api', 'Salud de las APIs', 'Estado de cada fuente de datos del plugin.', '[man_estado_api]', array() ),
+				),
+			),
+		);
+	}
+
+	/**
 	 * Catálogo de shortcodes agrupado para la página de Elementos.
 	 *
+	 * @deprecated 1.17.0 Reemplazado por catalogo_por_api() (pestañas por API).
 	 * @return array<string,array<int,array>>
 	 */
 	private function catalogo_shortcodes() {
