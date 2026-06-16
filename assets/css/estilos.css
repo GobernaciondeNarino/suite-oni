@@ -179,17 +179,18 @@
 .man-timeline__titulo { font-weight: 600; font-size: .95rem; color: #1a1f2c; white-space: nowrap; }
 .man-timeline__estado-chip { display: inline-block; padding: .28rem .7rem; border-radius: 999px; font-weight: 600; font-size: .72rem; background: #FFD500; color: #1a1f2c; }
 .man-timeline__controles { margin-left: auto; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; }
+/* Botones minimalistas: planos, sin borde ni círculo; el play es el único acento. */
 .man-timeline__btn {
-  width: 34px; height: 34px; border-radius: 50%; padding: 0; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; font-size: .85rem;
-  border: 1px solid #e5e7eb; background: #fff; color: #1a1f2c;
-  transition: border-color .15s, background .15s, transform .1s;
+  min-width: 30px; height: 30px; border-radius: 6px; padding: 0 .25rem; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 1.2rem; line-height: 1;
+  border: none; background: transparent; color: #4a5568;
+  transition: background .15s, color .15s, transform .1s;
 }
-.man-timeline__btn:hover { border-color: #10A13B; color: #10A13B; }
+.man-timeline__btn:hover { background: rgba(16, 161, 59, .1); color: #10A13B; }
 .man-timeline__btn:active { transform: translateY(1px); }
 .man-timeline__btn:focus-visible { outline: 2px solid #10A13B; outline-offset: 2px; }
-.man-timeline__btn--play { background: #10A13B; border-color: #10A13B; color: #fff; }
-.man-timeline__btn--play:hover { background: #0a7d2c; border-color: #0a7d2c; color: #fff; }
+.man-timeline__btn--play { width: 32px; height: 32px; border-radius: 50%; background: #10A13B; color: #fff; font-size: .8rem; }
+.man-timeline__btn--play:hover { background: #0a7d2c; color: #fff; }
 .man-timeline__velocidad { display: inline-flex; align-items: center; gap: .4em; font-size: .8rem; color: #4a5568; }
 .man-timeline__velocidad select { font: inherit; font-size: .82rem; padding: .3em .55em; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #1a1f2c; cursor: pointer; }
 .man-timeline__capas { position: relative; font-size: .8rem; }
@@ -203,11 +204,14 @@
 .man-timeline__capas-opcion input { margin: 0; margin-top: .15rem; accent-color: #10A13B; cursor: pointer; }
 .man-timeline__capas-opcion em { font-style: normal; color: #4a5568; font-size: .72rem; }
 .man-timeline__slider { position: relative; padding: 0 .4rem; }
-.man-timeline__divisor { position: absolute; top: 0; bottom: 26px; width: 0; border-left: 1px dashed #ef6c00; z-index: 2; pointer-events: none; }
+.man-timeline__divisor { position: absolute; top: 0; bottom: 26px; width: 0; border-left: 1px dashed #ef6c00; z-index: 3; pointer-events: none; }
 .man-timeline__divisor::after { content: 'observado / proyectado'; position: absolute; top: -11px; transform: translateX(-50%); background: #fff; font-size: .6rem; color: #ef6c00; padding: 0 .35rem; border-radius: 999px; border: 1px solid #ef6c00; white-space: nowrap; font-weight: 600; }
-.man-timeline__rango { width: 100%; height: 24px; margin: 0; cursor: pointer; -webkit-appearance: none; appearance: none; background: transparent; }
-.man-timeline__rango::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, #2e7d32 0%, #f9a825 22%, #ef6c00 42%, #c62828 62%, #ef6c00 80%, #f9a825 92%, #2e7d32 100%); }
-.man-timeline__rango::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, #2e7d32 0%, #f9a825 22%, #ef6c00 42%, #c62828 62%, #ef6c00 80%, #f9a825 92%, #2e7d32 100%); }
+/* Franja "mapa de calor": el JS pinta el degradado real del ONI mes a mes. */
+.man-timeline__heat { position: absolute; left: .4rem; right: .4rem; top: 8px; height: 8px; border-radius: 4px; z-index: 1; pointer-events: none; background: #e5e7eb; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06); }
+.man-timeline__rango { position: relative; z-index: 2; width: 100%; height: 24px; margin: 0; cursor: pointer; -webkit-appearance: none; appearance: none; background: transparent; }
+/* Track transparente: deja ver la franja heatmap (dato real) por debajo. */
+.man-timeline__rango::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: transparent; }
+.man-timeline__rango::-moz-range-track { height: 8px; border-radius: 4px; background: transparent; }
 .man-timeline__rango::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; margin-top: -6px; background: #fff; border: 3px solid #10A13B; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); cursor: pointer; }
 .man-timeline__rango::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #10A13B; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); cursor: pointer; }
 .man-timeline__marcas { list-style: none; margin: .25rem 0 0; padding: 0 .4rem; display: grid; gap: 1px; }

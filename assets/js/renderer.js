@@ -138,21 +138,37 @@
         viz.groupBy(grupo).x(xField).y(yField);
     }
 
-    // 4) Ejes con título + tooltip informativo (solo en cartesianos).
+    // 4) Ejes con título + tooltip ENRIQUECIDO: dimensión, serie, todas las
+    //    medidas y la fase ENSO cuando hay ONI (la mayor información posible).
+    var dimX = dims[0];
+    function faseOni(v) {
+      v = +v; return v >= 0.5 ? 'El Niño' : (v <= -0.5 ? 'La Niña' : 'Neutral');
+    }
+    function tbodyRico() {
+      var t = [];
+      if (dimX != null) { t.push([etiqueta(dimX), function (r) { return r[dimX] != null ? r[dimX] : ''; }]); }
+      if (grupo && grupo !== dimX && grupo !== '_metric') { t.push([etiqueta(grupo), function (r) { return r[grupo] != null ? r[grupo] : ''; }]); }
+      if (grupo === '_metric') { t.push(['Serie', function (r) { return r._metric != null ? r._metric : ''; }]); }
+      var ms = (yField === '_value') ? ['_value'] : measures;
+      ms.forEach(function (m) { t.push([etiqueta(m), function (r) { return fmt(r[m]); }]); });
+      if (ms.indexOf('oni') >= 0) { t.push(['Fase', function (r) { return faseOni(r.oni); }]); }
+      return t;
+    }
     if (['bar', 'stacked_bar', 'line', 'area', 'stacked_area', 'box_whisker'].indexOf(key) >= 0) {
       call(viz, 'xConfig', { title: etiqueta(dims[0]) });
       call(viz, 'yConfig', { title: etiqueta(yField === '_value' ? '_value' : yField) });
       call(viz, 'tooltipConfig', {
-        title: function (d) { return String(d[grupo] != null ? d[grupo] : ''); },
-        tbody: [
-          [etiqueta(dims[0]), function (d) { return d[dims[0]]; }],
-          [etiqueta(yField === '_value' ? '_value' : yField), function (d) { return fmt(d[yField]); }]
-        ]
+        title: function (d) { return String(d[grupo] != null ? d[grupo] : (d[dimX] != null ? d[dimX] : '')); },
+        tbody: tbodyRico()
       });
     } else {
       call(viz, 'tooltipConfig', {
         title: function (d) { return String(d[dims[0]] != null ? d[dims[0]] : ''); },
-        tbody: [[etiqueta(measures[0]), function (d) { return fmt(d[measures[0]]); }]]
+        tbody: (function () {
+          var t = [];
+          measures.forEach(function (m) { t.push([etiqueta(m), function (r) { return fmt(r[m]); }]); });
+          return t;
+        })()
       });
     }
 

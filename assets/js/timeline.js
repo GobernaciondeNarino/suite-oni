@@ -68,6 +68,18 @@
       divisor.hidden = true;
     }
 
+    // Franja "mapa de calor": cada mes coloreado por su ONI (azul frío → rojo cálido).
+    var heat = cont.querySelector('.man-timeline__heat');
+    if (heat) {
+      var stops = serie.map(function (s, i) {
+        var pos = serie.length > 1 ? (i / (serie.length - 1)) * 100 : 50;
+        return oniColor(s.oni) + ' ' + pos.toFixed(1) + '%';
+      });
+      heat.style.background = serie.length > 1
+        ? 'linear-gradient(to right, ' + stops.join(', ') + ')'
+        : oniColor(serie[0] ? serie[0].oni : 0);
+    }
+
     var intervalo = velocidad ? parseInt(velocidad.value, 10) : 1200;
     var playing = false, timer = null;
 
@@ -129,5 +141,27 @@
     var M = { '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto', '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre' };
     var p = String(mes).split('-');
     return (M[p[1]] || p[1]) + ' ' + p[0];
+  }
+
+  /* ---- Rampa de color del ONI (diverging azul frío → pálido → rojo cálido) ---- */
+  function hex2rgb(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  function mix(c1, c2, t) {
+    var a = hex2rgb(c1), b = hex2rgb(c2);
+    return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ',' + Math.round(a[1] + (b[1] - a[1]) * t) + ',' + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
+  }
+  function ramp(t, stops) {
+    for (var i = 0; i < stops.length - 1; i++) {
+      if (t <= stops[i + 1][0]) {
+        var lo = stops[i], hi = stops[i + 1];
+        var f = (t - lo[0]) / ((hi[0] - lo[0]) || 1);
+        return mix(lo[1], hi[1], Math.max(0, Math.min(1, f)));
+      }
+    }
+    return stops[stops.length - 1][1];
+  }
+  function oniColor(o) {
+    o = +o || 0;
+    if (o >= 0) { return ramp(Math.min(1, o / 2.5), [[0, '#eef3e8'], [0.2, '#ffe08a'], [0.45, '#f59e0b'], [0.7, '#ea580c'], [1, '#b91c1c']]); }
+    return ramp(Math.min(1, -o / 2.5), [[0, '#eef3e8'], [0.3, '#bfe0f5'], [0.6, '#5aa9e6'], [1, '#1d4ed8']]);
   }
 })();

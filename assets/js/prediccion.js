@@ -212,8 +212,89 @@
     if (!reduce) {
       tween(950, function (kk) { rect.setAttribute('width', kk * revFull); });
     }
+
+    // Interactividad: tooltip al pasar el cursor (mes, ONI, fase, banda, modelo).
+    interactividad(svg, serie, x, y, m, iw, ih);
+
     void lineaProj;
     return svg;
+  }
+
+  /* ---------- Interactividad (hover/touch) de la gráfica D3 ---------- */
+  function interactividad(svg, serie, x, y, m, iw, ih) {
+    var n = serie.length;
+    if (!n) { return; }
+
+    var foco = document.createElementNS(NS, 'g');
+    foco.setAttribute('class', 'man-pred-foco');
+    foco.style.opacity = '0';
+    var vline = linea(0, m.t, 0, m.t + ih, 'var(--man-mute,#9aa0aa)', 1);
+    vline.setAttribute('stroke-dasharray', '2 3');
+    foco.appendChild(vline);
+    var dot = punto(foco, 0, 0, 4, '#fff');
+    dot.setAttribute('stroke', '#003087'); dot.setAttribute('stroke-width', 2);
+    var tip = document.createElementNS(NS, 'g');
+    var bg = document.createElementNS(NS, 'rect');
+    bg.setAttribute('rx', 5); bg.setAttribute('fill', 'rgba(26,31,44,.92)');
+    tip.appendChild(bg);
+    foco.appendChild(tip);
+    svg.appendChild(foco);
+
+    var overlay = document.createElementNS(NS, 'rect');
+    overlay.setAttribute('x', m.l); overlay.setAttribute('y', m.t);
+    overlay.setAttribute('width', iw); overlay.setAttribute('height', ih);
+    overlay.setAttribute('fill', 'transparent');
+    overlay.style.cursor = 'crosshair';
+    svg.appendChild(overlay);
+
+    var pt = svg.createSVGPoint();
+    function aCoord(evt) {
+      var src = (evt.touches && evt.touches[0]) ? evt.touches[0] : evt;
+      pt.x = src.clientX; pt.y = src.clientY;
+      var ctm = svg.getScreenCTM();
+      return ctm ? pt.matrixTransform(ctm.inverse()) : null;
+    }
+    function mover(evt) {
+      var c = aCoord(evt); if (!c) { return; }
+      var i = Math.max(0, Math.min(n - 1, Math.round(x.invert(c.x))));
+      var s = serie[i];
+      var px = x(i), py = y(+s.oni);
+      vline.setAttribute('x1', px); vline.setAttribute('x2', px);
+      dot.setAttribute('cx', px); dot.setAttribute('cy', py);
+      dot.setAttribute('stroke', faseColor(s.oni));
+
+      var lineas = [
+        mesCorto(s.mes) + (s.tipo === 'proyectado' ? ' · proyección' : ' · observado'),
+        'ONI ' + (s.oni >= 0 ? '+' : '') + C.num(s.oni, 2) + ' °C · ' + (s.fase || '')
+      ];
+      if (s.banda_min != null && s.banda_max != null) {
+        lineas.push('Banda ' + C.num(s.banda_min, 2) + ' a ' + C.num(s.banda_max, 2) + ' °C');
+      }
+      if (s.modelo_oni != null) {
+        lineas.push('Modelo plugin ' + (s.modelo_oni >= 0 ? '+' : '') + C.num(s.modelo_oni, 2) + ' °C');
+      }
+
+      while (tip.firstChild) { tip.removeChild(tip.firstChild); }
+      tip.appendChild(bg);
+      var pad = 7, lh = 14, maxw = 0;
+      lineas.forEach(function (t, k) {
+        etiqueta(tip, pad, pad + lh * (k + 0.85), t, 'start', '#fff', k === 0 ? 10.5 : 10, k === 0);
+        maxw = Math.max(maxw, t.length * (k === 0 ? 6.1 : 5.8));
+      });
+      var bw = maxw + pad * 2, bh = lh * lineas.length + pad * 1.2;
+      bg.setAttribute('width', bw); bg.setAttribute('height', bh);
+      var tx = px + 12; if (tx + bw > m.l + iw) { tx = px - bw - 12; }
+      var ty = Math.max(m.t, py - bh - 8);
+      tip.setAttribute('transform', 'translate(' + tx + ',' + ty + ')');
+      foco.style.opacity = '1';
+    }
+    function ocultar() { foco.style.opacity = '0'; }
+    overlay.addEventListener('mousemove', mover);
+    overlay.addEventListener('mouseenter', mover);
+    overlay.addEventListener('mouseleave', ocultar);
+    overlay.addEventListener('touchstart', function (e) { mover(e); }, { passive: true });
+    overlay.addEventListener('touchmove', function (e) { mover(e); e.preventDefault(); }, { passive: false });
+    overlay.addEventListener('touchend', ocultar);
   }
 
   function segmento(serie, a, b, campo) {
