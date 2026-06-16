@@ -131,6 +131,35 @@ final class MAN_Activator {
 	}
 
 	/**
+	 * Migración al actualizar el plugin (sin reactivar): añade a man_api_config
+	 * las fuentes nuevas que aún no estén presentes, sin sobrescribir lo que el
+	 * usuario ya configuró. Se ejecuta en admin cuando man_version cambia.
+	 */
+	public static function migrar_si_necesario() {
+		$guardada = get_option( 'man_version' );
+		if ( MAN_VERSION === $guardada ) {
+			return;
+		}
+
+		$config = get_option( 'man_api_config', array() );
+		if ( is_array( $config ) ) {
+			$cambio = false;
+			foreach ( self::config_apis_por_defecto() as $slug => $cfg ) {
+				if ( ! isset( $config[ $slug ] ) ) {
+					$config[ $slug ] = $cfg; // fuente nueva → se siembra desactivada/por defecto.
+					$cambio           = true;
+				}
+			}
+			if ( $cambio ) {
+				update_option( 'man_api_config', $config );
+				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Fuentes nuevas añadidas a la config en la actualización a ' . MAN_VERSION );
+			}
+		}
+
+		update_option( 'man_version', MAN_VERSION );
+	}
+
+	/**
 	 * Configuración por defecto de cada fuente de datos.
 	 *
 	 * @return array
