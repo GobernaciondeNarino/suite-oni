@@ -7,6 +7,10 @@ Manual-identidad-grafica.pdf
 # Imágenes de referencia (target visual del globo) — quedan en disco, fuera del repo
 fenomeno-particulas.jpg
 Fenomeno-particulas.avif
+API.jpeg
+
+# Descargas/empaquetados sueltos
+*.zip
 
 # Backups locales de datos del mockup (no se publican)
 *-old.json

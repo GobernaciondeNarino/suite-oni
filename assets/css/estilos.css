@@ -96,7 +96,13 @@
 
 /* --- [man_globo] --- */
 .man-globo { position: relative; overflow: hidden; border-radius: var(--man-borde-radio, 10px); }
-.man-globo__lienzo { width: 100%; min-height: 380px; }
+.man-globo__lienzo { width: 100%; height: 95vh; min-height: 380px; }
+
+/* --- Selector de municipio ([man_pronostico_select] / [man_hidrico_select]) --- */
+.man-muni-wrap { display: flex; flex-direction: column; gap: .6rem; }
+.man-muni-select-label { font-size: .85rem; color: #4a5568; display: inline-flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.man-muni-select { font: inherit; font-size: .9rem; padding: .4em .7em; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #1a1f2c; cursor: pointer; max-width: 320px; }
+.man-muni-select:focus-visible { outline: 2px solid #10A13B; outline-offset: 1px; }
 
 /* Toolbar flotante semitransparente sobre el globo. */
 .man-globo__controles {

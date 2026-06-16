@@ -5,7 +5,11 @@
   var C = window.MANcore;
 
   C.ready(function () {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-man-hidrico]'), cargar);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-man-hidrico]'), function (cont) {
+      cargar(cont);
+      // Permite recargar con otro municipio (lo usa el selector [man_hidrico_select]).
+      cont.addEventListener('man:recargar', function () { cargar(cont); });
+    });
   });
 
   function cargar(cont) {

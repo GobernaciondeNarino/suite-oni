@@ -50,6 +50,18 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_analisis_cualitativo', array( $this, 'sc_analisis_cualitativo' ) );
 		add_shortcode( 'man_analisis_cuantitativo', array( $this, 'sc_analisis_cuantitativo' ) );
 		add_shortcode( 'man_explicacion', array( $this, 'sc_explicacion' ) );
+		// Piezas separadas de la predicción ENSO.
+		add_shortcode( 'man_prediccion_grafico', array( $this, 'sc_prediccion_grafico' ) );
+		add_shortcode( 'man_prediccion_descripcion', array( $this, 'sc_prediccion_descripcion' ) );
+		add_shortcode( 'man_prediccion_analisis', array( $this, 'sc_prediccion_analisis' ) );
+		add_shortcode( 'man_prediccion_probabilidad', array( $this, 'sc_prediccion_probabilidad' ) );
+		add_shortcode( 'man_prediccion_ficha', array( $this, 'sc_prediccion_ficha' ) );
+		// Variantes con selector de municipio.
+		add_shortcode( 'man_pronostico_select', array( $this, 'sc_pronostico_select' ) );
+		add_shortcode( 'man_hidrico_select', array( $this, 'sc_hidrico_select' ) );
+		// Descripción y análisis del mapa coroplético (texto, sin el mapa).
+		add_shortcode( 'man_mapa_descripcion', array( $this, 'sc_mapa_descripcion' ) );
+		add_shortcode( 'man_mapa_analisis', array( $this, 'sc_mapa_analisis' ) );
 		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
 		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
@@ -102,6 +114,7 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-grupo', MAN_URL . 'assets/js/grupo.js', array(), MAN_VERSION, true );
 		wp_register_script( 'man-grafico', MAN_URL . 'assets/js/grafico.js', array( 'man-renderer', 'man-core', 'man-grupo' ), MAN_VERSION, true );
 		wp_register_script( 'man-composable', MAN_URL . 'assets/js/composable.js', array( 'man-core', 'man-grupo' ), MAN_VERSION, true );
+		wp_register_script( 'man-muni-select', MAN_URL . 'assets/js/municipio-select.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-mar', MAN_URL . 'assets/js/mar.js', array( 'man-core', 'd3plus' ), MAN_VERSION, true );
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios', 'd3plus' ), MAN_VERSION, true );
@@ -494,6 +507,178 @@ final class MAN_Shortcodes {
 		return ob_get_clean();
 	}
 
+	/* --- Piezas separadas de la predicción ENSO (envuelven sc_prediccion) --- */
+	/** [man_prediccion_grafico] — solo la gráfica de la trayectoria del ONI. */
+	public function sc_prediccion_grafico( $atts ) { return $this->prediccion_parte( $atts, 'grafico' ); }
+	/** [man_prediccion_descripcion] — título + cifras clave (estado/pico/objetivo). */
+	public function sc_prediccion_descripcion( $atts ) { return $this->prediccion_parte( $atts, 'titulo,chips' ); }
+	/** [man_prediccion_analisis] — narrativa predictiva (texto de análisis). */
+	public function sc_prediccion_analisis( $atts ) { return $this->prediccion_parte( $atts, 'texto' ); }
+	/** [man_prediccion_probabilidad] — barras de probabilidad por trimestre. */
+	public function sc_prediccion_probabilidad( $atts ) { return $this->prediccion_parte( $atts, 'probabilidad' ); }
+	/** [man_prediccion_ficha] — ficha técnica / metodología. */
+	public function sc_prediccion_ficha( $atts ) { return $this->prediccion_parte( $atts, 'metodologia' ); }
+
+	/**
+	 * Envuelve sc_prediccion forzando las secciones a mostrar.
+	 *
+	 * @param mixed  $atts   Atributos del shortcode.
+	 * @param string $partes Secciones (titulo,chips,grafico,probabilidad,texto,metodologia).
+	 * @return string
+	 */
+	private function prediccion_parte( $atts, $partes ) {
+		if ( ! is_array( $atts ) ) { $atts = array(); }
+		$atts['partes'] = $partes;
+		return $this->sc_prediccion( $atts );
+	}
+
+	/**
+	 * [man_pronostico_select] — pronóstico con un <select> de los 64 municipios
+	 * que recarga el componente al cambiar (sin recargar la página).
+	 */
+	public function sc_pronostico_select( $atts ) {
+		$atts = $this->fusionar( array( 'municipio' => '52001', 'dias' => '14' ), $atts, 'man_pronostico_select' );
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-pronostico' );
+		wp_enqueue_script( 'man-muni-select' );
+
+		$sel = MAN_Security::sanitizar_divipola( $atts['municipio'] );
+		if ( 'departamento' === $sel || ! MAN_Municipios::existe( $sel ) ) {
+			$sel = '52001';
+		}
+		$dias = max( 1, min( 16, (int) $atts['dias'] ) );
+		$id   = $this->id();
+		$cid  = $id . '-comp';
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="man man-muni-wrap"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>">
+			<?php echo $this->select_municipio( $cid, $sel ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<div id="<?php echo esc_attr( $cid ); ?>" class="man-muni-target" data-man-pronostico
+				data-municipio="<?php echo esc_attr( $sel ); ?>" data-dias="<?php echo esc_attr( $dias ); ?>">
+				<?php echo $this->skeleton( 'Cargando pronóstico…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				<?php echo $this->pie_fuentes( 'Open-Meteo (CC BY 4.0)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			</div>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_hidrico_select] — recursos hídricos con <select> de municipios.
+	 */
+	public function sc_hidrico_select( $atts ) {
+		$atts = $this->fusionar( array( 'municipio' => '52001' ), $atts, 'man_hidrico_select' );
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-hidrico' );
+		wp_enqueue_script( 'man-muni-select' );
+
+		$sel = MAN_Security::sanitizar_divipola( $atts['municipio'] );
+		if ( 'departamento' === $sel || ! MAN_Municipios::existe( $sel ) ) {
+			$sel = '52001';
+		}
+		$id  = $this->id();
+		$cid = $id . '-comp';
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="man man-muni-wrap"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>">
+			<?php echo $this->select_municipio( $cid, $sel ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<div id="<?php echo esc_attr( $cid ); ?>" class="man-muni-target" data-man-hidrico
+				data-municipio="<?php echo esc_attr( $sel ); ?>">
+				<?php echo $this->skeleton( 'Cargando información hídrica…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				<?php echo $this->pie_fuentes( 'Open-Meteo Flood (GloFAS) · Open-Meteo (CC BY 4.0)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			</div>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Renderiza un <select> con los 64 municipios (ordenados por nombre) que
+	 * controla el componente con id $target_id (vía municipio-select.js).
+	 *
+	 * @param string $target_id   Id del componente a recargar.
+	 * @param string $seleccionado DIVIPOLA seleccionado por defecto.
+	 * @return string
+	 */
+	private function select_municipio( $target_id, $seleccionado ) {
+		$munis = MAN_Municipios::todos();
+		usort( $munis, function ( $a, $b ) { return strcmp( $a['nombre'], $b['nombre'] ); } );
+
+		ob_start();
+		?>
+		<label class="man-muni-select-label">Municipio:
+			<select class="man-muni-select" data-man-muni-select data-target="<?php echo esc_attr( $target_id ); ?>"
+				aria-label="Seleccionar municipio">
+				<?php foreach ( $munis as $m ) : ?>
+					<option value="<?php echo esc_attr( $m['divipola'] ); ?>" <?php selected( $m['divipola'], $seleccionado ); ?>>
+						<?php echo esc_html( $m['nombre'] ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+		</label>
+		<?php
+		return ob_get_clean();
+	}
+
+	/** [man_mapa_descripcion] — texto descriptivo del mapa coroplético (sin el mapa). */
+	public function sc_mapa_descripcion( $atts ) {
+		$atts = $this->fusionar( array( 'variable' => 'riesgo', 'mes' => '' ), $atts, 'man_mapa_descripcion' );
+		wp_enqueue_style( 'man-estilos' );
+		return $this->bloque_texto_mapa( $atts, 'descripcion' );
+	}
+
+	/** [man_mapa_analisis] — análisis interpretativo del mapa coroplético (sin el mapa). */
+	public function sc_mapa_analisis( $atts ) {
+		$atts = $this->fusionar( array( 'variable' => 'riesgo', 'mes' => '' ), $atts, 'man_mapa_analisis' );
+		wp_enqueue_style( 'man-estilos' );
+		return $this->bloque_texto_mapa( $atts, 'analisis' );
+	}
+
+	/**
+	 * Renderiza un bloque de texto (descripción o análisis) del mapa por variable.
+	 *
+	 * @param array  $atts Atributos (variable, mes).
+	 * @param string $tipo descripcion | analisis.
+	 * @return string
+	 */
+	private function bloque_texto_mapa( $atts, $tipo ) {
+		$var = sanitize_key( $atts['variable'] );
+		$txt = $this->texto_mapa( $var, $tipo );
+		$cls = 'analisis' === $tipo ? 'man-g__analisis-desc man-mapa-analisis' : 'man-g__analisis-desc man-mapa-descripcion';
+		return '<div class="man man-analisis-bloque" style="' . esc_attr( MAN_Estilos::estilo_inline( $atts ) ) . '">'
+			. '<p class="' . esc_attr( $cls ) . '">' . esc_html( $txt ) . '</p></div>';
+	}
+
+	/**
+	 * Textos ricos (≥375 caracteres) del mapa coroplético por variable.
+	 *
+	 * @param string $var  riesgo | anomalia | precipitacion.
+	 * @param string $tipo descripcion | analisis.
+	 * @return string
+	 */
+	private function texto_mapa( $var, $tipo ) {
+		$t = array(
+			'riesgo'        => array(
+				'descripcion' => 'Este mapa coroplético colorea los 64 municipios de Nariño según su índice de riesgo ambiental compuesto (escala 0 a 1) para el mes seleccionado. El índice integra el empuje del fenómeno ENSO (magnitud del ONI), la anomalía de lluvia esperada, la exposición del territorio (población, ladera y costa, con cartografía del DANE) y la sensibilidad sectorial agrícola e hídrica de cada subregión. El color va de verde (bajo) a rojo (extremo); al hacer clic en un municipio se abre su panel con el detalle. Es un escenario de planeación, no un pronóstico oficial.',
+				'analisis'    => 'Lectura del mapa: en El Niño, el altiplano andino y la cordillera tienden a concentrar el mayor riesgo por déficit de lluvia, mientras el litoral Pacífico (Sanquianga, Pacífico Sur, Telembí) responde de forma inversa, con exceso de precipitación y oleaje. Conviene mirar la evolución mes a mes: el pico del escenario se ubica hacia septiembre–octubre, cuando coinciden la temporada seca andina y la fase cálida del Pacífico. Use el mapa para priorizar municipios y contraste siempre con los boletines vigentes del IDEAM y de NOAA-CPC antes de tomar decisiones operativas.',
+			),
+			'anomalia'      => array(
+				'descripcion' => 'Este mapa coroplético muestra, municipio a municipio, la anomalía climática esperada para el mes seleccionado en los 64 territorios de Nariño: cuánto se desvía la temperatura o la lluvia respecto a su valor normal histórico. Los tonos cálidos indican condiciones más secas o cálidas de lo habitual y los fríos lo contrario. La anomalía se deriva del pronóstico de Open-Meteo y de la fase ENSO vigente, y permite ver de un vistazo qué zonas se apartan más de su clima típico. Al pulsar un municipio se despliega su ficha con los valores concretos.',
+				'analisis'    => 'Interpretación: las anomalías no son uniformes en el departamento. La vertiente andina (Sabana, Ex-Provincia de Obando, Río Mayo) suele mostrar déficit de lluvia en El Niño, con anomalías secas que estresan cultivos y acueductos; la franja del Pacífico, en cambio, puede registrar anomalías húmedas y mayor oleaje. La magnitud crece con la intensidad del ONI y con la cercanía a la primavera boreal, cuando la incertidumbre es mayor. Tome la anomalía como una señal de alerta temprana y verifíquela contra los boletines oficiales del IDEAM y NOAA-CPC.',
+			),
+			'precipitacion' => array(
+				'descripcion' => 'Este mapa coroplético representa la precipitación esperada para el mes seleccionado en cada uno de los 64 municipios de Nariño, con una escala de color que va de seco a muy lluvioso. Los datos provienen del pronóstico en vivo de Open-Meteo combinado con la señal del fenómeno ENSO, de modo que refleja tanto el régimen climático propio de cada subregión como el empuje del Pacífico. La fuerte heterogeneidad del relieve nariñense hace que costa, cordillera y altiplano se comporten de forma muy distinta. Al hacer clic en un municipio se abre su panel con el detalle de precipitación.',
+				'analisis'    => 'Cómo leerlo: el litoral Pacífico es estructuralmente muy húmedo (cientos de milímetros al mes) y en El Niño puede intensificar lluvias y oleaje; el altiplano andino y la cordillera son más secos y, en la fase cálida, tienden al déficit que dispara el riesgo de incendios y el racionamiento de acueductos. La precipitación mensual no debe leerse aislada: combínela con el índice de riesgo y el déficit hídrico para entender el impacto real. Recuerde que es un escenario de planeación y debe contrastarse con los boletines vigentes del IDEAM y de NOAA-CPC.',
+			),
+		);
+		$bloque = isset( $t[ $var ] ) ? $t[ $var ] : $t['riesgo'];
+		return isset( $bloque[ $tipo ] ) ? $bloque[ $tipo ] : $bloque['descripcion'];
+	}
+
 	/**
 	 * [man_estadisticas] — Gráficos estadísticos prediseñados con D3plus
 	 * (tooltip y leyenda en español). Componente independiente y maquetable.
@@ -596,7 +781,7 @@ final class MAN_Shortcodes {
 			'mes'          => gmdate( 'Y-m' ),
 			'grupo'        => '',
 			'legend_pos'   => 'abajo',
-			'analisis'     => 'ambos',
+			'analisis'     => 'no', // por defecto SIN texto en el gráfico; usa [man_descripcion]/[man_analisis_*].
 		), $atts, 'man_grafico' );
 
 		return $this->figura_grafico( sanitize_key( $atts['view'] ), sanitize_key( $atts['type'] ), array(
@@ -811,7 +996,7 @@ final class MAN_Shortcodes {
 			'mes'          => gmdate( 'Y-m' ),
 			'grupo'        => '',
 			'legend_pos'   => 'abajo',
-			'analisis'     => 'ambos',
+			'analisis'     => 'no', // sin texto embebido por defecto (va en shortcodes aparte).
 			'fuente'       => 'NOAA/CPC · IDEAM · Open-Meteo (CC BY 4.0) · D3plus',
 		), $opts );
 

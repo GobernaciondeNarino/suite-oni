@@ -6,10 +6,34 @@
 (function () {
   'use strict';
 
+  // Paleta institucional/categórica (colores provistos).
   var PALETTE = [
-    '#10A13B', '#003087', '#0ea5e9', '#E8A020', '#14b8a6',
-    '#ef6c00', '#c62828', '#a855f7', '#ec4899', '#6366f1'
+    '#844E80', '#FF7300', '#FFC53B', '#3EBA6A', '#0080C3', '#E74C3C',
+    '#9B59B6', '#1ABC9C', '#2ECC71', '#3498DB', '#F1C40F', '#34495E',
+    '#16A085', '#D35400', '#7F8C8D', '#C0392B'
   ];
+
+  // Rampa "mapa de calor" frío → cálido para gráficos de magnitud (déficit,
+  // focos, riesgo, etc.). Subconjunto monótono de la paleta.
+  var HEAT = ['#0080C3', '#1ABC9C', '#2ECC71', '#F1C40F', '#FF7300', '#C0392B'];
+
+  function hexLerp(c1, c2, t) {
+    function h(c) { c = c.replace('#', ''); return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)]; }
+    var a = h(c1), b = h(c2);
+    return 'rgb(' + Math.round(a[0] + (b[0] - a[0]) * t) + ',' + Math.round(a[1] + (b[1] - a[1]) * t) + ',' + Math.round(a[2] + (b[2] - a[2]) * t) + ')';
+  }
+  function heatColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    var n = HEAT.length - 1, i = Math.min(n - 1, Math.floor(t * n));
+    return hexLerp(HEAT[i], HEAT[i + 1], (t * n) - i);
+  }
+  // Colorea cada dato por su VALOR (mapa de calor) sobre el rango de la medida.
+  function colorPorValor(data, campo) {
+    var min = Infinity, max = -Infinity;
+    data.forEach(function (r) { var v = +r[campo]; if (!isNaN(v)) { if (v < min) { min = v; } if (v > max) { max = v; } } });
+    var span = (max - min) || 1;
+    return function (d) { var v = +d[campo]; return isNaN(v) ? HEAT[0] : heatColor((v - min) / span); };
+  }
 
   // Etiquetas legibles para ejes/tooltip por nombre de campo.
   var ETIQUETAS = {
@@ -98,7 +122,20 @@
       grupo = '_metric'; yField = '_value';
       stacked = (key === 'stacked_bar');
     } else if (key === 'line' || key === 'area') {
-      grupo = dims[1] || dims[0];
+      if (dims.length > 1 && dims[1]) {
+        grupo = dims[1];
+      } else {
+        // Una sola dimensión: TODOS los puntos forman UNA serie. Si agrupáramos
+        // por X (mes), cada punto sería su propio grupo y la línea no se dibuja.
+        grupo = '_serie';
+        var nombreSerie = view.name || etiqueta(yField);
+        plotData = base.map(function (r) {
+          var o = {};
+          for (var kk in r) { if (Object.prototype.hasOwnProperty.call(r, kk)) { o[kk] = r[kk]; } }
+          o._serie = nombreSerie;
+          return o;
+        });
+      }
     }
 
     // 2) Instancia y configuración común.
@@ -107,10 +144,17 @@
     call(viz, 'legend', opts.legend !== false);
     // Leyenda abajo por defecto (no come el ancho del gráfico); configurable.
     call(viz, 'legendPosition', opts.legendPos || 'bottom');
-    // Color POR SERIE (no por índice de punto) — corrige la leyenda duplicada.
+    // Color: por VALOR (mapa de calor) en vistas marcadas como heatmap y de
+    // magnitud (barras/treemap/caja); en el resto, por SERIE.
     // NO se fija labelConfig.fontFamily: d3plus mide el texto con su fuente para
     // ajustarlo/truncarlo dentro de cada forma; pisarla con 'inherit' lo rompe.
-    call(viz, 'color', colorPorGrupo(plotData, grupo));
+    var esValor = ['bar', 'treemap', 'box_whisker'].indexOf(key) >= 0;
+    if (view.heatmap && esValor) {
+      call(viz, 'color', colorPorValor(plotData, yField));
+      call(viz, 'legend', false); // el color codifica magnitud, no categorías.
+    } else {
+      call(viz, 'color', colorPorGrupo(plotData, grupo));
+    }
     if (opts.legendStyle === 'icons') { call(viz, 'legendConfig', { label: false }); }
 
     // 3) Configuración por tipo.
@@ -156,7 +200,7 @@
     function tbodyRico() {
       var t = [];
       if (dimX != null) { t.push([etiqueta(dimX), function (r) { return r[dimX] != null ? r[dimX] : ''; }]); }
-      if (grupo && grupo !== dimX && grupo !== '_metric') { t.push([etiqueta(grupo), function (r) { return r[grupo] != null ? r[grupo] : ''; }]); }
+      if (grupo && grupo !== dimX && grupo !== '_metric' && grupo !== '_serie') { t.push([etiqueta(grupo), function (r) { return r[grupo] != null ? r[grupo] : ''; }]); }
       if (grupo === '_metric') { t.push(['Serie', function (r) { return r._metric != null ? r._metric : ''; }]); }
       var ms = (yField === '_value') ? ['_value'] : measures;
       ms.forEach(function (m) { t.push([etiqueta(m), function (r) { return fmt(r[m]); }]); });
