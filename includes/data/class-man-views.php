@@ -245,15 +245,44 @@ final class MAN_Views {
 		$m     = $r[ $id ];
 		$datos = self::datos( $id, $args );
 		return array(
-			'id'          => $id,
-			'name'        => $m['name'],
-			'description' => $m['description'],
-			'category'    => $m['category'],
-			'dimensions'  => $m['dimensions'],
-			'measures'    => $m['measures'],
-			'data'        => $datos,
-			'analisis'    => self::analisis( $id, $datos ),
+			'id'            => $id,
+			'name'          => $m['name'],
+			'description'   => $m['description'],
+			'category'      => $m['category'],
+			'dimensions'    => $m['dimensions'],
+			'measures'      => $m['measures'],
+			'data'          => $datos,
+			'analisis'      => self::analisis( $id, $datos ),
+			'como_funciona' => self::como_funciona( $id ),
 		);
+	}
+
+	/**
+	 * Explicación "¿Cómo funciona?" de una vista: qué calcula, con qué fuente y
+	 * cómo leerla. Pensada para el botón/modal de explicación de cada gráfico.
+	 *
+	 * @param string $id Id de la vista.
+	 * @return string
+	 */
+	public static function como_funciona( $id ) {
+		$map = array(
+			'oni_serie'          => 'El ONI (Oceanic Niño Index) es la anomalía de temperatura del Pacífico ecuatorial (región Niño-3.4), promediada en ventanas de 3 meses. NOAA lo mide (observado) y el plugin proyecta el tramo futuro. Umbrales: ≥ +0,5 °C El Niño, ≤ −0,5 °C La Niña. Fuente: NOAA/CPC.',
+			'oni_observado'      => 'Serie del ONI ya MEDIDO por NOAA/CPC (sin proyección). Cada punto es el promedio trimestral de la anomalía del Pacífico Niño-3.4. Fuente: NOAA/CPC.',
+			'oni_pronostico'     => 'Tramo PROYECTADO del ONI: combina el ensamble oficial NOAA/IRI con el modelo propio del plugin (tendencia amortiguada). La incertidumbre crece con el horizonte. No es un pronóstico oficial.',
+			'prob_fase'          => 'Probabilidad de cada fase (El Niño / Neutral / La Niña) por trimestre móvil, integrando una gaussiana N(valor proyectado, incertidumbre) sobre los umbrales NOAA ±0,5 °C. Las tres suman 100%.',
+			'riesgo_subregion'   => 'Riesgo ambiental medio (0–1) por subregión: promedia el índice de los municipios de cada subregión. El índice combina empuje ENSO, anomalía de lluvia, exposición y sensibilidad sectorial.',
+			'riesgo_municipios'  => 'Los 15 municipios con mayor índice de riesgo (0–1) en el mes elegido. El índice pondera ENSO, anomalía de lluvia (déficit real cuando hay), exposición y sector.',
+			'episodios'          => 'Compara los episodios históricos de El Niño (2015–2024) por su ONI pico. Útil para dimensionar el evento actual frente a los pasados.',
+			'deficit_municipios' => 'Déficit hídrico (0–100) por municipio: se deriva EN VIVO de la precipitación reciente de Open-Meteo frente a un umbral climatológico. 100 = sin lluvia respecto a lo esperado. Dato real.',
+			'focos_municipios'   => 'Focos de calor activos por municipio detectados por satélite (NASA FIRMS, VIIRS/MODIS) en los últimos días, asignados a cada municipio por su polígono. Dato real.',
+			'deficit_serie'      => 'Evolución mensual del déficit hídrico departamental del escenario de planeación. Modelado (semilla), no medición directa.',
+			'precip_caudal'      => 'Precipitación (mm) y nivel de caudal (%) mes a mes del escenario. Dos series superpuestas para ver cómo caen juntas en El Niño. Modelado.',
+			'focos_serie'        => 'Número de focos de calor por mes del escenario de planeación. Modelado.',
+			'cultivos_riesgo'    => 'Porcentaje de área de cultivos en riesgo por mes del escenario. Modelado, en función del déficit hídrico.',
+			'acueductos'         => 'Número de municipios con acueductos en racionamiento por mes del escenario. Modelado.',
+			'hidro_reduccion'    => 'Reducción de generación hidroeléctrica (%) por mes del escenario, asociada al déficit de lluvias. Modelado.',
+		);
+		return isset( $map[ $id ] ) ? $map[ $id ] : '';
 	}
 
 	/**

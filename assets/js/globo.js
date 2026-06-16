@@ -387,13 +387,18 @@ class GloboMAN {
 
   /* ---------------- mapa de calor Niño-3.4 ---------------- */
   _heat() {
-    var n = this.ligero ? 620 : 1500;
+    // Campo SST denso (estilo mapa NASA de anomalía del Pacífico): muchas más
+    // partículas, concentradas en la lengua ecuatorial/costera para que el
+    // "heatmap" se vea lleno y vívido en vez de disperso y tenue.
+    var n = this.ligero ? 2100 : 4800;
     this._heatPts = [];
     var pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
     for (var i = 0; i < n; i++) {
       // Pacífico ecuatorial + franja costera oriental (México → Chile), y se
       // extiende al oeste hasta cerca de Australia para desvanecerse sin corte.
-      var lat = -42 + Math.random() * 70;
+      // Distribución sesgada hacia el centro de la lengua (lat ≈ −7) sumando
+      // tres uniformes (≈ gaussiana): mayor densidad donde el calor es máximo.
+      var lat = -42 + ((Math.random() + Math.random() + Math.random()) / 3) * 70;
       var lng = -230 + Math.random() * (coastLng(lat) + 230);
       var p = { lat: lat, latBase: lat, lng: lng, radio: 1.012, velocidadBase: 0.5 + Math.random(), ruido: Math.random(), fase: Math.random() * 6.28 };
       this._heatPts.push(p);
@@ -404,7 +409,7 @@ class GloboMAN {
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.05, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.34, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+    this.heat = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.062, map: texturaPunto(), vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
     this.escena.add(this.heat);
   }
 
@@ -1013,7 +1018,7 @@ class GloboMAN {
       }
       self.heat.geometry.attributes.position.needsUpdate = true;
       self.heat.geometry.attributes.color.needsUpdate = true;
-      self.heat.material.opacity = 0.32 + Math.min(0.45, oniN * 0.35);
+      self.heat.material.opacity = 0.5 + Math.min(0.45, oniN * 0.42);
 
       // Partículas de alisios: fluyen de E→O (lng decrece); frenan y se enfrían al subir el ONI.
       var velFlujo = Math.max(0, 1.2 - e.oni * 0.9);

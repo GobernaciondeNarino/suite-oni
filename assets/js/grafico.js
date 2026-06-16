@@ -10,9 +10,9 @@
     bar: 'Barras', stacked_bar: 'Barras apiladas', line: 'Líneas', area: 'Área',
     stacked_area: 'Área apilada', pie: 'Pastel', donut: 'Dona', treemap: 'Treemap', box_whisker: 'Caja y bigotes'
   };
-  var ICON = { detalle: 'info-outline', compartir: 'share', datos: 'editor-table', imagen: 'format-image', descarga: 'download', cambiar: 'image-rotate' };
-  var LABEL = { detalle: 'Detalle', compartir: 'Compartir', datos: 'Datos', imagen: 'Imagen', descarga: 'Descarga', cambiar: 'Cambiar' };
-  var DEFAULT_ACTIONS = ['detalle', 'compartir', 'datos', 'imagen', 'descarga', 'cambiar'];
+  var ICON = { explicacion: 'editor-help', detalle: 'info-outline', compartir: 'share', datos: 'editor-table', imagen: 'format-image', descarga: 'download', cambiar: 'image-rotate' };
+  var LABEL = { explicacion: 'Cómo funciona', detalle: 'Detalle', compartir: 'Compartir', datos: 'Datos', imagen: 'Imagen', descarga: 'Descarga', cambiar: 'Cambiar' };
+  var DEFAULT_ACTIONS = ['explicacion', 'detalle', 'compartir', 'datos', 'imagen', 'descarga', 'cambiar'];
 
   C.ready(function () {
     Array.prototype.forEach.call(document.querySelectorAll('[data-man-grafico]'), init);
@@ -61,18 +61,27 @@
   }
 
   function pintarAnalisisBloque(box, p, modo, titulo) {
-    var a = (p && p.view && p.view.analisis) || null;
+    var v = (p && p.view) || {};
+    var a = v.analisis || null;
     var sk = box.querySelector('.man-skeleton'); if (sk) { sk.parentNode.removeChild(sk); }
     box.innerHTML = '';
     if (titulo) { box.appendChild(C.el('p', 'man-g__analisis-titulo', C.esc(titulo))); }
-    else if (p && p.view && p.view.name) { box.appendChild(C.el('p', 'man-g__analisis-titulo', C.esc(p.view.name))); }
-    if (!a) { box.appendChild(C.el('p', 'man-g__analisis-desc', 'Sin análisis disponible para esta vista.')); return; }
-    if ((modo === 'ambos' || modo === 'descriptivo') && a.descriptivo) {
-      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(a.descriptivo)));
+    else if (v.name) { box.appendChild(C.el('p', 'man-g__analisis-titulo', C.esc(v.name))); }
+
+    var algo = false;
+    if (modo === 'descripcion' && v.description) {
+      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(v.description))); algo = true;
     }
-    if ((modo === 'ambos' || modo === 'cuantitativo') && a.cuantitativo) {
-      box.appendChild(C.el('p', 'man-g__analisis-num', C.esc(a.cuantitativo)));
+    if (modo === 'como_funciona' && v.como_funciona) {
+      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(v.como_funciona))); algo = true;
     }
+    if ((modo === 'ambos' || modo === 'descriptivo') && a && a.descriptivo) {
+      box.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(a.descriptivo))); algo = true;
+    }
+    if ((modo === 'ambos' || modo === 'cuantitativo') && a && a.cuantitativo) {
+      box.appendChild(C.el('p', 'man-g__analisis-num', C.esc(a.cuantitativo))); algo = true;
+    }
+    if (!algo) { box.appendChild(C.el('p', 'man-g__analisis-desc', 'Sin contenido disponible para esta vista.')); }
   }
 
   function init(fig) {
@@ -198,7 +207,8 @@
       var b = e.target.closest ? e.target.closest('.man-g__action') : null;
       if (!b) { return; }
       var a = b.getAttribute('data-accion');
-      if (a === 'detalle') { openModal(fig, 'Detalle del gráfico', detalleNodo(st.payload)); }
+      if (a === 'explicacion') { openModal(fig, '¿Cómo funciona este gráfico?', explicacionNodo(st.payload)); }
+      else if (a === 'detalle') { openModal(fig, 'Detalle del gráfico', detalleNodo(st.payload)); }
       else if (a === 'datos') { openModal(fig, 'Datos de la vista', tablaNodo(st.payload)); }
       else if (a === 'imagen') { exportarPNG(chartEl, st); }
       else if (a === 'descarga') { descargarJSON(st.payload, st); }
@@ -253,6 +263,14 @@
     body.innerHTML = '';
     body.appendChild(nodo);
     m.removeAttribute('hidden');
+  }
+
+  function explicacionNodo(p) {
+    var v = (p && p.view) || {};
+    var wrap = C.el('div', 'man-g__expl');
+    var txt = v.como_funciona || v.description || 'Sin explicación disponible para esta vista.';
+    wrap.appendChild(C.el('p', 'man-g__analisis-desc', C.esc(txt)));
+    return wrap;
   }
 
   function detalleNodo(p) {
