@@ -101,6 +101,9 @@ final class MAN_Plugin {
 		// Idioma (es_CO).
 		add_action( 'init', array( $this, 'cargar_textdomain' ) );
 
+		// Migración al actualizar (en admin): siembra fuentes nuevas sin reactivar.
+		add_action( 'admin_init', array( MAN_Activator::class, 'migrar_si_necesario' ) );
+
 		// Subsistemas: cada uno registra sus propios hooks en su constructor.
 		$this->estilos    = new MAN_Estilos();
 		$this->rest       = new MAN_Rest();

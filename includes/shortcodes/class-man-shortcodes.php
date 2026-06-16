@@ -326,6 +326,7 @@ final class MAN_Shortcodes {
 			<p class="man-timeline__leyenda">
 				<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--obs"></span>Observado</span>
 				<span class="man-timeline__leyenda-item"><span class="man-timeline__pip man-timeline__pip--proy"></span>Proyectado</span>
+				<span class="man-timeline__leyenda-item"><span class="man-timeline__heat-leyenda" aria-hidden="true"></span>ONI: frío → cálido</span>
 			</p>
 
 			<div class="man-timeline__identidad">
@@ -337,9 +338,9 @@ final class MAN_Shortcodes {
 			</div>
 
 			<div class="man-timeline__controles">
-				<button type="button" class="man-timeline__btn" data-accion="anterior" aria-label="Mes anterior">◀</button>
+				<button type="button" class="man-timeline__btn" data-accion="anterior" aria-label="Mes anterior">‹</button>
 				<button type="button" class="man-timeline__btn man-timeline__btn--play" data-accion="play" aria-label="Reproducir o pausar">▶</button>
-				<button type="button" class="man-timeline__btn" data-accion="siguiente" aria-label="Mes siguiente">▶▶</button>
+				<button type="button" class="man-timeline__btn" data-accion="siguiente" aria-label="Mes siguiente">›</button>
 				<label class="man-timeline__velocidad">Velocidad:
 					<select aria-label="Velocidad de reproducción">
 						<option value="2000">Lento</option>
@@ -360,6 +361,7 @@ final class MAN_Shortcodes {
 			</div>
 
 			<div class="man-timeline__slider">
+				<div class="man-timeline__heat" aria-hidden="true"></div>
 				<span class="man-timeline__divisor" aria-hidden="true"></span>
 				<input type="range" class="man-timeline__rango" min="0" max="0" step="1" value="0" aria-label="Mes activo" />
 				<ul class="man-timeline__marcas" role="group" aria-label="Meses"></ul>
