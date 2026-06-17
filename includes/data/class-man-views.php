@@ -193,6 +193,80 @@ final class MAN_Views {
 				'measures'    => array( 'valor' ),
 				'default'     => 'line',
 			),
+
+			// --- IDEAM FEWS: una vista de barras por red de estaciones (top 15) ---
+			'fews_nivel'              => array(
+				'name'        => 'Nivel de ríos por estación (IDEAM FEWS)',
+				'description' => 'Último nivel observado (m) en las estaciones de Nariño, las 15 más altas.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_precipitacion'      => array(
+				'name'        => 'Precipitación por estación (IDEAM FEWS)',
+				'description' => 'Último dato de precipitación (mm) en las estaciones de Nariño, las 15 mayores.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_caudal'             => array(
+				'name'        => 'Caudal por estación (IDEAM FEWS)',
+				'description' => 'Último caudal observado (m³/s) en las estaciones de Nariño, los 15 mayores.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_temperatura'        => array(
+				'name'        => 'Temperatura por estación (IDEAM FEWS)',
+				'description' => 'Última temperatura (°C) en las estaciones de Nariño, las 15 más altas.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_nivel_pronostico'   => array(
+				'name'        => 'Nivel pronosticado por estación (IDEAM FEWS)',
+				'description' => 'Nivel máximo simulado (m) por el modelo FEWS en las estaciones de Nariño.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_caudal_pronostico'  => array(
+				'name'        => 'Caudal pronosticado por estación (IDEAM FEWS)',
+				'description' => 'Caudal máximo simulado (m³/s) por el modelo FEWS en las estaciones de Nariño.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_calidad'            => array(
+				'name'        => 'Calidad del agua (ICA) por estación (IDEAM FEWS)',
+				'description' => 'Índice de Calidad del Agua (ICA 0–1) en las estaciones de Nariño; menor es peor.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'estacion' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'bar',
+			),
+			'fews_szh_alertas'        => array(
+				'name'        => 'Alertas por subzona hidrográfica (IDEAM FEWS)',
+				'description' => 'Nivel de alerta hidrológica por subzona de las cuencas de Nariño (Pacífico sur y alto Putumayo).',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'subzona' ),
+				'measures'    => array( 'alerta' ),
+				'default'     => 'bar',
+			),
+			'fews_szh_pobs'           => array(
+				'name'        => 'Precipitación por subzona hidrográfica (IDEAM FEWS)',
+				'description' => 'Precipitación observada por subzona de las cuencas de Nariño (Pacífico sur y alto Putumayo).',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'subzona' ),
+				'measures'    => array( 'precipitacion' ),
+				'default'     => 'bar',
+			),
 		);
 	}
 
@@ -253,7 +327,7 @@ final class MAN_Views {
 		$m     = $r[ $id ];
 		$datos = self::datos( $id, $args );
 		// Vistas de magnitud que se colorean como mapa de calor (barras/treemap).
-		$heatmap = in_array( $id, array( 'deficit_municipios', 'focos_municipios', 'focos_serie', 'acueductos', 'riesgo_municipios', 'riesgo_subregion', 'episodios' ), true );
+		$heatmap = in_array( $id, array( 'deficit_municipios', 'focos_municipios', 'focos_serie', 'acueductos', 'riesgo_municipios', 'riesgo_subregion', 'episodios', 'fews_nivel', 'fews_precipitacion', 'fews_caudal', 'fews_temperatura', 'fews_nivel_pronostico', 'fews_caudal_pronostico', 'fews_szh_alertas', 'fews_szh_pobs' ), true );
 		return array(
 			'id'              => $id,
 			'name'            => $m['name'],
@@ -334,6 +408,15 @@ final class MAN_Views {
 			'acueductos'         => 'Número de municipios con acueductos en racionamiento por mes del escenario. Modelado.',
 			'hidro_reduccion'    => 'Reducción de generación hidroeléctrica (%) por mes del escenario, asociada al déficit de lluvias. Modelado.',
 			'historico_apis'     => 'Combina, año a año desde 2013, las APIs históricas con datos reales en ese rango: el ONI medio anual de NOAA/CPC y la temperatura media y la precipitación anual de Nariño tomadas del archivo de Open-Meteo (reanálisis ERA5). Como las unidades son distintas (°C de anomalía, °C, mm), cada serie se reescala a un índice 0–100 para poder compararlas en una sola línea; el valor real queda en el tooltip.',
+			'fews_nivel'              => 'Último nivel observado del agua (en metros) en cada estación limnimétrica de Nariño de la red FEWS de IDEAM (ReporteTablaEstaciones.json), ordenado de mayor a menor y limitado a las 15 más altas. Dato en vivo; el umbral de alerta por estación se ve en el mapa [man_estaciones variable="nivel"].',
+			'fews_precipitacion'      => 'Último dato de precipitación acumulada (en milímetros) reportado por las estaciones pluviométricas de Nariño de la red FEWS (ReporteTablaEstacionesPobs.json), las 15 mayores. Dato en vivo.',
+			'fews_caudal'             => 'Último caudal observado (en metros cúbicos por segundo) en las estaciones hidrométricas de Nariño de la red FEWS (ReporteTablaEstacionesQ.json), los 15 mayores. Dato en vivo.',
+			'fews_temperatura'        => 'Última temperatura del aire/agua (en grados Celsius) registrada por las estaciones de Nariño de la red FEWS (ReporteTablaEstacionesTobs.json), las 15 más altas. Dato en vivo.',
+			'fews_nivel_pronostico'   => 'Nivel máximo simulado por el modelo hidrológico FEWS (en metros) para las estaciones de Nariño (ReporteTablaEstacionesHsim.json). Cada estación trae umbrales amarilla/naranja/roja; aquí se grafica el valor pronosticado. Dato en vivo.',
+			'fews_caudal_pronostico'  => 'Caudal máximo simulado por el modelo hidrológico FEWS (en m³/s) para las estaciones de Nariño (ReporteTablaEstacionesQsim.json). Útil para anticipar crecientes. Dato en vivo.',
+			'fews_calidad'            => 'Índice de Calidad del Agua de seis variables (ICA6v, escala 0–1) en las estaciones de la Red de Calidad de IDEAM en Nariño (ReporteTablaEstacionesCalidad.json). Cuanto menor es el índice, peor es la calidad: ≤0,25 muy mala, ≤0,50 mala, ≤0,70 regular, ≤0,90 aceptable, >0,90 buena. Dato en vivo.',
+			'fews_szh_alertas'        => 'Nivel de alerta hidrológica por subzona hidrográfica (SZH de IDEAM) en las cuencas que drenan Nariño: Pacífico sur (Mira, Patía, Tapaje) y nacimiento del Putumayo. Se obtiene de SZH_Alertas.json filtrando las subzonas de esas cuencas (algunas cruzan a Cauca o Putumayo). Capa de ~8 MB cacheada 6 h en el servidor.',
+			'fews_szh_pobs'           => 'Precipitación observada agregada por subzona hidrográfica (SZH de IDEAM) en las cuencas de Nariño (Pacífico sur y alto Putumayo). Se obtiene del mismo payload SZH (campo pobsszh) cacheado 6 h. Permite ver qué cuencas reciben más lluvia, no qué municipio.',
 		);
 		return isset( $map[ $id ] ) ? $map[ $id ] : '';
 	}
@@ -456,6 +539,65 @@ final class MAN_Views {
 			case 'hidro_reduccion':
 				$desc  = 'Serie mensual de planeación (escenario MODELADO). Verificar contra boletines vigentes de IDEAM y NOAA-CPC.';
 				$cuant = $n ? sprintf( 'Serie de %d puntos mensuales.', $n ) : 'Sin datos de semilla disponibles.';
+				break;
+
+			case 'fews_nivel':
+			case 'fews_precipitacion':
+			case 'fews_caudal':
+			case 'fews_temperatura':
+			case 'fews_nivel_pronostico':
+			case 'fews_caudal_pronostico':
+			case 'fews_calidad':
+				$unidades = array(
+					'fews_nivel'             => 'm',
+					'fews_precipitacion'     => 'mm',
+					'fews_caudal'            => 'm³/s',
+					'fews_temperatura'       => '°C',
+					'fews_nivel_pronostico'  => 'm',
+					'fews_caudal_pronostico' => 'm³/s',
+					'fews_calidad'           => 'ICA',
+				);
+				$u    = isset( $unidades[ $id ] ) ? $unidades[ $id ] : '';
+				$desc = 'Estaciones de la red FEWS de IDEAM en Nariño con su último valor; barras coloreadas por magnitud (mapa de calor). Dato en vivo del visor FEWS.';
+				if ( $n ) {
+					$cuant = sprintf(
+						'Mayor valor: %s (%s %s). Se grafican las %d estaciones con dato más alto de la red en Nariño.',
+						$datos[0]['estacion'],
+						number_format_i18n( (float) $datos[0]['valor'], 2 ),
+						$u,
+						$n
+					);
+				} else {
+					$cuant = 'Sin estaciones con dato disponible en esta red para Nariño en este momento.';
+				}
+				break;
+
+			case 'fews_szh_alertas':
+				$desc = 'Nivel de alerta hidrológica por subzona de las cuencas de Nariño (0 = sin alerta; mayor = más crítica). Fuente: capa SZH de IDEAM.';
+				if ( $n ) {
+					$conalerta = 0;
+					foreach ( $datos as $f ) {
+						if ( (int) $f['alerta'] > 0 ) {
+							$conalerta++;
+						}
+					}
+					$cuant = sprintf( '%d de %d subzonas con alerta activa. Mayor nivel: %s (alerta %d).', $conalerta, $n, $datos[0]['subzona'], (int) $datos[0]['alerta'] );
+				} else {
+					$cuant = 'Sin subzonas disponibles (capa SZH no cargada).';
+				}
+				break;
+
+			case 'fews_szh_pobs':
+				$desc = 'Precipitación observada por subzona hidrográfica de las cuencas de Nariño. Fuente: capa SZH de IDEAM (campo pobsszh).';
+				if ( $n ) {
+					$suma = 0.0;
+					foreach ( $datos as $f ) {
+						$suma += (float) $f['precipitacion'];
+					}
+					$cuant = sprintf( 'Subzona con más precipitación: %s (%s). Promedio de %d subzonas: %s.', $datos[0]['subzona'], number_format_i18n( (float) $datos[0]['precipitacion'], 1 ), $n, number_format_i18n( $suma / max( 1, $n ), 1 ) );
+				} else {
+					$cuant = 'Sin subzonas disponibles (capa SZH no cargada).';
+				}
 				break;
 		}
 
@@ -619,8 +761,79 @@ final class MAN_Views {
 			case 'historico_apis':
 				$h = MAN_Rest::construir_historico_apis();
 				return isset( $h['rows'] ) ? $h['rows'] : array();
+
+			case 'fews_nivel':
+				return self::filas_fews_estaciones( 'nivel' );
+			case 'fews_precipitacion':
+				return self::filas_fews_estaciones( 'precipitacion' );
+			case 'fews_caudal':
+				return self::filas_fews_estaciones( 'caudal' );
+			case 'fews_temperatura':
+				return self::filas_fews_estaciones( 'temperatura' );
+			case 'fews_nivel_pronostico':
+				return self::filas_fews_estaciones( 'nivel_pronostico' );
+			case 'fews_caudal_pronostico':
+				return self::filas_fews_estaciones( 'caudal_pronostico' );
+			case 'fews_calidad':
+				return self::filas_fews_estaciones( 'calidad' );
+
+			case 'fews_szh_alertas':
+				$sz   = MAN_Sync_Ideam::subzonas_narino();
+				$rows = array();
+				foreach ( ( isset( $sz['subzonas'] ) ? $sz['subzonas'] : array() ) as $s ) {
+					$rows[] = array( 'subzona' => $s['nombre'], 'alerta' => (int) $s['alerta_nivel'] );
+				}
+				usort( $rows, function ( $a, $b ) {
+					return (int) $b['alerta'] <=> (int) $a['alerta'];
+				} );
+				return $rows;
+
+			case 'fews_szh_pobs':
+				$sz   = MAN_Sync_Ideam::subzonas_narino();
+				$rows = array();
+				foreach ( ( isset( $sz['subzonas'] ) ? $sz['subzonas'] : array() ) as $s ) {
+					$rows[] = array( 'subzona' => $s['nombre'], 'precipitacion' => (float) $s['pobs'] );
+				}
+				usort( $rows, function ( $a, $b ) {
+					return (float) $b['precipitacion'] <=> (float) $a['precipitacion'];
+				} );
+				return $rows;
 		}
 		return array();
+	}
+
+	/**
+	 * Filas {estacion, municipio, valor} de una red FEWS de Nariño, ordenadas
+	 * de mayor a menor y limitadas a 15. Cacheadas 1 h por variable (reutiliza
+	 * la misma clave que la ruta REST de estaciones).
+	 *
+	 * @param string $variable Clave de red FEWS.
+	 * @return array[]
+	 */
+	private static function filas_fews_estaciones( $variable ) {
+		$clave = 'fews_red_' . $variable;
+		$res   = MAN_Cache::get( $clave );
+		if ( ! is_array( $res ) || ! isset( $res['estaciones'] ) ) {
+			$res = MAN_Sync_Ideam::estaciones_narino( $variable );
+			if ( ! empty( $res['ok'] ) ) {
+				MAN_Cache::set( $clave, $res, HOUR_IN_SECONDS, 'ideam' );
+			}
+		}
+		$rows = array();
+		foreach ( ( isset( $res['estaciones'] ) ? $res['estaciones'] : array() ) as $e ) {
+			if ( ! isset( $e['valor'] ) || null === $e['valor'] || ! is_numeric( $e['valor'] ) ) {
+				continue;
+			}
+			$rows[] = array(
+				'estacion'  => $e['estacion'] . ( ! empty( $e['municipio'] ) ? ' (' . $e['municipio'] . ')' : '' ),
+				'municipio' => isset( $e['municipio'] ) ? $e['municipio'] : '',
+				'valor'     => (float) $e['valor'],
+			);
+		}
+		usort( $rows, function ( $a, $b ) {
+			return (float) $b['valor'] <=> (float) $a['valor'];
+		} );
+		return array_slice( $rows, 0, 15 );
 	}
 
 	/**

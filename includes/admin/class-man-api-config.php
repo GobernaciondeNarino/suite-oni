@@ -62,6 +62,11 @@ final class MAN_Api_Config {
 					<?php if ( '' !== $ayuda ) : ?>
 						<p class="description" style="margin-top:-6px"><?php echo wp_kses( $ayuda, array( 'a' => array( 'href' => array(), 'target' => array(), 'rel' => array() ), 'code' => array(), 'strong' => array() ) ); ?></p>
 					<?php endif; ?>
+					<?php
+					if ( 'ideam' === $slug ) {
+						echo self::panel_fews_jsons(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML controlado y escapado dentro del helper.
+					}
+					?>
 
 					<p>
 						<label>Frecuencia
@@ -226,11 +231,158 @@ final class MAN_Api_Config {
 			case 'firms':
 				return 'Consigue una <strong>MAP_KEY gratuita</strong> en <a href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noopener">firms.modaps.eosdis.nasa.gov/api/map_key/</a>. Pega la clave y pulsa <strong>Guardar configuración</strong> ANTES de «Probar» o «Sincronizar»: si pruebas sin guardar, FIRMS responde <code>HTTP 400</code> porque la clave aún va vacía.';
 			case 'ideam':
-				return 'Usa <strong>FEWS de IDEAM</strong> (visorfews): trae las estaciones hidrológicas de Nariño con su nivel actual y umbral de alerta. No requiere clave. El antiguo dataset de datos.gov.co dejó de existir y se reemplazó por esta fuente.';
+				return 'Usa <strong>FEWS de IDEAM</strong> (visorfews): trae las redes de estaciones de Nariño (nivel, precipitación, caudal, temperatura, nivel y caudal pronosticados, calidad del agua) y las subzonas hidrográficas. No requiere clave. El cron sincroniza la red de nivel; las demás se consultan en vivo con caché. El antiguo dataset de datos.gov.co dejó de existir. Revisa cada capa en las pestañas de abajo.';
 			case 'sivigila':
 				return 'El dataset de SIVIGILA en datos.gov.co cambia de identificador con frecuencia y puede no existir. Fija un <code>dataset-id</code> vigente o deja la fuente <strong>inactiva</strong>.';
 			default:
 				return '';
 		}
+	}
+
+	/**
+	 * Metadatos de las 10 capas JSON del visor FEWS de IDEAM, para inspección en
+	 * la tarjeta de la fuente. Coberturas de Nariño verificadas contra la API.
+	 *
+	 * @return array[]
+	 */
+	private static function jsons_fews() {
+		return array(
+			array(
+				'archivo' => 'ReporteTablaEstaciones.json',
+				'titulo'  => 'Nivel de ríos (observado)',
+				'campos'  => 'id, nombre, lat, lng, corriente, municipio, depart, ultimonivelobs/sen, umbralobs/sen',
+				'narino'  => 'Estaciones limnimétricas; se filtran por el campo depart = Nariño. Alerta = nivel ≥ umbral.',
+				'shortcode' => '[man_estaciones variable="nivel"] · [man_grafico view="fews_nivel"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEstacionesPobs.json',
+				'titulo'  => 'Precipitación (observada, mm)',
+				'campos'  => 'id, nombre, lat, lng, municipio, depart, ultimodatoobs/sen',
+				'narino'  => 'Estaciones pluviométricas de Nariño (filtro depart). Sin umbral de alerta.',
+				'shortcode' => '[man_estaciones variable="precipitacion"] · [man_grafico view="fews_precipitacion"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEstacionesQ.json',
+				'titulo'  => 'Caudal (observado, m³/s)',
+				'campos'  => 'id, nombre, lat, lng, corriente, municipio, depart, ultimoqobs/sen',
+				'narino'  => 'Estaciones hidrométricas de Nariño (filtro depart).',
+				'shortcode' => '[man_estaciones variable="caudal"] · [man_grafico view="fews_caudal"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEstacionesTobs.json',
+				'titulo'  => 'Temperatura (observada, °C)',
+				'campos'  => 'id, nombre, lat, lng, municipio, depart, ultimodatoobs/sen',
+				'narino'  => 'Estaciones con sensor de temperatura en Nariño (filtro depart).',
+				'shortcode' => '[man_estaciones variable="temperatura"] · [man_grafico view="fews_temperatura"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEstacionesHsim.json',
+				'titulo'  => 'Nivel pronosticado (simulado, m)',
+				'campos'  => 'id, nombre, maxnivel, uamarilla, unaranja, uroja, municipio, depart',
+				'narino'  => '17 estaciones en Nariño. Alerta graduada amarilla/naranja/roja según maxnivel.',
+				'shortcode' => '[man_estaciones variable="nivel_pronostico"] · [man_grafico view="fews_nivel_pronostico"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEstacionesQsim.json',
+				'titulo'  => 'Caudal pronosticado (simulado, m³/s)',
+				'campos'  => 'id, nombre, maxcaudal, uamarilla, unaranja, uroja, municipio, depart',
+				'narino'  => '12 estaciones en Nariño. Alerta graduada según maxcaudal.',
+				'shortcode' => '[man_estaciones variable="caudal_pronostico"] · [man_grafico view="fews_caudal_pronostico"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEstacionesCalidad.json',
+				'titulo'  => 'Calidad del agua (ICA 0–1)',
+				'campos'  => 'id, nombre, ultimodatoica6v, ultimodatoph/od/turb/tw, subred, municipio, depart',
+				'narino'  => '12 estaciones en Nariño (incl. Laguna de La Cocha). Menor ICA = peor calidad.',
+				'shortcode' => '[man_estaciones variable="calidad"] · [man_grafico view="fews_calidad"]',
+			),
+			array(
+				'archivo' => 'ReporteTablaEmbalsesVolUtil.json',
+				'titulo'  => 'Embalses · volumen útil (no aplica)',
+				'campos'  => 'id, nombre, region, ultimovalor, lat, lng',
+				'narino'  => '25 embalses en el país, 0 en Nariño. El departamento no tiene grandes embalses de regulación.',
+				'shortcode' => '— (sin gráfico departamental)',
+			),
+			array(
+				'archivo' => 'SZH_Alertas.json',
+				'titulo'  => 'Alertas por subzona hidrográfica (~8 MB)',
+				'campos'  => 'SZH, NOMSZH, AH/NOMAH, ZH/NOMZH, Alerta, umbralaler, pobsszh, Fecha',
+				'narino'  => '316 subzonas nacionales (polígonos). Se acotan 16 de las cuencas de Nariño (Pacífico sur 51/52/53 y alto Putumayo 47). Cacheada 6 h.',
+				'shortcode' => '[man_grafico view="fews_szh_alertas"]',
+			),
+			array(
+				'archivo' => 'SZH_Pobs.json',
+				'titulo'  => 'Precipitación por subzona hidrográfica (~8 MB)',
+				'campos'  => 'SZH, NOMSZH, AH/NOMAH, ZH/NOMZH, Alerta, umbralaler, pobsszh, Fecha',
+				'narino'  => 'Mismo payload que SZH_Alertas; se usa el campo pobsszh (precipitación) por subzona de Nariño. Cacheada 6 h.',
+				'shortcode' => '[man_grafico view="fews_szh_pobs"]',
+			),
+		);
+	}
+
+	/**
+	 * Panel con pestañas internas para inspeccionar cada JSON del visor FEWS:
+	 * descripción, campos, cobertura de Nariño, enlace al JSON crudo y shortcodes.
+	 *
+	 * @return string HTML escapado.
+	 */
+	private static function panel_fews_jsons() {
+		$b     = 'https://fews.ideam.gov.co/visorfews/data/';
+		$jsons = self::jsons_fews();
+		ob_start();
+		?>
+		<div class="man-fews-jsons">
+			<style>
+				.man-fews-jsons{margin:10px 0 4px;border:1px solid #dcdcde;border-radius:6px;overflow:hidden}
+				.man-fews-jsons h4{margin:0;padding:8px 10px;background:#f6f7f7;border-bottom:1px solid #dcdcde;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#50575e}
+				.man-fjt-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:#fbfbfc;border-bottom:1px solid #dcdcde}
+				.man-fjt-tab{font-size:11px;padding:3px 8px;border:1px solid #c3c4c7;border-radius:999px;background:#fff;cursor:pointer;color:#1d2327}
+				.man-fjt-tab.activa{background:#2271b1;border-color:#2271b1;color:#fff}
+				.man-fjt-panel{padding:10px 12px;font-size:13px;display:none}
+				.man-fjt-panel.activa{display:block}
+				.man-fjt-panel dt{font-weight:600;color:#50575e;font-size:11px;text-transform:uppercase;letter-spacing:.02em;margin-top:6px}
+				.man-fjt-panel dd{margin:2px 0 0}
+				.man-fjt-panel code{font-size:12px}
+			</style>
+			<h4>Revisar las 10 capas JSON del visor FEWS</h4>
+			<div class="man-fjt-tabs" role="tablist">
+				<?php foreach ( $jsons as $i => $j ) : ?>
+					<button type="button" class="man-fjt-tab<?php echo 0 === $i ? ' activa' : ''; ?>" data-fjt="<?php echo (int) $i; ?>"><?php echo esc_html( $j['titulo'] ); ?></button>
+				<?php endforeach; ?>
+			</div>
+			<?php foreach ( $jsons as $i => $j ) : $url = $b . $j['archivo']; ?>
+				<div class="man-fjt-panel<?php echo 0 === $i ? ' activa' : ''; ?>" data-fjt-panel="<?php echo (int) $i; ?>">
+					<dl>
+						<dt>Endpoint</dt>
+						<dd><a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener"><code><?php echo esc_html( $j['archivo'] ); ?></code></a> — abre el JSON crudo en una pestaña nueva</dd>
+						<dt>Campos clave</dt>
+						<dd><code><?php echo esc_html( $j['campos'] ); ?></code></dd>
+						<dt>Uso para Nariño</dt>
+						<dd><?php echo esc_html( $j['narino'] ); ?></dd>
+						<dt>Shortcodes</dt>
+						<dd><code><?php echo esc_html( $j['shortcode'] ); ?></code></dd>
+					</dl>
+				</div>
+			<?php endforeach; ?>
+			<script>
+			(function(){
+				var raiz = document.currentScript ? document.currentScript.closest('.man-fews-jsons') : null;
+				if (!raiz) { return; }
+				var tabs = raiz.querySelectorAll('.man-fjt-tab');
+				Array.prototype.forEach.call(tabs, function(t){
+					t.addEventListener('click', function(){
+						var idx = t.getAttribute('data-fjt');
+						Array.prototype.forEach.call(tabs, function(x){ x.classList.remove('activa'); });
+						t.classList.add('activa');
+						Array.prototype.forEach.call(raiz.querySelectorAll('.man-fjt-panel'), function(p){
+							p.classList.toggle('activa', p.getAttribute('data-fjt-panel') === idx);
+						});
+					});
+				});
+			})();
+			</script>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 }

@@ -396,8 +396,8 @@ final class MAN_Admin {
 				'intro'     => 'Redes de estaciones de Nariño del Sistema de Alerta Temprana FEWS de IDEAM. Siete redes consultadas en vivo: nivel de ríos (observado, con umbral de alerta), precipitación, caudal, temperatura, nivel pronosticado y caudal pronosticado (con umbrales amarilla/naranja/roja) y calidad del agua (Índice ICA). Clic en una estación muestra su detalle y, cuando aplica, su serie de tiempo. (Embalses: 25 estaciones en el país pero ninguna en Nariño, no aplica. Subzonas SZH_Alertas y SZH_Pobs: polígonos de ~8 MB cada uno; quedan fuera por peso de carga en el front.)',
 				'elementos' => array(
 					$c(
-						'Estaciones hidrológicas (mapa por variable)',
-						'El mismo mapa cambia con el atributo "variable" para recorrer las siete redes FEWS de Nariño. Nivel, precipitación, caudal y temperatura traen serie de tiempo al hacer clic; nivel y caudal pronosticados marcan alerta graduada (amarilla/naranja/roja); calidad colorea por categoría ICA (muy mala→excelente) y muestra el último índice. Incluye descripción y análisis.',
+						'Estaciones hidrológicas (mapa interactivo por variable)',
+						'Mapa que recorre las siete redes FEWS de Nariño con el atributo "variable". Nivel, precipitación, caudal y temperatura traen serie de tiempo al hacer clic; nivel y caudal pronosticados marcan alerta graduada (amarilla/naranja/roja); calidad colorea por categoría ICA y muestra el último índice. Incluye descripción y análisis. Cada red tiene además su tarjeta de gráfico abajo.',
 						array_merge(
 							array(
 								'Nivel de ríos'        => '[man_estaciones variable="nivel"]',
@@ -410,6 +410,22 @@ final class MAN_Admin {
 							),
 							$info( 'estaciones' )
 						)
+					),
+					// Una tarjeta de gráfico por cada API FEWS (gráfico + descripción + análisis cualitativo/cuantitativo).
+					$g( 'fews_nivel', 'bar', 'Nivel de ríos · ReporteTablaEstaciones', 'Último nivel observado (m) por estación de Nariño; barras (top 15) con mapa de calor.' ),
+					$g( 'fews_precipitacion', 'bar', 'Precipitación · ReporteTablaEstacionesPobs', 'Último dato de lluvia (mm) por estación de Nariño; barras (top 15).' ),
+					$g( 'fews_caudal', 'bar', 'Caudal · ReporteTablaEstacionesQ', 'Último caudal observado (m³/s) por estación de Nariño; barras (top 15).' ),
+					$g( 'fews_temperatura', 'bar', 'Temperatura · ReporteTablaEstacionesTobs', 'Última temperatura (°C) por estación de Nariño; barras (top 15).' ),
+					$g( 'fews_nivel_pronostico', 'bar', 'Nivel pronosticado · ReporteTablaEstacionesHsim', 'Nivel máximo simulado (m) por el modelo FEWS en estaciones de Nariño.' ),
+					$g( 'fews_caudal_pronostico', 'bar', 'Caudal pronosticado · ReporteTablaEstacionesQsim', 'Caudal máximo simulado (m³/s) por el modelo FEWS en estaciones de Nariño.' ),
+					$g( 'fews_calidad', 'bar', 'Calidad del agua ICA · ReporteTablaEstacionesCalidad', 'Índice ICA (0–1) por estación de Nariño; menor es peor calidad.' ),
+					$g( 'fews_szh_alertas', 'bar', 'Alertas por subzona · SZH_Alertas', 'Nivel de alerta por subzona hidrográfica de las cuencas de Nariño (Pacífico sur y alto Putumayo). Capa de ~8 MB cacheada 6 h.' ),
+					$g( 'fews_szh_pobs', 'bar', 'Precipitación por subzona · SZH_Pobs', 'Precipitación observada por subzona hidrográfica de las cuencas de Nariño. Mismo payload SZH (campo pobsszh).' ),
+					array(
+						'tipo'   => 'multi',
+						'titulo' => 'Embalses · ReporteTablaEmbalsesVolUtil (no aplica a Nariño)',
+						'desc'   => 'La red de embalses del FEWS tiene 25 estaciones en el país (Betania, Guavio, Chivor, El Peñol, etc.) pero ninguna en Nariño, que no cuenta con grandes embalses de regulación. Por eso no se ofrece un gráfico departamental: se documenta aquí para dejar constancia de que la API fue revisada y queda fuera por no tener datos del departamento.',
+						'piezas' => array(),
 					),
 				),
 			),
