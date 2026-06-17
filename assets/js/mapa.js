@@ -6,7 +6,30 @@
 
   C.ready(function () {
     Array.prototype.forEach.call(document.querySelectorAll('[data-man-mapa]'), init);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-man-mapa-cuant]'), cuant);
   });
+
+  /* [man_mapa_cuantitativo] — cifras del mapa calculadas en vivo desde /departamento. */
+  function cuant(box) {
+    var mes = box.getAttribute('data-mes') || '';
+    C.rest('/departamento', { mes: mes }).then(function (dep) {
+      dep = dep || [];
+      var n = dep.length, niveles = { bajo: 0, medio: 0, alto: 0, extremo: 0 }, suma = 0, top = null;
+      dep.forEach(function (r) {
+        if (niveles[r.nivel] != null) { niveles[r.nivel]++; }
+        suma += +r.riesgo || 0;
+        if (!top || (+r.riesgo || 0) > (+top.riesgo || 0)) { top = r; }
+      });
+      var prom = n ? suma / n : 0;
+      var altos = niveles.alto + niveles.extremo;
+      box.innerHTML = '';
+      box.appendChild(C.el('p', 'man-g__analisis-num',
+        altos + ' de ' + n + ' municipios en riesgo alto o extremo. Promedio departamental: ' + C.num(prom, 2) +
+        ' en una escala de 0 a 1.' + (top ? ' Mayor riesgo: ' + C.esc(top.nombre || top.municipio || '') + ' (' + C.num(top.riesgo, 2) + ').' : '')));
+    }).catch(function () {
+      box.innerHTML = '<p class="man-mute-line">No se pudieron calcular las cifras del mapa.</p>';
+    });
+  }
 
   function init(cont) {
     if (typeof L === 'undefined') { C.error(cont, 'La librería de mapas (Leaflet) no está disponible.'); return; }
@@ -43,6 +66,14 @@
         }).addTo(map);
 
         try { map.fitBounds(capa.getBounds(), { padding: [10, 10] }); } catch (e) { /* ignorado */ }
+
+        // Demarcación del departamento: contorno (disuelto) de Nariño, encima.
+        var deptoUrl = cont.getAttribute('data-geojson-depto');
+        if (deptoUrl) {
+          C.externo(deptoUrl).then(function (dep) {
+            L.geoJSON(dep, { interactive: false, style: { color: '#1a1f2c', weight: 2.5, opacity: 0.95, fill: false } }).addTo(map);
+          }).catch(function () { /* contorno opcional */ });
+        }
       })
       .catch(function () {
         C.error(cont, 'No se pudo cargar el mapa de Nariño.', function () { map.remove(); init(cont); });
@@ -61,6 +92,26 @@
         '<p>Riesgo <span class="man-chip" style="background:' + C.esc(d.color) + '">' + C.esc(d.nivel_etiqueta) + ' · ' + C.num(d.riesgo, 2) + '</span></p>' +
         '<p class="man-analisis">' + C.esc(d.texto_analisis) + '</p>';
       p.innerHTML = html;
+
+      // Gráfico secundario en d3plus: indicadores del municipio.
+      if (d.indicadores && typeof d3plus !== 'undefined' && d3plus.BarChart) {
+        var ind = d.indicadores;
+        var labels = { deficit_hidrico: 'Déficit hídrico', focos_calor: 'Focos de calor', nivel_caudal_pct: 'Caudal (%)', precipitacion_mm: 'Precip. (mm)', area_cultivos_riesgo_pct: 'Cultivos en riesgo (%)' };
+        var rows = [];
+        Object.keys(labels).forEach(function (k) { if (ind[k] != null && !isNaN(+ind[k])) { rows.push({ ind: labels[k], valor: +ind[k] }); } });
+        if (rows.length) {
+          var chartDiv = C.el('div', 'man-mapa__chart');
+          chartDiv.style.minHeight = '210px';
+          p.appendChild(chartDiv);
+          try {
+            new d3plus.BarChart().select(chartDiv).data(rows).groupBy('ind').x('ind').y('valor')
+              .discrete('x').color(function () { return '#0080C3'; })
+              .legend(false).detectResize(true)
+              .xConfig({ title: 'Indicador del municipio' }).yConfig({ title: 'Valor' })
+              .render();
+          } catch (e) { /* si d3plus falla, el panel queda con el texto */ }
+        }
+      }
 
       var mun = C.municipio(div);
       if (mun) {

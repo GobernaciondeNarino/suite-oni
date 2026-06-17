@@ -31,21 +31,12 @@
       chart.style.minHeight = '220px';
       cuerpo.appendChild(chart);
       C.lineaInteractiva(chart, fechas, olas, { area: true, color: '#003087', xTitle: 'Día', yTitle: 'Altura de ola (m)' });
-      var maxOla = Math.max.apply(null, olas.filter(function (v) { return v != null; }));
-      cuerpo.appendChild(C.el('p', 'man-analisis',
-        'Oleaje máximo previsto de ' + C.num(maxOla, 1) + ' m frente a Tumaco. ' +
-        (maxOla >= 2.5 ? 'Condiciones de marejada: precaución para faenas y embarcaciones menores.' : 'Oleaje dentro de rangos habituales.')));
     } else {
       cuerpo.appendChild(C.el('p', 'man-analisis', 'Sin datos de oleaje disponibles en este momento.'));
     }
 
-    if (d.disponible && d.nivel) {
-      var muestras = d.nivel.muestras ? d.nivel.muestras.length : 0;
-      cuerpo.appendChild(C.el('p', 'man-mute-line', 'Nivel del mar (IOC, estación ' + C.esc(d.nivel.estacion || '') + '): ' + C.num(muestras, 0) + ' muestras recientes.'));
-    } else {
-      cuerpo.appendChild(C.el('p', 'man-mute-line', 'Nivel del mar (IOC): fuente no activada todavía en el panel de Fuentes.'));
-    }
-
+    // El texto descriptivo/análisis ya no va aquí: se coloca aparte con
+    // [man_info elemento="mar" tipo="descripcion|analisis"].
     cont.insertBefore(cuerpo, cont.querySelector('.man-fuentes'));
   }
 

@@ -127,11 +127,12 @@ final class MAN_Rest {
 			'args'                => array( 'estacion' => array( 'sanitize_callback' => 'sanitize_text_field' ) ),
 		) );
 
-		// Estaciones hidrológicas IDEAM/FEWS de Nariño (mapa de alertas).
+		// Estaciones hidrológicas IDEAM/FEWS de Nariño (mapa de alertas) por variable.
 		register_rest_route( self::NS, '/estaciones', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_estaciones' ),
 			'permission_callback' => $publico,
+			'args'                => array( 'variable' => array( 'sanitize_callback' => 'sanitize_key' ) ),
 		) );
 		// Serie de tiempo de una estación FEWS (proxy servidor, código validado).
 		register_rest_route( self::NS, '/estacion-serie', array(
@@ -327,15 +328,43 @@ final class MAN_Rest {
 		return rest_ensure_response( self::construir_salud() );
 	}
 
-	/** Estaciones hidrológicas FEWS de Nariño (desde la caché del cron IDEAM). */
-	public function ruta_estaciones() {
-		$cache = MAN_Cache::get( 'ideam_alertas' );
-		$est   = ( is_array( $cache ) && ! empty( $cache['registros'] ) ) ? array_values( $cache['registros'] ) : array();
-		return rest_ensure_response( array(
-			'estaciones'  => $est,
-			'actualizado' => isset( $cache['actualizado'] ) ? $cache['actualizado'] : null,
-			'fuente'      => 'IDEAM — FEWS (visorfews)',
-		) );
+	/** Estaciones hidrológicas FEWS de Nariño por variable (nivel/precipitación/caudal/temperatura). */
+	public function ruta_estaciones( $req = null ) {
+		$redes    = MAN_Sync_Ideam::redes();
+		$variable = $req ? sanitize_key( (string) $req->get_param( 'variable' ) ) : 'nivel';
+		if ( ! isset( $redes[ $variable ] ) ) {
+			$variable = 'nivel';
+		}
+
+		// Nivel: usa la caché del cron (rápida). Otras variables: fetch + caché propia.
+		if ( 'nivel' === $variable ) {
+			$cache = MAN_Cache::get( 'ideam_alertas' );
+			$est   = ( is_array( $cache ) && ! empty( $cache['registros'] ) ) ? array_values( $cache['registros'] ) : array();
+			$act   = isset( $cache['actualizado'] ) ? $cache['actualizado'] : null;
+			// Si el cron aún no corrió, intenta poblarla en vivo.
+			if ( empty( $est ) ) {
+				$res = MAN_Sync_Ideam::estaciones_narino( 'nivel' );
+				$est = $res['estaciones'];
+			}
+			return rest_ensure_response( array( 'variable' => 'nivel', 'estaciones' => $est, 'actualizado' => $act, 'fuente' => 'IDEAM — FEWS · Nivel de ríos' ) );
+		}
+
+		$clave    = 'fews_red_' . $variable;
+		$cacheada = MAN_Cache::get( $clave );
+		if ( is_array( $cacheada ) && ! empty( $cacheada['estaciones'] ) ) {
+			return rest_ensure_response( $cacheada );
+		}
+		$res    = MAN_Sync_Ideam::estaciones_narino( $variable );
+		$salida = array(
+			'variable'    => $variable,
+			'estaciones'  => $res['estaciones'],
+			'actualizado' => current_time( 'mysql', true ),
+			'fuente'      => isset( $res['fuente'] ) ? $res['fuente'] : 'IDEAM — FEWS',
+		);
+		if ( ! empty( $res['estaciones'] ) ) {
+			MAN_Cache::set( $clave, $salida, 3600, 'ideam' ); // 1 h.
+		}
+		return rest_ensure_response( $salida );
 	}
 
 	/** Serie de tiempo de una estación FEWS (proxy servidor; código validado). */
@@ -345,23 +374,11 @@ final class MAN_Rest {
 		if ( ! in_array( $tipo, array( 'H', 'P', 'T', 'Q' ), true ) ) {
 			$tipo = 'H';
 		}
-		if ( '' === $cod ) {
-			return new \WP_Error( 'man_cod', 'Código de estación requerido.', array( 'status' => 400 ) );
-		}
-
-		// Seguridad: solo se permiten códigos de estaciones de Nariño cacheadas.
-		$cache  = MAN_Cache::get( 'ideam_alertas' );
-		$valido = false;
-		if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
-			foreach ( $cache['registros'] as $e ) {
-				if ( isset( $e['id'] ) && preg_replace( '/[^0-9]/', '', (string) $e['id'] ) === $cod ) {
-					$valido = true;
-					break;
-				}
-			}
-		}
-		if ( ! $valido ) {
-			return new \WP_Error( 'man_cod', 'Estación no reconocida.', array( 'status' => 404 ) );
+		// Seguridad anti-SSRF: el código es SOLO dígitos de longitud plausible
+		// (6–12), el host y la ruta están fijos y el tipo está en lista blanca,
+		// de modo que no se puede redirigir la petición a otro destino.
+		if ( strlen( $cod ) < 6 || strlen( $cod ) > 12 ) {
+			return new \WP_Error( 'man_cod', 'Código de estación inválido.', array( 'status' => 400 ) );
 		}
 
 		$clave    = 'fews_serie_' . $tipo . '_' . $cod;

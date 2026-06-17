@@ -391,12 +391,20 @@ final class MAN_Admin {
 			),
 			'ideam'      => array(
 				'etiqueta'  => 'IDEAM (FEWS)',
-				'intro'     => 'Estaciones hidrológicas de Nariño del Sistema de Alerta Temprana FEWS de IDEAM, con nivel de río, umbral de alerta y serie de tiempo por estación.',
+				'intro'     => 'Redes de estaciones de Nariño del Sistema de Alerta Temprana FEWS de IDEAM: nivel de ríos (con umbral de alerta), precipitación, caudal y temperatura. Clic en una estación muestra su detalle y la serie de tiempo. (Embalses no tiene estaciones en Nariño; las subzonas SZH son polígonos de 8 MB y no se incluyen.)',
 				'elementos' => array(
 					$c(
-						'Estaciones hidrológicas (mapa)',
-						'Mapa de las estaciones FEWS de Nariño con marcadores por nivel de alerta; clic en una muestra su detalle y la serie de nivel del río. Con su descripción y análisis.',
-						array_merge( array( 'Mapa de estaciones' => '[man_estaciones]' ), $info( 'estaciones' ) )
+						'Estaciones hidrológicas (mapa por variable)',
+						'Mismo mapa, cambiando el atributo "variable": nivel de ríos (con alertas), precipitación, caudal o temperatura. Clic en una estación abre su detalle y su serie de tiempo. Incluye descripción y análisis.',
+						array_merge(
+							array(
+								'Nivel de ríos'  => '[man_estaciones variable="nivel"]',
+								'Precipitación'  => '[man_estaciones variable="precipitacion"]',
+								'Caudal'         => '[man_estaciones variable="caudal"]',
+								'Temperatura'    => '[man_estaciones variable="temperatura"]',
+							),
+							$info( 'estaciones' )
+						)
 					),
 				),
 			),
@@ -421,7 +429,16 @@ final class MAN_Admin {
 					$g( 'cultivos_riesgo', 'line', 'Cultivos en riesgo', 'Derivado del déficit hídrico + escenario.' ),
 					$g( 'acueductos', 'bar', 'Acueductos en racionamiento', 'Escenario de recursos por mes.' ),
 					$g( 'hidro_reduccion', 'line', 'Reducción hidroeléctrica', 'Escenario de recursos por mes.' ),
-					$s( 'man_mapa', 'Mapa coroplético', '64 municipios por variable (NOAA + IDEAM + escenario).', '[man_mapa variable="riesgo" mes="2026-10"]', array( '<code>variable</code>', '<code>mes</code>' ) ),
+					$c(
+						'Mapa coroplético de Nariño',
+						'Mapa de los 64 municipios por variable (riesgo / anomalía / precipitación) con la demarcación del departamento; clic en un municipio abre su panel con gráfico d3plus. Incluye descripción, análisis cualitativo y análisis cuantitativo (cifras en vivo).',
+						array(
+							'Mapa'                  => '[man_mapa variable="riesgo" mes="2026-10"]',
+							'Descripción'           => '[man_mapa_descripcion variable="riesgo"]',
+							'Análisis cualitativo'  => '[man_mapa_analisis variable="riesgo"]',
+							'Análisis cuantitativo' => '[man_mapa_cuantitativo mes="2026-10"]',
+						)
+					),
 					$c(
 						'Descarga de datos abiertos',
 						'Botones para descargar JSON/CSV, ver la API y copiar la URL (CC BY 4.0). Con su descripción y análisis.',
