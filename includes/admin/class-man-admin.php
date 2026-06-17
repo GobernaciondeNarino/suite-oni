@@ -429,7 +429,16 @@ final class MAN_Admin {
 					$g( 'cultivos_riesgo', 'line', 'Cultivos en riesgo', 'Derivado del déficit hídrico + escenario.' ),
 					$g( 'acueductos', 'bar', 'Acueductos en racionamiento', 'Escenario de recursos por mes.' ),
 					$g( 'hidro_reduccion', 'line', 'Reducción hidroeléctrica', 'Escenario de recursos por mes.' ),
-					$s( 'man_mapa', 'Mapa coroplético', '64 municipios por variable (NOAA + IDEAM + escenario).', '[man_mapa variable="riesgo" mes="2026-10"]', array( '<code>variable</code>', '<code>mes</code>' ) ),
+					$c(
+						'Mapa coroplético de Nariño',
+						'Mapa de los 64 municipios por variable (riesgo / anomalía / precipitación) con la demarcación del departamento; clic en un municipio abre su panel con gráfico d3plus. Incluye descripción, análisis cualitativo y análisis cuantitativo (cifras en vivo).',
+						array(
+							'Mapa'                  => '[man_mapa variable="riesgo" mes="2026-10"]',
+							'Descripción'           => '[man_mapa_descripcion variable="riesgo"]',
+							'Análisis cualitativo'  => '[man_mapa_analisis variable="riesgo"]',
+							'Análisis cuantitativo' => '[man_mapa_cuantitativo mes="2026-10"]',
+						)
+					),
 					$c(
 						'Descarga de datos abiertos',
 						'Botones para descargar JSON/CSV, ver la API y copiar la URL (CC BY 4.0). Con su descripción y análisis.',

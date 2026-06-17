@@ -63,6 +63,7 @@ final class MAN_Shortcodes {
 		// Descripción y análisis del mapa coroplético (texto, sin el mapa).
 		add_shortcode( 'man_mapa_descripcion', array( $this, 'sc_mapa_descripcion' ) );
 		add_shortcode( 'man_mapa_analisis', array( $this, 'sc_mapa_analisis' ) );
+		add_shortcode( 'man_mapa_cuantitativo', array( $this, 'sc_mapa_cuantitativo' ) );
 		// Descripción/análisis de los componentes (estado, pronóstico, hídrico, mar, salud, globo…).
 		add_shortcode( 'man_info', array( $this, 'sc_info' ) );
 		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
@@ -218,6 +219,7 @@ final class MAN_Shortcodes {
 
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_style( 'leaflet' );
+		wp_enqueue_script( 'd3plus' );
 		wp_enqueue_script( 'man-mapa' );
 
 		$id  = $this->id();
@@ -232,7 +234,8 @@ final class MAN_Shortcodes {
 			data-man-mapa
 			data-variable="<?php echo esc_attr( $var ); ?>"
 			data-mes="<?php echo esc_attr( $mes ); ?>"
-			data-geojson="<?php echo esc_url( MAN_URL . 'data/narino_municipios.geojson' ); ?>">
+			data-geojson="<?php echo esc_url( MAN_URL . 'data/narino_municipios.geojson' ); ?>"
+			data-geojson-depto="<?php echo esc_url( MAN_URL . 'data/narino_departamento.geojson' ); ?>">
 			<div class="man-mapa__lienzo" role="application" aria-label="Mapa coroplético de los municipios de Nariño"></div>
 			<div class="man-mapa__panel" hidden></div>
 			<?php echo $this->skeleton( 'Cargando mapa…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
@@ -672,6 +675,29 @@ final class MAN_Shortcodes {
 		$atts = $this->fusionar( array( 'variable' => 'riesgo', 'mes' => '' ), $atts, 'man_mapa_analisis' );
 		wp_enqueue_style( 'man-estilos' );
 		return $this->bloque_texto_mapa( $atts, 'analisis' );
+	}
+
+	/**
+	 * [man_mapa_cuantitativo] — análisis CUANTITATIVO del mapa con cifras en vivo
+	 * (nº de municipios por nivel, promedio departamental, municipio más expuesto),
+	 * calculadas en el navegador desde /departamento.
+	 */
+	public function sc_mapa_cuantitativo( $atts ) {
+		$atts = $this->fusionar( array( 'mes' => gmdate( 'Y-m' ) ), $atts, 'man_mapa_cuantitativo' );
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_style( 'leaflet' );
+		wp_enqueue_script( 'man-mapa' );
+		$id  = $this->id();
+		$mes = MAN_Security::sanitizar_mes( $atts['mes'] );
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="man man-analisis-bloque"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-mapa-cuant data-mes="<?php echo esc_attr( $mes ); ?>" aria-live="polite">
+			<?php echo $this->skeleton( 'Calculando cifras del mapa…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 
 	/**
