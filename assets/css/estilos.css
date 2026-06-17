@@ -113,6 +113,10 @@
 .man-estaciones__serie-titulo { font-size: .8rem; color: #4a5568; margin: .4rem 0 .2rem; font-weight: 600; }
 .man-estaciones__serie svg { max-width: 100%; height: auto; }
 
+/* --- [man_seccion] párrafo de presentación bajo el título --- */
+.man-seccion-intro { max-width: var(--man-ancho-max, 100%); }
+.man-seccion-intro__p { margin: 0; line-height: 1.65; color: var(--man-texto, inherit); text-align: justify; }
+
 /* Toolbar flotante semitransparente sobre el globo. */
 .man-globo__controles {
   position: absolute; top: 10px; left: 10px; right: 10px; z-index: 4;

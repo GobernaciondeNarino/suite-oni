@@ -169,7 +169,9 @@ final class MAN_Admin {
 
 			<?php foreach ( $keys as $i => $k ) : $api = $apis[ $k ]; $pid = 'man-api-' . sanitize_title( $k ); ?>
 				<div class="man-el-panel" id="<?php echo esc_attr( $pid ); ?>"<?php echo 0 === $i ? '' : ' style="display:none"'; ?>>
-					<p class="man-el-api-intro"><?php echo esc_html( $api['intro'] ); ?></p>
+					<?php $seccion_txt = MAN_Shortcodes::seccion_texto( $k ); ?>
+					<p class="man-el-api-intro"><?php echo esc_html( '' !== $seccion_txt ? $seccion_txt : $api['intro'] ); ?></p>
+					<p class="description" style="margin:.2rem 0 0">Publica este párrafo en tu página con <code><?php echo esc_html( '[man_seccion seccion="' . $k . '"]' ); ?></code></p>
 					<div class="man-el-grid">
 						<?php foreach ( $api['elementos'] as $el ) { $this->tarjeta_elemento( $el ); } ?>
 					</div>
