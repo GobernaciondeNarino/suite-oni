@@ -205,6 +205,10 @@
       var ms = (yField === '_value') ? ['_value'] : measures;
       ms.forEach(function (m) { t.push([etiqueta(m), function (r) { return fmt(r[m]); }]); });
       if (ms.indexOf('oni') >= 0) { t.push(['Fase', function (r) { return faseOni(r.oni); }]); }
+      // Valor real (p. ej. en vistas con índice normalizado como historico_apis).
+      if (plotData && plotData.length && plotData[0] && plotData[0].real != null) {
+        t.push(['Valor real', function (r) { return r.real != null ? fmt(r.real) : ''; }]);
+      }
       return t;
     }
     if (['bar', 'stacked_bar', 'line', 'area', 'stacked_area', 'box_whisker'].indexOf(key) >= 0) {
