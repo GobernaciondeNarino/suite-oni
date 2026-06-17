@@ -59,6 +59,7 @@ final class MAN_Shortcodes {
 		// Variantes con selector de municipio.
 		add_shortcode( 'man_pronostico_select', array( $this, 'sc_pronostico_select' ) );
 		add_shortcode( 'man_hidrico_select', array( $this, 'sc_hidrico_select' ) );
+		add_shortcode( 'man_estado_select', array( $this, 'sc_estado_select' ) );
 		// Descripción y análisis del mapa coroplético (texto, sin el mapa).
 		add_shortcode( 'man_mapa_descripcion', array( $this, 'sc_mapa_descripcion' ) );
 		add_shortcode( 'man_mapa_analisis', array( $this, 'sc_mapa_analisis' ) );
@@ -592,6 +593,37 @@ final class MAN_Shortcodes {
 				data-municipio="<?php echo esc_attr( $sel ); ?>">
 				<?php echo $this->skeleton( 'Cargando información hídrica…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 				<?php echo $this->pie_fuentes( 'Open-Meteo Flood (GloFAS) · Open-Meteo (CC BY 4.0)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			</div>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_estado_select] — semáforo/estado ENSO con un <select> de los 64
+	 * municipios que recarga el componente al cambiar (AJAX, sin recargar).
+	 */
+	public function sc_estado_select( $atts ) {
+		$atts = $this->fusionar( array( 'municipio' => '52001' ), $atts, 'man_estado_select' );
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-estado' );
+		wp_enqueue_script( 'man-muni-select' );
+
+		$sel = MAN_Security::sanitizar_divipola( $atts['municipio'] );
+		if ( 'departamento' === $sel || ! MAN_Municipios::existe( $sel ) ) {
+			$sel = '52001';
+		}
+		$id  = $this->id();
+		$cid = $id . '-comp';
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="man man-muni-wrap"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>">
+			<?php echo $this->select_municipio( $cid, $sel ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<div id="<?php echo esc_attr( $cid ); ?>" class="man-muni-target" data-man-estado
+				data-municipio="<?php echo esc_attr( $sel ); ?>">
+				<?php echo $this->skeleton( 'Cargando estado del fenómeno…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</div>
 		</div>
 		<?php

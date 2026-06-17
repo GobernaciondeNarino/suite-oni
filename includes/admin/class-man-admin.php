@@ -277,6 +277,7 @@ final class MAN_Admin {
 					$g( 'prob_fase', 'stacked_bar', 'Probabilidad de fase', 'El Niño / Neutral / La Niña por trimestre.' ),
 					$g( 'episodios', 'bar', 'Episodios históricos', 'ONI pico de los eventos 2015–2024.' ),
 					$s( 'man_estado', 'Estado actual', 'Semáforo ENSO + ONI vigente, fase e intensidad.', '[man_estado municipio="departamento"]', array( '<code>municipio</code>', '<code>compacto</code>' ) ),
+					$s( 'man_estado_select', 'Estado actual · con selector', 'Igual que el estado actual pero con un menú de los 64 municipios que recarga el dato sin recargar la página.', '[man_estado_select municipio="52001"]', array( '<code>municipio</code> (inicial)' ) ),
 					$s( 'man_prediccion', 'Predicción ENSO (todo en uno)', 'Trayectoria del ONI con banda de incertidumbre y probabilidad por trimestre. O úsala en piezas separadas (abajo).', '[man_prediccion hasta="2027-02"]', array( '<code>hasta</code>', '<code>partes</code>' ) ),
 					$s( 'man_prediccion_grafico', 'Predicción · solo gráfico', 'La gráfica de la trayectoria del ONI, sin textos.', '[man_prediccion_grafico hasta="2027-02"]', array( '<code>hasta</code>' ) ),
 					$s( 'man_prediccion_descripcion', 'Predicción · cifras clave', 'Título y chips: estado actual, pico previsto y valor objetivo.', '[man_prediccion_descripcion hasta="2027-02"]', array( '<code>hasta</code>' ) ),
@@ -295,7 +296,9 @@ final class MAN_Admin {
 					$g( 'deficit_serie', 'line', 'Déficit hídrico mensual', 'Serie del escenario de planeación.' ),
 					$g( 'precip_caudal', 'line', 'Precipitación y caudal', 'Dos series mensuales superpuestas.' ),
 					$s( 'man_pronostico', 'Pronóstico 7–16 días', 'Pronóstico en vivo por municipio con gráfico y texto.', '[man_pronostico municipio="52001" dias="14"]', array( '<code>municipio</code>', '<code>dias</code>' ) ),
+					$s( 'man_pronostico_select', 'Pronóstico · con selector', 'Pronóstico con menú de los 64 municipios que recarga el gráfico por AJAX.', '[man_pronostico_select municipio="52001" dias="14"]', array( '<code>municipio</code> (inicial)', '<code>dias</code>' ) ),
 					$s( 'man_hidrico', 'Recursos hídricos', 'Caudal de ríos (GloFAS) y humedad de suelo.', '[man_hidrico municipio="52001"]', array( '<code>municipio</code>' ) ),
+					$s( 'man_hidrico_select', 'Recursos hídricos · con selector', 'Recursos hídricos con menú de los 64 municipios que recarga por AJAX.', '[man_hidrico_select municipio="52001"]', array( '<code>municipio</code> (inicial)' ) ),
 				),
 			),
 			'firms'      => array(

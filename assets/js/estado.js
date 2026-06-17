@@ -5,7 +5,11 @@
   var NS = 'http://www.w3.org/2000/svg';
 
   C.ready(function () {
-    Array.prototype.forEach.call(document.querySelectorAll('[data-man-estado]'), cargar);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-man-estado]'), function (cont) {
+      cargar(cont);
+      // Permite recargar con otro municipio (lo usa [man_estado_select]).
+      cont.addEventListener('man:recargar', function () { cargar(cont); });
+    });
   });
 
   function cargar(cont) {
