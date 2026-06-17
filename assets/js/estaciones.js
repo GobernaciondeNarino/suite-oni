@@ -11,7 +11,8 @@
 
   function init(cont) {
     if (typeof L === 'undefined') { C.error(cont, 'Mapa no disponible (Leaflet).'); return; }
-    C.rest('/estaciones')
+    var variable = cont.getAttribute('data-variable') || 'nivel';
+    C.rest('/estaciones', { variable: variable })
       .then(function (d) { montar(cont, (d && d.estaciones) || []); })
       .catch(function () { C.error(cont, 'No se pudieron cargar las estaciones IDEAM/FEWS.', function () { init(cont); }); });
   }
@@ -42,29 +43,31 @@
 
   function detalle(info, e) {
     info.innerHTML = '';
+    var u = e.unidad || '';
     info.appendChild(C.el('p', 'man-estaciones__nombre', C.esc(e.estacion || 'Estación')));
     info.appendChild(C.el('p', 'man-estaciones__meta',
       (e.corriente ? 'Río ' + C.esc(e.corriente) + ' · ' : '') + C.esc(e.municipio || '') + ' · alerta: ' + C.esc(e.nivel_alerta || '—')));
-    if (e.nivel != null) {
+    if (e.valor != null) {
       info.appendChild(C.el('p', 'man-estaciones__nivel',
-        'Nivel actual: ' + C.num(e.nivel, 2) + ' m' + (e.umbral != null ? ' · umbral ' + C.num(e.umbral, 2) + ' m' : '')));
+        'Último valor: ' + C.num(e.valor, 2) + ' ' + C.esc(u) + (e.umbral != null ? ' · umbral ' + C.num(e.umbral, 2) + ' ' + C.esc(u) : '')));
     }
     var lienzo = C.el('div', 'man-estaciones__serie');
     info.appendChild(lienzo);
-    cargarSerie(lienzo, e.id);
+    cargarSerie(lienzo, e.id, e.tipo_serie || 'H');
   }
 
-  function cargarSerie(lienzo, cod) {
+  function cargarSerie(lienzo, cod, tipo) {
     if (!cod) { lienzo.appendChild(C.el('p', 'man-mute-line', 'Estación sin código de serie.')); return; }
-    lienzo.appendChild(C.el('p', 'man-mute-line', 'Cargando serie de nivel…'));
-    C.rest('/estacion-serie', { cod: cod, tipo: 'H' })
+    lienzo.appendChild(C.el('p', 'man-mute-line', 'Cargando serie…'));
+    C.rest('/estacion-serie', { cod: cod, tipo: tipo || 'H' })
       .then(function (d) {
         lienzo.innerHTML = '';
         var series = (d && d.series) || [];
         var s = null;
         series.forEach(function (x) {
-          if (!s && x.datos && x.datos.length) { s = x; }
-          if (x.clave === 'Hsen' && x.datos && x.datos.length) { s = x; }
+          if (!x.datos || !x.datos.length) { return; }
+          if (!s) { s = x; }
+          if (x.clave.charAt(0) === (tipo || 'H')) { s = x; } // prefiere la serie del tipo pedido
         });
         if (!s) { lienzo.appendChild(C.el('p', 'man-mute-line', 'Sin serie de nivel disponible para esta estación.')); return; }
         lienzo.appendChild(C.el('p', 'man-estaciones__serie-titulo', C.esc(s.label)));

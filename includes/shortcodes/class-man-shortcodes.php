@@ -1212,16 +1212,18 @@ final class MAN_Shortcodes {
 	 * serie de nivel de la estación.
 	 */
 	public function sc_estaciones( $atts ) {
-		$atts = $this->fusionar( array( 'alto' => '460px' ), $atts, 'man_estaciones' );
+		$atts = $this->fusionar( array( 'alto' => '460px', 'variable' => 'nivel' ), $atts, 'man_estaciones' );
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_style( 'leaflet' );
 		wp_enqueue_script( 'man-estaciones' );
 		$id   = $this->id();
 		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '460px';
+		$var  = in_array( $atts['variable'], array( 'nivel', 'precipitacion', 'caudal', 'temperatura' ), true ) ? $atts['variable'] : 'nivel';
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>" class="man man-estaciones"
-			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-estaciones>
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-estaciones
+			data-variable="<?php echo esc_attr( $var ); ?>">
 			<div class="man-estaciones__mapa" style="height:<?php echo esc_attr( $alto ); ?>"></div>
 			<div class="man-estaciones__info"></div>
 			<?php echo $this->skeleton( 'Cargando estaciones IDEAM/FEWS…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>

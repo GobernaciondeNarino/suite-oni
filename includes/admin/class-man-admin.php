@@ -391,12 +391,20 @@ final class MAN_Admin {
 			),
 			'ideam'      => array(
 				'etiqueta'  => 'IDEAM (FEWS)',
-				'intro'     => 'Estaciones hidrológicas de Nariño del Sistema de Alerta Temprana FEWS de IDEAM, con nivel de río, umbral de alerta y serie de tiempo por estación.',
+				'intro'     => 'Redes de estaciones de Nariño del Sistema de Alerta Temprana FEWS de IDEAM: nivel de ríos (con umbral de alerta), precipitación, caudal y temperatura. Clic en una estación muestra su detalle y la serie de tiempo. (Embalses no tiene estaciones en Nariño; las subzonas SZH son polígonos de 8 MB y no se incluyen.)',
 				'elementos' => array(
 					$c(
-						'Estaciones hidrológicas (mapa)',
-						'Mapa de las estaciones FEWS de Nariño con marcadores por nivel de alerta; clic en una muestra su detalle y la serie de nivel del río. Con su descripción y análisis.',
-						array_merge( array( 'Mapa de estaciones' => '[man_estaciones]' ), $info( 'estaciones' ) )
+						'Estaciones hidrológicas (mapa por variable)',
+						'Mismo mapa, cambiando el atributo "variable": nivel de ríos (con alertas), precipitación, caudal o temperatura. Clic en una estación abre su detalle y su serie de tiempo. Incluye descripción y análisis.',
+						array_merge(
+							array(
+								'Nivel de ríos'  => '[man_estaciones variable="nivel"]',
+								'Precipitación'  => '[man_estaciones variable="precipitacion"]',
+								'Caudal'         => '[man_estaciones variable="caudal"]',
+								'Temperatura'    => '[man_estaciones variable="temperatura"]',
+							),
+							$info( 'estaciones' )
+						)
 					),
 				),
 			),
