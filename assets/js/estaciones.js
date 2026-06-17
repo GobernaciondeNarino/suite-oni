@@ -28,6 +28,22 @@
     var map = L.map(mapEl, { scrollWheelZoom: false }).setView([1.3, -77.7], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 14 }).addTo(map);
 
+    // Capa de límites debajo de los marcadores (no intercepta los clics).
+    map.createPane('manLimites');
+    map.getPane('manLimites').style.zIndex = 350;
+    var geoMun = cont.getAttribute('data-geojson');
+    if (geoMun) {
+      C.externo(geoMun).then(function (geo) {
+        L.geoJSON(geo, { pane: 'manLimites', interactive: false, style: { color: '#6b7280', weight: 0.8, opacity: 0.6, fill: false } }).addTo(map);
+      }).catch(function () { /* límites opcionales */ });
+    }
+    var geoDep = cont.getAttribute('data-geojson-depto');
+    if (geoDep) {
+      C.externo(geoDep).then(function (dep) {
+        L.geoJSON(dep, { pane: 'manLimites', interactive: false, style: { color: '#1a1f2c', weight: 2.5, opacity: 0.95, fill: false } }).addTo(map);
+      }).catch(function () { /* demarcación opcional */ });
+    }
+
     var puntos = [];
     estaciones.forEach(function (e) {
       if (e.lat == null || e.lng == null) { return; }
@@ -69,14 +85,33 @@
           if (!s) { s = x; }
           if (x.clave.charAt(0) === (tipo || 'H')) { s = x; } // prefiere la serie del tipo pedido
         });
-        if (!s) { lienzo.appendChild(C.el('p', 'man-mute-line', 'Sin serie de nivel disponible para esta estación.')); return; }
+        if (!s) { lienzo.appendChild(C.el('p', 'man-mute-line', 'Sin serie disponible para esta estación.')); return; }
         lienzo.appendChild(C.el('p', 'man-estaciones__serie-titulo', C.esc(s.label)));
+
+        var chartDiv = C.el('div', 'man-estaciones__chart');
+        chartDiv.style.minHeight = '230px';
+        lienzo.appendChild(chartDiv);
+
+        // Gráfico secundario en D3plus.
+        if (typeof d3plus !== 'undefined' && d3plus.LinePlot) {
+          try {
+            new d3plus.LinePlot()
+              .select(chartDiv).data(s.datos)
+              .groupBy(function () { return s.label; }).x('fecha').y('valor')
+              .color(function () { return '#0080C3'; })
+              .legend(false).detectResize(true)
+              .xConfig({ title: 'Fecha' }).yConfig({ title: s.label })
+              .tooltipConfig({ tbody: [['Fecha', function (d) { return d.fecha; }], [s.label, function (d) { return d.valor; }]] })
+              .render();
+            return;
+          } catch (e) { /* cae a SVG */ }
+        }
         var vals = s.datos.map(function (p) { return p.valor; });
         var fechas = s.datos.map(function (p) { return p.fecha; });
         if (typeof C.lineaSimple === 'function') {
-          lienzo.appendChild(C.lineaSimple(fechas, vals, { area: true, color: '#0080C3' }));
+          chartDiv.appendChild(C.lineaSimple(fechas, vals, { area: true, color: '#0080C3' }));
         } else {
-          lienzo.appendChild(svgLinea(vals, '#0080C3'));
+          chartDiv.appendChild(svgLinea(vals, '#0080C3'));
         }
       })
       .catch(function () {
