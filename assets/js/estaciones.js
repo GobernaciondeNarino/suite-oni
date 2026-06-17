@@ -1,0 +1,105 @@
+/* [man_estaciones] — estaciones hidrológicas IDEAM/FEWS de Nariño.
+   Mapa Leaflet con marcadores por nivel de alerta; al hacer clic en una
+   estación muestra su detalle y la serie de nivel (proxy REST del plugin). */
+(function () {
+  'use strict';
+  var C = window.MANcore;
+
+  C.ready(function () {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-man-estaciones]'), init);
+  });
+
+  function init(cont) {
+    if (typeof L === 'undefined') { C.error(cont, 'Mapa no disponible (Leaflet).'); return; }
+    C.rest('/estaciones')
+      .then(function (d) { montar(cont, (d && d.estaciones) || []); })
+      .catch(function () { C.error(cont, 'No se pudieron cargar las estaciones IDEAM/FEWS.', function () { init(cont); }); });
+  }
+
+  function colorAlerta(a) { return a === 'alta' ? '#C0392B' : (a === 'media' ? '#F1C40F' : '#2ECC71'); }
+
+  function montar(cont, estaciones) {
+    C.quitarSkeleton(cont);
+    var mapEl = cont.querySelector('.man-estaciones__mapa');
+    var info = cont.querySelector('.man-estaciones__info');
+    if (!mapEl || !info) { return; }
+
+    var map = L.map(mapEl, { scrollWheelZoom: false }).setView([1.3, -77.7], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 14 }).addTo(map);
+
+    var puntos = [];
+    estaciones.forEach(function (e) {
+      if (e.lat == null || e.lng == null) { return; }
+      var m = L.circleMarker([e.lat, e.lng], { radius: 7, color: '#fff', weight: 1.5, fillColor: colorAlerta(e.nivel_alerta), fillOpacity: 0.9 }).addTo(map);
+      m.bindTooltip(C.esc(e.estacion || '') + (e.corriente ? ' · río ' + C.esc(e.corriente) : ''));
+      m.on('click', function () { detalle(info, e); });
+      puntos.push([e.lat, e.lng]);
+    });
+    if (puntos.length) { map.fitBounds(puntos, { padding: [20, 20], maxZoom: 9 }); }
+    if (estaciones.length) { detalle(info, estaciones[0]); }
+    setTimeout(function () { map.invalidateSize(); }, 250);
+  }
+
+  function detalle(info, e) {
+    info.innerHTML = '';
+    info.appendChild(C.el('p', 'man-estaciones__nombre', C.esc(e.estacion || 'Estación')));
+    info.appendChild(C.el('p', 'man-estaciones__meta',
+      (e.corriente ? 'Río ' + C.esc(e.corriente) + ' · ' : '') + C.esc(e.municipio || '') + ' · alerta: ' + C.esc(e.nivel_alerta || '—')));
+    if (e.nivel != null) {
+      info.appendChild(C.el('p', 'man-estaciones__nivel',
+        'Nivel actual: ' + C.num(e.nivel, 2) + ' m' + (e.umbral != null ? ' · umbral ' + C.num(e.umbral, 2) + ' m' : '')));
+    }
+    var lienzo = C.el('div', 'man-estaciones__serie');
+    info.appendChild(lienzo);
+    cargarSerie(lienzo, e.id);
+  }
+
+  function cargarSerie(lienzo, cod) {
+    if (!cod) { lienzo.appendChild(C.el('p', 'man-mute-line', 'Estación sin código de serie.')); return; }
+    lienzo.appendChild(C.el('p', 'man-mute-line', 'Cargando serie de nivel…'));
+    C.rest('/estacion-serie', { cod: cod, tipo: 'H' })
+      .then(function (d) {
+        lienzo.innerHTML = '';
+        var series = (d && d.series) || [];
+        var s = null;
+        series.forEach(function (x) {
+          if (!s && x.datos && x.datos.length) { s = x; }
+          if (x.clave === 'Hsen' && x.datos && x.datos.length) { s = x; }
+        });
+        if (!s) { lienzo.appendChild(C.el('p', 'man-mute-line', 'Sin serie de nivel disponible para esta estación.')); return; }
+        lienzo.appendChild(C.el('p', 'man-estaciones__serie-titulo', C.esc(s.label)));
+        var vals = s.datos.map(function (p) { return p.valor; });
+        var fechas = s.datos.map(function (p) { return p.fecha; });
+        if (typeof C.lineaSimple === 'function') {
+          lienzo.appendChild(C.lineaSimple(fechas, vals, { area: true, color: '#0080C3' }));
+        } else {
+          lienzo.appendChild(svgLinea(vals, '#0080C3'));
+        }
+      })
+      .catch(function () {
+        lienzo.innerHTML = '';
+        lienzo.appendChild(C.el('p', 'man-mute-line', 'No se pudo cargar la serie de la estación.'));
+      });
+  }
+
+  /* Fallback SVG simple si MANcore no trae lineaSimple. */
+  function svgLinea(vals, color) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var W = 560, H = 160, m = 8;
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if (min === max) { max = min + 1; }
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('class', 'man-grafico');
+    var n = vals.length, pts = vals.map(function (v, i) {
+      var x = m + (n > 1 ? (i / (n - 1)) * (W - 2 * m) : (W - 2 * m) / 2);
+      var y = m + (1 - (v - min) / (max - min)) * (H - 2 * m);
+      return x + ',' + y;
+    });
+    var pl = document.createElementNS(NS, 'polyline');
+    pl.setAttribute('points', pts.join(' '));
+    pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', color); pl.setAttribute('stroke-width', '2');
+    svg.appendChild(pl);
+    return svg;
+  }
+})();

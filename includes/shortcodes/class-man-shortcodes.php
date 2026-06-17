@@ -68,6 +68,7 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
 		add_shortcode( 'man_estado_api', array( $this, 'sc_estado_api' ) );
+		add_shortcode( 'man_estaciones', array( $this, 'sc_estaciones' ) );
 	}
 
 	/**
@@ -98,6 +99,7 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-estado', MAN_URL . 'assets/js/estado.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-pronostico', MAN_URL . 'assets/js/pronostico.js', array( 'd3', 'man-core', 'man-municipios' ), MAN_VERSION, true );
 		wp_register_script( 'man-mapa', MAN_URL . 'assets/js/mapa.js', array( 'leaflet', 'man-core', 'man-municipios' ), MAN_VERSION, true );
+		wp_register_script( 'man-estaciones', MAN_URL . 'assets/js/estaciones.js', array( 'leaflet', 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-datos', MAN_URL . 'assets/js/datos.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-timeline', MAN_URL . 'assets/js/timeline.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-historico', MAN_URL . 'assets/js/historico.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
@@ -1123,6 +1125,31 @@ final class MAN_Shortcodes {
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-estado-api>
 			<?php echo $this->skeleton( 'Consultando estado de las fuentes…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'Monitoreo interno del plugin' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_estaciones] — Mapa de estaciones hidrológicas IDEAM/FEWS de Nariño,
+	 * con marcadores por nivel de alerta; al hacer clic se ve el detalle y la
+	 * serie de nivel de la estación.
+	 */
+	public function sc_estaciones( $atts ) {
+		$atts = $this->fusionar( array( 'alto' => '460px' ), $atts, 'man_estaciones' );
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_style( 'leaflet' );
+		wp_enqueue_script( 'man-estaciones' );
+		$id   = $this->id();
+		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '460px';
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="man man-estaciones"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-estaciones>
+			<div class="man-estaciones__mapa" style="height:<?php echo esc_attr( $alto ); ?>"></div>
+			<div class="man-estaciones__info"></div>
+			<?php echo $this->skeleton( 'Cargando estaciones IDEAM/FEWS…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'IDEAM — FEWS (visorfews) · OpenStreetMap' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

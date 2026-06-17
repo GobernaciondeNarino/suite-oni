@@ -313,6 +313,13 @@ final class MAN_Admin {
 					$s( 'man_mar', 'Mar y oleaje', 'Nivel del mar (IOC) + oleaje del Pacífico (Open-Meteo Marine).', '[man_mar]', array( '<code>estacion</code>' ) ),
 				),
 			),
+			'ideam'      => array(
+				'etiqueta'  => 'IDEAM (FEWS)',
+				'intro'     => 'Estaciones hidrológicas de Nariño del Sistema de Alerta Temprana FEWS de IDEAM, con nivel de río, umbral de alerta y serie de tiempo por estación.',
+				'elementos' => array(
+					$s( 'man_estaciones', 'Estaciones hidrológicas (mapa)', 'Mapa de las estaciones FEWS de Nariño con marcadores por nivel de alerta; clic en una muestra su detalle y la serie de nivel del río.', '[man_estaciones]', array( '<code>alto</code>' ) ),
+				),
+			),
 			'sivigila'   => array(
 				'etiqueta'  => 'SIVIGILA (salud)',
 				'intro'     => 'Casos de dengue sensibles al clima (INS/SIVIGILA vía datos.gov.co).',

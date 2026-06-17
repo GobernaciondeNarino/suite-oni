@@ -127,6 +127,23 @@ final class MAN_Rest {
 			'args'                => array( 'estacion' => array( 'sanitize_callback' => 'sanitize_text_field' ) ),
 		) );
 
+		// Estaciones hidrológicas IDEAM/FEWS de Nariño (mapa de alertas).
+		register_rest_route( self::NS, '/estaciones', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_estaciones' ),
+			'permission_callback' => $publico,
+		) );
+		// Serie de tiempo de una estación FEWS (proxy servidor, código validado).
+		register_rest_route( self::NS, '/estacion-serie', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_estacion_serie' ),
+			'permission_callback' => $publico,
+			'args'                => array(
+				'cod'  => array( 'sanitize_callback' => 'sanitize_text_field' ),
+				'tipo' => array( 'sanitize_callback' => 'sanitize_key' ),
+			),
+		) );
+
 		register_rest_route( self::NS, '/salud', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_salud' ),
@@ -308,6 +325,105 @@ final class MAN_Rest {
 
 	public function ruta_salud() {
 		return rest_ensure_response( self::construir_salud() );
+	}
+
+	/** Estaciones hidrológicas FEWS de Nariño (desde la caché del cron IDEAM). */
+	public function ruta_estaciones() {
+		$cache = MAN_Cache::get( 'ideam_alertas' );
+		$est   = ( is_array( $cache ) && ! empty( $cache['registros'] ) ) ? array_values( $cache['registros'] ) : array();
+		return rest_ensure_response( array(
+			'estaciones'  => $est,
+			'actualizado' => isset( $cache['actualizado'] ) ? $cache['actualizado'] : null,
+			'fuente'      => 'IDEAM — FEWS (visorfews)',
+		) );
+	}
+
+	/** Serie de tiempo de una estación FEWS (proxy servidor; código validado). */
+	public function ruta_estacion_serie( $req ) {
+		$cod  = preg_replace( '/[^0-9]/', '', (string) $req->get_param( 'cod' ) );
+		$tipo = strtoupper( substr( (string) $req->get_param( 'tipo' ), 0, 1 ) );
+		if ( ! in_array( $tipo, array( 'H', 'P', 'T', 'Q' ), true ) ) {
+			$tipo = 'H';
+		}
+		if ( '' === $cod ) {
+			return new \WP_Error( 'man_cod', 'Código de estación requerido.', array( 'status' => 400 ) );
+		}
+
+		// Seguridad: solo se permiten códigos de estaciones de Nariño cacheadas.
+		$cache  = MAN_Cache::get( 'ideam_alertas' );
+		$valido = false;
+		if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
+			foreach ( $cache['registros'] as $e ) {
+				if ( isset( $e['id'] ) && preg_replace( '/[^0-9]/', '', (string) $e['id'] ) === $cod ) {
+					$valido = true;
+					break;
+				}
+			}
+		}
+		if ( ! $valido ) {
+			return new \WP_Error( 'man_cod', 'Estación no reconocida.', array( 'status' => 404 ) );
+		}
+
+		$clave    = 'fews_serie_' . $tipo . '_' . $cod;
+		$cacheada = MAN_Cache::get( $clave );
+		if ( is_array( $cacheada ) ) {
+			return rest_ensure_response( $cacheada );
+		}
+
+		$cod_full = str_pad( $cod, 10, '0', STR_PAD_LEFT );
+		$url      = 'https://fews.ideam.gov.co/visorfews/data/series/json' . $tipo . '/' . $cod_full . '.json';
+		$r        = MAN_Sync::http_get( $url, false, array( 'timeout' => 15 ) );
+		if ( ! $r['ok'] ) {
+			return new \WP_Error( 'man_fews', 'No se pudo cargar la serie FEWS.', array( 'status' => 502 ) );
+		}
+		$json = json_decode( $r['cuerpo'], true );
+		if ( ! is_array( $json ) ) {
+			return new \WP_Error( 'man_fews', 'Respuesta FEWS inválida (¿código sin serie?).', array( 'status' => 502 ) );
+		}
+
+		$salida = self::parsear_serie_fews( $json );
+		MAN_Cache::set( $clave, $salida, 1800, 'ideam' ); // 30 min.
+		return rest_ensure_response( $salida );
+	}
+
+	/**
+	 * Normaliza una serie FEWS { Hsen:{label,data:[{Fecha,Hsen}]}, … } a
+	 * { series:[ {clave,label,datos:[{fecha,valor}]} ] }.
+	 *
+	 * @param array $json Respuesta FEWS.
+	 * @return array
+	 */
+	private static function parsear_serie_fews( $json ) {
+		$series = array();
+		foreach ( $json as $clave => $bloque ) {
+			if ( ! is_array( $bloque ) || empty( $bloque['data'] ) || ! is_array( $bloque['data'] ) ) {
+				continue;
+			}
+			$puntos = array();
+			foreach ( $bloque['data'] as $d ) {
+				if ( ! is_array( $d ) || ! isset( $d['Fecha'] ) ) {
+					continue;
+				}
+				$valor = null;
+				foreach ( $d as $k => $v ) {
+					if ( 'Fecha' !== $k && is_numeric( $v ) ) {
+						$valor = (float) $v;
+						break;
+					}
+				}
+				if ( null !== $valor ) {
+					$puntos[] = array( 'fecha' => (string) $d['Fecha'], 'valor' => $valor );
+				}
+			}
+			if ( $puntos ) {
+				$series[] = array(
+					'clave' => (string) $clave,
+					'label' => isset( $bloque['label'] ) ? (string) $bloque['label'] : (string) $clave,
+					'datos' => $puntos,
+				);
+			}
+		}
+		return array( 'series' => $series );
 	}
 
 	/* ================================================================= */

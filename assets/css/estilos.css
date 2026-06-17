@@ -104,6 +104,15 @@
 .man-muni-select { font: inherit; font-size: .9rem; padding: .4em .7em; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #1a1f2c; cursor: pointer; max-width: 320px; }
 .man-muni-select:focus-visible { outline: 2px solid #10A13B; outline-offset: 1px; }
 
+/* --- [man_estaciones] (IDEAM/FEWS) --- */
+.man-estaciones__mapa { width: 100%; min-height: 280px; border-radius: var(--man-borde-radio, 8px); overflow: hidden; z-index: 0; }
+.man-estaciones__info { margin-top: .8rem; }
+.man-estaciones__nombre { font-weight: 700; margin: 0 0 .2rem; }
+.man-estaciones__meta { font-size: .82rem; color: #4a5568; margin: 0 0 .3rem; }
+.man-estaciones__nivel { font-size: .85rem; margin: 0 0 .4rem; }
+.man-estaciones__serie-titulo { font-size: .8rem; color: #4a5568; margin: .4rem 0 .2rem; font-weight: 600; }
+.man-estaciones__serie svg { max-width: 100%; height: auto; }
+
 /* Toolbar flotante semitransparente sobre el globo. */
 .man-globo__controles {
   position: absolute; top: 10px; left: 10px; right: 10px; z-index: 4;
