@@ -185,6 +185,14 @@ final class MAN_Views {
 				'measures'    => array( 'reduccion_pct' ),
 				'default'     => 'line',
 			),
+			'historico_apis'     => array(
+				'name'        => 'Histórico multi-fuente (desde 2013)',
+				'description' => 'ONI (NOAA), temperatura y precipitación de Nariño (Open-Meteo/ERA5) por año, como índice normalizado 0–100 para comparar tendencias.',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'anio', 'serie' ),
+				'measures'    => array( 'valor' ),
+				'default'     => 'line',
+			),
 		);
 	}
 
@@ -325,6 +333,7 @@ final class MAN_Views {
 			'cultivos_riesgo'    => 'Porcentaje de área de cultivos en riesgo por mes del escenario. Modelado, en función del déficit hídrico.',
 			'acueductos'         => 'Número de municipios con acueductos en racionamiento por mes del escenario. Modelado.',
 			'hidro_reduccion'    => 'Reducción de generación hidroeléctrica (%) por mes del escenario, asociada al déficit de lluvias. Modelado.',
+			'historico_apis'     => 'Combina, año a año desde 2013, las APIs históricas con datos reales en ese rango: el ONI medio anual de NOAA/CPC y la temperatura media y la precipitación anual de Nariño tomadas del archivo de Open-Meteo (reanálisis ERA5). Como las unidades son distintas (°C de anomalía, °C, mm), cada serie se reescala a un índice 0–100 para poder compararlas en una sola línea; el valor real queda en el tooltip.',
 		);
 		return isset( $map[ $id ] ) ? $map[ $id ] : '';
 	}
@@ -606,6 +615,10 @@ final class MAN_Views {
 					}
 				}
 				return $rows;
+
+			case 'historico_apis':
+				$h = MAN_Rest::construir_historico_apis();
+				return isset( $h['rows'] ) ? $h['rows'] : array();
 		}
 		return array();
 	}

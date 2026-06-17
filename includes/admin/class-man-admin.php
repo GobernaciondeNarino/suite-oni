@@ -352,6 +352,7 @@ final class MAN_Admin {
 				'etiqueta'  => 'Combinados (varias APIs)',
 				'intro'     => 'Gráficos y mapas que RESULTAN DE COMBINAR varias fuentes: NOAA (ENSO) + IDEAM (alertas) + Open-Meteo (lluvia/déficit) + exposición DANE + escenario.',
 				'elementos' => array(
+					$g( 'historico_apis', 'line', 'Histórico multi-fuente (desde 2013)', 'Línea con ONI (NOAA) + temperatura y precipitación de Nariño (Open-Meteo/ERA5) por año, como índice normalizado 0–100 para comparar tendencias.' ),
 					$g( 'riesgo_subregion', 'treemap', 'Riesgo por subregión', 'ENSO + anomalía de lluvia + exposición + sector.' ),
 					$g( 'riesgo_municipios', 'bar', 'Riesgo por municipio', 'Los 15 municipios con mayor riesgo del mes.' ),
 					$g( 'cultivos_riesgo', 'line', 'Cultivos en riesgo', 'Derivado del déficit hídrico + escenario.' ),
