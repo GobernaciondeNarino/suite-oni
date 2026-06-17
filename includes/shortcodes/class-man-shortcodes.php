@@ -66,6 +66,8 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_mapa_cuantitativo', array( $this, 'sc_mapa_cuantitativo' ) );
 		// Descripción/análisis de los componentes (estado, pronóstico, hídrico, mar, salud, globo…).
 		add_shortcode( 'man_info', array( $this, 'sc_info' ) );
+		// Párrafo de presentación por sección/fuente (para publicar bajo el título).
+		add_shortcode( 'man_seccion', array( $this, 'sc_seccion' ) );
 		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
 		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
@@ -781,6 +783,43 @@ final class MAN_Shortcodes {
 			}
 		}
 		return isset( $t[ $elemento ][ $tipo ] ) ? $t[ $elemento ][ $tipo ] : '';
+	}
+
+	/**
+	 * [man_seccion] — párrafo de presentación (qué se ve, fuente y análisis en
+	 * conjunto) de una sección/fuente, para publicar bajo el título de la sección.
+	 *
+	 * Atributo: seccion="noaa|openmeteo|firms|ioc|ideam|sivigila|combinados".
+	 */
+	public function sc_seccion( $atts ) {
+		$atts = $this->fusionar( array( 'seccion' => 'noaa' ), $atts, 'man_seccion' );
+		wp_enqueue_style( 'man-estilos' );
+		$txt = self::seccion_texto( sanitize_key( $atts['seccion'] ) );
+		if ( '' === $txt ) {
+			return '';
+		}
+		return '<div class="man man-seccion-intro" style="' . esc_attr( MAN_Estilos::estilo_inline( $atts ) ) . '">'
+			. '<p class="man-seccion-intro__p">' . esc_html( $txt ) . '</p></div>';
+	}
+
+	/**
+	 * Párrafo de presentación de una sección, desde
+	 * includes/data/textos-secciones.php (cacheado en memoria). Estático para
+	 * que también lo use la página Elementos del admin.
+	 *
+	 * @param string $seccion Slug de la sección.
+	 * @return string
+	 */
+	public static function seccion_texto( $seccion ) {
+		static $t = null;
+		if ( null === $t ) {
+			$ruta = MAN_DIR . 'includes/data/textos-secciones.php';
+			$t    = is_readable( $ruta ) ? include $ruta : array();
+			if ( ! is_array( $t ) ) {
+				$t = array();
+			}
+		}
+		return isset( $t[ $seccion ] ) ? $t[ $seccion ] : '';
 	}
 
 	/**
