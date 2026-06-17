@@ -427,6 +427,126 @@ final class MAN_Rest {
 		return array( 'series' => $series );
 	}
 
+	/**
+	 * Histórico multi-fuente anual desde 2013, combinando todas las APIs con
+	 * datos en ese rango: ONI (NOAA), y temperatura + precipitación de Nariño
+	 * (Open-Meteo Archive / ERA5). Como las unidades difieren, cada serie se
+	 * normaliza a un índice 0–100 para compararlas en una misma línea (el valor
+	 * real se conserva en `real`). Cacheado 24 h (cambia poco).
+	 *
+	 * @return array {rows:[{anio,serie,valor,real}], desde}
+	 */
+	public static function construir_historico_apis() {
+		$cache = MAN_Cache::get( 'historico_apis' );
+		if ( is_array( $cache ) && ! empty( $cache['rows'] ) ) {
+			return $cache;
+		}
+
+		$ini = 2013;
+		$fin = (int) gmdate( 'Y' );
+		$ser = array(); // anio => {oni,temp,precip}
+
+		// 1) ONI medio anual (archivo completo NOAA/CPC, desde 1950).
+		$r = MAN_Sync::http_get( 'https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt', true, array( 'timeout' => 20 ) );
+		if ( $r['ok'] ) {
+			$acc = array();
+			foreach ( MAN_Enso::parse_oni_ascii( $r['cuerpo'] ) as $f ) {
+				$y = (int) substr( $f['mes'], 0, 4 );
+				if ( $y >= $ini && $y <= $fin ) {
+					$acc[ $y ]['s'] = ( isset( $acc[ $y ]['s'] ) ? $acc[ $y ]['s'] : 0 ) + (float) $f['oni'];
+					$acc[ $y ]['n'] = ( isset( $acc[ $y ]['n'] ) ? $acc[ $y ]['n'] : 0 ) + 1;
+				}
+			}
+			foreach ( $acc as $y => $a ) {
+				$ser[ $y ]['oni'] = round( $a['s'] / max( 1, $a['n'] ), 3 );
+			}
+		}
+
+		// 2) Temperatura media anual + precipitación anual (Open-Meteo Archive,
+		//    punto representativo de Nariño: Pasto).
+		$url = add_query_arg(
+			array(
+				'latitude'   => 1.21,
+				'longitude'  => -77.28,
+				'start_date' => $ini . '-01-01',
+				'end_date'   => $fin . '-12-31',
+				'daily'      => 'temperature_2m_mean,precipitation_sum',
+				'timezone'   => 'America/Bogota',
+			),
+			'https://archive-api.open-meteo.com/v1/archive'
+		);
+		$r2 = MAN_Sync::http_get( $url, true, array( 'timeout' => 30 ) );
+		if ( $r2['ok'] ) {
+			$j      = json_decode( $r2['cuerpo'], true );
+			$fechas = isset( $j['daily']['time'] ) ? $j['daily']['time'] : array();
+			$temps  = isset( $j['daily']['temperature_2m_mean'] ) ? $j['daily']['temperature_2m_mean'] : array();
+			$precs  = isset( $j['daily']['precipitation_sum'] ) ? $j['daily']['precipitation_sum'] : array();
+			$at     = array();
+			$ap     = array();
+			foreach ( $fechas as $i => $fch ) {
+				$y = (int) substr( (string) $fch, 0, 4 );
+				if ( $y < $ini || $y > $fin ) {
+					continue;
+				}
+				if ( isset( $temps[ $i ] ) && is_numeric( $temps[ $i ] ) ) {
+					$at[ $y ]['s'] = ( isset( $at[ $y ]['s'] ) ? $at[ $y ]['s'] : 0 ) + (float) $temps[ $i ];
+					$at[ $y ]['n'] = ( isset( $at[ $y ]['n'] ) ? $at[ $y ]['n'] : 0 ) + 1;
+				}
+				if ( isset( $precs[ $i ] ) && is_numeric( $precs[ $i ] ) ) {
+					$ap[ $y ] = ( isset( $ap[ $y ] ) ? $ap[ $y ] : 0 ) + (float) $precs[ $i ];
+				}
+			}
+			foreach ( $at as $y => $a ) {
+				$ser[ $y ]['temp'] = round( $a['s'] / max( 1, $a['n'] ), 2 );
+			}
+			foreach ( $ap as $y => $v ) {
+				$ser[ $y ]['precip'] = round( $v, 0 );
+			}
+		}
+
+		// 3) Filas long-form normalizadas (índice 0–100 por serie).
+		$defs = array(
+			'oni'    => 'ONI medio anual (NOAA)',
+			'temp'   => 'Temperatura media (°C)',
+			'precip' => 'Precipitación anual (mm)',
+		);
+		ksort( $ser );
+		$vals = array();
+		foreach ( $defs as $k => $lbl ) {
+			$vals[ $k ] = array();
+		}
+		foreach ( $ser as $y => $s ) {
+			foreach ( $defs as $k => $lbl ) {
+				if ( isset( $s[ $k ] ) ) {
+					$vals[ $k ][ (string) $y ] = $s[ $k ];
+				}
+			}
+		}
+		$rows = array();
+		foreach ( $defs as $k => $lbl ) {
+			if ( empty( $vals[ $k ] ) ) {
+				continue;
+			}
+			$min  = min( $vals[ $k ] );
+			$max  = max( $vals[ $k ] );
+			$span = ( $max - $min ) ? ( $max - $min ) : 1;
+			foreach ( $vals[ $k ] as $y => $val ) {
+				$rows[] = array(
+					'anio'  => (string) $y,
+					'serie' => $lbl,
+					'valor' => round( ( $val - $min ) / $span * 100, 1 ),
+					'real'  => $val,
+				);
+			}
+		}
+
+		$out = array( 'rows' => $rows, 'desde' => $ini );
+		if ( ! empty( $rows ) ) {
+			MAN_Cache::set( 'historico_apis', $out, 86400, 'historico' ); // 24 h.
+		}
+		return $out;
+	}
+
 	/* ================================================================= */
 	/* Callbacks de datos abiertos                                       */
 	/* ================================================================= */
