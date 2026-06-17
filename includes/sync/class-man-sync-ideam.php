@@ -1,9 +1,9 @@
 <?php
 /**
  * Conector IDEAM — FEWS (visorfews). Lee las redes de estaciones por variable
- * (nivel, precipitación, caudal, temperatura) y filtra las de Nariño con su
- * último valor y, donde existe, su umbral de alerta. Sustituye al antiguo
- * dataset de datos.gov.co, que dejó de existir.
+ * (nivel, precipitación, caudal, temperatura, nivel y caudal pronosticados y
+ * calidad del agua) y filtra las de Nariño con su último valor y nivel de
+ * alerta. Sustituye al antiguo dataset de datos.gov.co, que dejó de existir.
  *
  * @package MonitorAmbientalNarino
  */
@@ -17,45 +17,74 @@ final class MAN_Sync_Ideam {
 	const BASE = 'https://fews.ideam.gov.co/visorfews/data/';
 
 	/**
-	 * Redes FEWS soportadas. Cada una indica su archivo, los campos del último
-	 * valor (observado/sensor), los del umbral (si hay), el tipo de serie para
-	 * el detalle y la unidad.
+	 * Redes FEWS soportadas. 'alerta' indica cómo se calcula el nivel de alerta:
+	 *   umbral  → alta si valor ≥ umbral (nivel observado).
+	 *   graded  → media/alta según umbrales amarilla/naranja/roja (pronóstico).
+	 *   ica     → categoría del Índice de Calidad del Agua (menor = peor).
+	 *   none    → sin alerta (precipitación, temperatura).
 	 *
 	 * @return array
 	 */
 	public static function redes() {
 		return array(
-			'nivel'         => array(
+			'nivel'             => array(
 				'archivo' => 'ReporteTablaEstaciones',
 				'valor'   => array( 'ultimonivelobs', 'ultimonivelsen' ),
+				'alerta'  => 'umbral',
 				'umbral'  => array( 'umbralobs', 'umbralsen' ),
 				'tipo'    => 'H',
 				'unidad'  => 'm',
 				'nombre'  => 'Nivel de ríos',
 			),
-			'precipitacion' => array(
+			'precipitacion'     => array(
 				'archivo' => 'ReporteTablaEstacionesPobs',
 				'valor'   => array( 'ultimodatoobs', 'ultimodatosen' ),
-				'umbral'  => array(),
+				'alerta'  => 'none',
 				'tipo'    => 'P',
 				'unidad'  => 'mm',
 				'nombre'  => 'Precipitación',
 			),
-			'caudal'        => array(
+			'caudal'            => array(
 				'archivo' => 'ReporteTablaEstacionesQ',
 				'valor'   => array( 'ultimoqobs', 'ultimoqsen' ),
-				'umbral'  => array(),
+				'alerta'  => 'none',
 				'tipo'    => 'Q',
 				'unidad'  => 'm³/s',
 				'nombre'  => 'Caudal',
 			),
-			'temperatura'   => array(
+			'temperatura'       => array(
 				'archivo' => 'ReporteTablaEstacionesTobs',
 				'valor'   => array( 'ultimodatoobs', 'ultimodatosen' ),
-				'umbral'  => array(),
+				'alerta'  => 'none',
 				'tipo'    => 'T',
 				'unidad'  => '°C',
 				'nombre'  => 'Temperatura',
+			),
+			'nivel_pronostico'  => array(
+				'archivo' => 'ReporteTablaEstacionesHsim',
+				'valor'   => array( 'maxnivel' ),
+				'alerta'  => 'graded',
+				'grad'    => array( 'uamarilla', 'unaranja', 'uroja' ),
+				'tipo'    => 'H',
+				'unidad'  => 'm',
+				'nombre'  => 'Nivel pronosticado',
+			),
+			'caudal_pronostico' => array(
+				'archivo' => 'ReporteTablaEstacionesQsim',
+				'valor'   => array( 'maxcaudal' ),
+				'alerta'  => 'graded',
+				'grad'    => array( 'uamarilla', 'unaranja', 'uroja' ),
+				'tipo'    => 'Q',
+				'unidad'  => 'm³/s',
+				'nombre'  => 'Caudal pronosticado',
+			),
+			'calidad'           => array(
+				'archivo' => 'ReporteTablaEstacionesCalidad',
+				'valor'   => array( 'ultimodatoica6v' ),
+				'alerta'  => 'ica',
+				'tipo'    => '',
+				'unidad'  => 'ICA',
+				'nombre'  => 'Calidad del agua (ICA)',
 			),
 		);
 	}
@@ -63,7 +92,7 @@ final class MAN_Sync_Ideam {
 	/**
 	 * Descarga una red FEWS y devuelve sus estaciones de Nariño normalizadas.
 	 *
-	 * @param string $variable nivel|precipitacion|caudal|temperatura.
+	 * @param string $variable Clave de red.
 	 * @param bool   $ssl      Verificar certificado.
 	 * @return array {ok, fuente, estaciones[], alertas, total_red}
 	 */
@@ -89,12 +118,14 @@ final class MAN_Sync_Ideam {
 			if ( false === strpos( $dep, 'NARI' ) ) {
 				continue;
 			}
+
 			$valor  = self::primer_valor( $p, $cfgv['valor'] );
-			$umbral = self::primer_valor( $p, $cfgv['umbral'] );
-			$alerta = ( null !== $valor && null !== $umbral && (float) $valor >= (float) $umbral );
-			if ( $alerta ) {
+			$umbral = ( 'umbral' === $cfgv['alerta'] ) ? self::primer_valor( $p, $cfgv['umbral'] ) : null;
+			$alerta = self::nivel_alerta( $valor, $umbral, $p, $cfgv );
+			if ( 'alta' === $alerta ) {
 				$alertas++;
 			}
+
 			$out[] = array(
 				'id'           => isset( $p['id'] ) ? $p['id'] : '',
 				'estacion'     => isset( $p['nombre'] ) ? $p['nombre'] : '',
@@ -106,7 +137,7 @@ final class MAN_Sync_Ideam {
 				'umbral'       => ( null !== $umbral ) ? round( (float) $umbral, 2 ) : null,
 				'unidad'       => $cfgv['unidad'],
 				'tipo_serie'   => $cfgv['tipo'],
-				'nivel_alerta' => $alerta ? 'alta' : 'normal',
+				'nivel_alerta' => $alerta,
 			);
 		}
 
@@ -117,6 +148,52 @@ final class MAN_Sync_Ideam {
 			'alertas'    => $alertas,
 			'total_red'  => count( $feats ),
 		);
+	}
+
+	/**
+	 * Calcula el nivel de alerta (normal|media|alta) según el modo de la red.
+	 *
+	 * @param mixed $valor  Último valor.
+	 * @param mixed $umbral Umbral (modo umbral).
+	 * @param array $p      Propiedades de la estación.
+	 * @param array $cfgv   Config de la red.
+	 * @return string
+	 */
+	private static function nivel_alerta( $valor, $umbral, $p, $cfgv ) {
+		if ( null === $valor ) {
+			return 'normal';
+		}
+		$v = (float) $valor;
+		switch ( $cfgv['alerta'] ) {
+			case 'umbral':
+				return ( null !== $umbral && $v >= (float) $umbral ) ? 'alta' : 'normal';
+			case 'graded':
+				$g    = isset( $cfgv['grad'] ) ? $cfgv['grad'] : array();
+				$am   = isset( $g[0] ) ? self::primer_valor( $p, array( $g[0] ) ) : null;
+				$nar  = isset( $g[1] ) ? self::primer_valor( $p, array( $g[1] ) ) : null;
+				$roja = isset( $g[2] ) ? self::primer_valor( $p, array( $g[2] ) ) : null;
+				if ( null !== $nar && $v >= (float) $nar ) {
+					return 'alta';
+				}
+				if ( null !== $roja && $v >= (float) $roja ) {
+					return 'alta';
+				}
+				if ( null !== $am && $v >= (float) $am ) {
+					return 'media';
+				}
+				return 'normal';
+			case 'ica':
+				// Índice de Calidad del Agua de 6 variables (ICA6v), escala 0–1: menor = peor.
+				if ( $v <= 0.50 ) {
+					return 'alta';
+				}
+				if ( $v <= 0.70 ) {
+					return 'media';
+				}
+				return 'normal';
+			default:
+				return 'normal';
+		}
 	}
 
 	/**
