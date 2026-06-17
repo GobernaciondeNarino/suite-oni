@@ -150,9 +150,16 @@ final class MAN_Activator {
 					$cambio           = true;
 				}
 			}
+			// IDEAM: migra el dataset muerto de datos.gov.co a FEWS.
+			if ( isset( $config['ideam']['url'] ) && false !== strpos( $config['ideam']['url'], 'datos.gov.co' ) ) {
+				$config['ideam']['url']        = 'https://fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones.json';
+				$config['ideam']['dataset_id'] = '';
+				$config['ideam']['nombre']     = 'IDEAM — FEWS (estaciones hidrológicas y alertas de nivel)';
+				$cambio                        = true;
+			}
 			if ( $cambio ) {
 				update_option( 'man_api_config', $config );
-				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Fuentes nuevas añadidas a la config en la actualización a ' . MAN_VERSION );
+				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Config migrada en la actualización a ' . MAN_VERSION );
 			}
 		}
 
@@ -194,11 +201,11 @@ final class MAN_Activator {
 				'ultimo_resultado' => '',
 			),
 			'ideam' => array(
-				'nombre'           => 'IDEAM vía datos.gov.co (alertas/pronóstico)',
+				'nombre'           => 'IDEAM — FEWS (estaciones hidrológicas y alertas de nivel)',
 				'activa'           => true,
 				'capa'             => 'cron',
-				'url'              => 'https://www.datos.gov.co/resource/',
-				'dataset_id'       => 'st8p-pai8',
+				'url'              => 'https://fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones.json',
+				'dataset_id'       => '',
 				'clave'            => '',
 				'frecuencia'       => 12,
 				'ttl'              => 360,
