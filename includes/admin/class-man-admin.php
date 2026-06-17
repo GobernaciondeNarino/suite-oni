@@ -230,6 +230,17 @@ final class MAN_Admin {
 					</div>
 					<?php
 				}
+			} elseif ( 'multi' === $tipo ) {
+				$piezas = isset( $el['piezas'] ) && is_array( $el['piezas'] ) ? $el['piezas'] : array();
+				foreach ( $piezas as $etq => $sc ) {
+					?>
+					<span class="man-el-pieza"><?php echo esc_html( $etq ); ?></span>
+					<div class="man-el-copy">
+						<input type="text" class="man-el-input" readonly value="<?php echo esc_attr( $sc ); ?>" onfocus="this.select()" />
+						<button type="button" class="button man-copiar" data-copy="<?php echo esc_attr( $sc ); ?>">Copiar</button>
+					</div>
+					<?php
+				}
 			} else {
 				if ( ! empty( $el['attrs'] ) ) {
 					echo '<ul class="man-el-attrs">';
@@ -278,12 +289,19 @@ final class MAN_Admin {
 					$g( 'episodios', 'bar', 'Episodios históricos', 'ONI pico de los eventos 2015–2024.' ),
 					$s( 'man_estado', 'Estado actual', 'Semáforo ENSO + ONI vigente, fase e intensidad.', '[man_estado municipio="departamento"]', array( '<code>municipio</code>', '<code>compacto</code>' ) ),
 					$s( 'man_estado_select', 'Estado actual · con selector', 'Igual que el estado actual pero con un menú de los 64 municipios que recarga el dato sin recargar la página.', '[man_estado_select municipio="52001"]', array( '<code>municipio</code> (inicial)' ) ),
-					$s( 'man_prediccion', 'Predicción ENSO (todo en uno)', 'Trayectoria del ONI con banda de incertidumbre y probabilidad por trimestre. O úsala en piezas separadas (abajo).', '[man_prediccion hasta="2027-02"]', array( '<code>hasta</code>', '<code>partes</code>' ) ),
-					$s( 'man_prediccion_grafico', 'Predicción · solo gráfico', 'La gráfica de la trayectoria del ONI, sin textos.', '[man_prediccion_grafico hasta="2027-02"]', array( '<code>hasta</code>' ) ),
-					$s( 'man_prediccion_descripcion', 'Predicción · cifras clave', 'Título y chips: estado actual, pico previsto y valor objetivo.', '[man_prediccion_descripcion hasta="2027-02"]', array( '<code>hasta</code>' ) ),
-					$s( 'man_prediccion_analisis', 'Predicción · análisis', 'Narrativa predictiva automática (texto de análisis).', '[man_prediccion_analisis hasta="2027-02"]', array( '<code>hasta</code>' ) ),
-					$s( 'man_prediccion_probabilidad', 'Predicción · probabilidad', 'Barras de probabilidad de fase por trimestre.', '[man_prediccion_probabilidad hasta="2027-02"]', array( '<code>hasta</code>' ) ),
-					$s( 'man_prediccion_ficha', 'Predicción · ficha técnica', 'Metodología, supuestos, limitaciones y referencias.', '[man_prediccion_ficha hasta="2027-02"]', array( '<code>hasta</code>' ) ),
+					array(
+						'tipo'   => 'multi',
+						'titulo' => 'Predicción ENSO (gráfico y piezas)',
+						'desc'   => 'Trayectoria del ONI con banda de incertidumbre. Úsala completa con [man_prediccion], o por piezas separadas para maquetar a tu gusto (gráfico, cifras, análisis, probabilidad y ficha técnica).',
+						'piezas' => array(
+							'Todo en uno'    => '[man_prediccion hasta="2027-02"]',
+							'Solo gráfico'   => '[man_prediccion_grafico hasta="2027-02"]',
+							'Cifras clave'   => '[man_prediccion_descripcion hasta="2027-02"]',
+							'Análisis'       => '[man_prediccion_analisis hasta="2027-02"]',
+							'Probabilidad'   => '[man_prediccion_probabilidad hasta="2027-02"]',
+							'Ficha técnica'  => '[man_prediccion_ficha hasta="2027-02"]',
+						),
+					),
 					$s( 'man_globo', 'Globo 3D', 'Globo con la anomalía SST del Pacífico y el foco de Nariño.', '[man_globo calidad="auto"]', array( '<code>calidad</code>', '<code>autorotar</code>' ) ),
 					$s( 'man_timeline', 'Línea de tiempo', 'Slider de meses del ONI que controla el globo.', '[man_timeline]', array( '<code>inicio</code>', '<code>fin</code>', '<code>autoplay</code>' ) ),
 				),

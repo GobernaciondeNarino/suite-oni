@@ -372,7 +372,8 @@ final class MAN_Rest {
 
 		$cod_full = str_pad( $cod, 10, '0', STR_PAD_LEFT );
 		$url      = 'https://fews.ideam.gov.co/visorfews/data/series/json' . $tipo . '/' . $cod_full . '.json';
-		$r        = MAN_Sync::http_get( $url, false, array( 'timeout' => 15 ) );
+		// redirection=0: el proxy no sigue redirecciones (defensa en profundidad anti-SSRF).
+		$r        = MAN_Sync::http_get( $url, false, array( 'timeout' => 15, 'redirection' => 0 ) );
 		if ( ! $r['ok'] ) {
 			return new \WP_Error( 'man_fews', 'No se pudo cargar la serie FEWS.', array( 'status' => 502 ) );
 		}
