@@ -43,6 +43,11 @@
       cont._manSync = true;
       window.addEventListener('man:mes', function (e) {
         if (!e.detail) { return; }
+        // Solo el estado DEPARTAMENTAL sigue la línea de tiempo. Si hay un
+        // municipio seleccionado (p. ej. vía [man_estado_select]), se mantiene
+        // ese municipio y se ignora el mes del globo/timeline (que es departamental).
+        var divActual = cont.getAttribute('data-municipio') || 'departamento';
+        if (divActual !== 'departamento') { return; }
         base.oni = +e.detail.oni;
         base.fase = e.detail.fase || base.fase;
         base.intens = intensidad(base.oni);
