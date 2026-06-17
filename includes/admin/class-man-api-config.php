@@ -58,6 +58,10 @@ final class MAN_Api_Config {
 					<p><label>Clave (se guarda cifrada)<br />
 						<input type="password" class="regular-text" name="man[<?php echo esc_attr( $slug ); ?>][clave]"
 							placeholder="<?php echo ! empty( $cfg['clave'] ) ? '•••••• (guardada)' : 'sin clave'; ?>" autocomplete="new-password" /></label></p>
+					<?php $ayuda = self::ayuda_fuente( $slug ); ?>
+					<?php if ( '' !== $ayuda ) : ?>
+						<p class="description" style="margin-top:-6px"><?php echo wp_kses( $ayuda, array( 'a' => array( 'href' => array(), 'target' => array(), 'rel' => array() ), 'code' => array(), 'strong' => array() ) ); ?></p>
+					<?php endif; ?>
 
 					<p>
 						<label>Frecuencia
@@ -188,6 +192,9 @@ final class MAN_Api_Config {
 			case 'open_meteo':
 				return 'https://api.open-meteo.com/v1/forecast?latitude=1.08&longitude=-77.21&current=temperature_2m&timezone=America%2FBogota';
 			case 'ideam':
+				// FEWS IDEAM: la prueba consulta la lista de estaciones.
+				$u = ( $url && false === strpos( $url, 'datos.gov.co' ) ) ? $url : 'https://fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones.json';
+				return $u;
 			case 'sivigila':
 				$ds = isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : '';
 				return rtrim( $url, '/' ) . '/' . rawurlencode( $ds ) . '.json?$limit=1';
@@ -205,6 +212,25 @@ final class MAN_Api_Config {
 				return $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $ds ) . '/' . MAN_Sync_Firms::BBOX . '/1';
 			default:
 				return $url;
+		}
+	}
+
+	/**
+	 * Texto de ayuda por fuente (debajo del campo Clave). HTML restringido.
+	 *
+	 * @param string $slug Slug de la fuente.
+	 * @return string
+	 */
+	private static function ayuda_fuente( $slug ) {
+		switch ( $slug ) {
+			case 'firms':
+				return 'Consigue una <strong>MAP_KEY gratuita</strong> en <a href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noopener">firms.modaps.eosdis.nasa.gov/api/map_key/</a>. Pega la clave y pulsa <strong>Guardar configuración</strong> ANTES de «Probar» o «Sincronizar»: si pruebas sin guardar, FIRMS responde <code>HTTP 400</code> porque la clave aún va vacía.';
+			case 'ideam':
+				return 'Usa <strong>FEWS de IDEAM</strong> (visorfews): trae las estaciones hidrológicas de Nariño con su nivel actual y umbral de alerta. No requiere clave. El antiguo dataset de datos.gov.co dejó de existir y se reemplazó por esta fuente.';
+			case 'sivigila':
+				return 'El dataset de SIVIGILA en datos.gov.co cambia de identificador con frecuencia y puede no existir. Fija un <code>dataset-id</code> vigente o deja la fuente <strong>inactiva</strong>.';
+			default:
+				return '';
 		}
 	}
 }

@@ -1,7 +1,8 @@
 <?php
 /**
- * Conector IDEAM vía datos.gov.co (Socrata/SoQL) — alertas y pronóstico
- * oficial por municipio (Sección 3.3). Requiere sslverify=false (cert estatal).
+ * Conector IDEAM — FEWS (Sistema de Alerta Temprana, visorfews). Trae la red de
+ * estaciones hidrológicas y filtra las de Nariño con su nivel actual y umbral
+ * de alerta. Sustituye al antiguo dataset de datos.gov.co, que dejó de existir.
  *
  * @package MonitorAmbientalNarino
  */
@@ -12,64 +13,94 @@ defined( 'ABSPATH' ) || exit;
 
 final class MAN_Sync_Ideam {
 
+	const FEWS_URL = 'https://fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones.json';
+
 	/**
-	 * Sincroniza alertas IDEAM para Nariño.
+	 * Sincroniza las estaciones FEWS de Nariño.
 	 *
 	 * @param array $cfg Configuración de la fuente.
 	 * @return array {ok, registros, mensaje}.
 	 */
 	public static function sincronizar( $cfg ) {
-		$ds = ! empty( $cfg['dataset_id'] ) ? sanitize_text_field( $cfg['dataset_id'] ) : '';
-		if ( '' === $ds ) {
-			return array( 'ok' => false, 'registros' => 0, 'mensaje' => 'Falta el dataset-id de IDEAM' );
+		$url = ! empty( $cfg['url'] ) ? $cfg['url'] : self::FEWS_URL;
+		// Autocorrige instalaciones antiguas que apuntaban al dataset muerto de datos.gov.co.
+		if ( false !== strpos( $url, 'datos.gov.co' ) ) {
+			$url = self::FEWS_URL;
 		}
-
-		$base = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) . '/' : 'https://www.datos.gov.co/resource/';
-		$ssl  = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : false;
-		$ttl  = isset( $cfg['ttl'] ) ? (int) $cfg['ttl'] * 60 : 21600;
-
-		// Socrata exige $ literales en los parámetros de consulta.
-		$url = $base . rawurlencode( $ds ) . '.json?$limit=500&$order=:id';
+		$ssl = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : false; // certificado estatal CO.
+		$ttl = isset( $cfg['ttl'] ) ? (int) $cfg['ttl'] * 60 : 21600;
 
 		$r = MAN_Sync::http_get( $url, $ssl );
 		if ( ! $r['ok'] ) {
 			return array( 'ok' => false, 'registros' => 0, 'mensaje' => 'HTTP ' . $r['codigo'] . ' ' . $r['error'] );
 		}
 
-		$json = json_decode( $r['cuerpo'], true );
-		if ( ! is_array( $json ) ) {
-			return array( 'ok' => false, 'registros' => 0, 'mensaje' => 'JSON inválido de datos.gov.co' );
+		$json  = json_decode( $r['cuerpo'], true );
+		$feats = ( is_array( $json ) && ! empty( $json['features'] ) ) ? $json['features'] : array();
+		if ( empty( $feats ) ) {
+			return array( 'ok' => false, 'registros' => 0, 'mensaje' => 'FEWS sin estaciones (¿formato cambiado?)' );
 		}
 
-		// Filtra registros de Nariño (campos de departamento variables).
-		$narino = array();
-		foreach ( $json as $row ) {
-			if ( ! is_array( $row ) ) {
+		$narino  = array();
+		$alertas = 0;
+		foreach ( $feats as $f ) {
+			$p = isset( $f['properties'] ) && is_array( $f['properties'] ) ? $f['properties'] : array();
+			$dep = strtoupper( remove_accents( (string) ( isset( $p['depart'] ) ? $p['depart'] : '' ) ) );
+			if ( false === strpos( $dep, 'NARI' ) ) {
 				continue;
 			}
-			$blob = strtoupper( remove_accents( wp_json_encode( $row ) ) );
-			if ( false !== strpos( $blob, 'NARINO' ) ) {
-				$narino[] = $row;
+
+			$nivel  = self::primer_valor( array( isset( $p['ultimonivelobs'] ) ? $p['ultimonivelobs'] : null, isset( $p['ultimonivelsen'] ) ? $p['ultimonivelsen'] : null ) );
+			$umbral = self::primer_valor( array( isset( $p['umbralobs'] ) ? $p['umbralobs'] : null, isset( $p['umbralsen'] ) ? $p['umbralsen'] : null ) );
+			$alerta = ( null !== $nivel && null !== $umbral && (float) $nivel >= (float) $umbral );
+			if ( $alerta ) {
+				$alertas++;
 			}
+
+			$narino[] = array(
+				'id'           => isset( $p['id'] ) ? $p['id'] : '',
+				'estacion'     => isset( $p['nombre'] ) ? $p['nombre'] : '',
+				'municipio'    => isset( $p['municipio'] ) ? $p['municipio'] : '',
+				'corriente'    => isset( $p['corriente'] ) ? $p['corriente'] : '',
+				'lat'          => isset( $p['lat'] ) ? (float) $p['lat'] : null,
+				'lng'          => isset( $p['lng'] ) ? (float) $p['lng'] : null,
+				'nivel'        => ( null !== $nivel ) ? round( (float) $nivel, 2 ) : null,
+				'umbral'       => ( null !== $umbral ) ? round( (float) $umbral, 2 ) : null,
+				'nivel_alerta' => $alerta ? 'alta' : 'normal',
+			);
 		}
-		$datos = ! empty( $narino ) ? $narino : array_slice( $json, 0, 200 );
 
 		MAN_Cache::set(
 			'ideam_alertas',
 			array(
-				'registros'   => $datos,
-				'dataset'     => $ds,
+				'registros'   => $narino,
+				'total_red'   => count( $feats ),
 				'actualizado' => current_time( 'mysql', true ),
-				'fuente'      => 'IDEAM / datos.gov.co',
+				'fuente'      => 'IDEAM — FEWS (visorfews)',
 			),
 			$ttl,
 			'ideam'
 		);
 
 		return array(
-			'ok'        => true,
-			'registros' => count( $datos ),
-			'mensaje'   => count( $narino ) . ' registros de Nariño',
+			'ok'        => count( $narino ) > 0,
+			'registros' => count( $narino ),
+			'mensaje'   => count( $narino ) . ' estaciones de Nariño (' . $alertas . ' en alerta)',
 		);
+	}
+
+	/**
+	 * Primer valor no nulo/no vacío de una lista.
+	 *
+	 * @param array $vals Lista de candidatos.
+	 * @return mixed|null
+	 */
+	private static function primer_valor( $vals ) {
+		foreach ( $vals as $v ) {
+			if ( null !== $v && '' !== $v ) {
+				return $v;
+			}
+		}
+		return null;
 	}
 }
