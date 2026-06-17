@@ -1284,7 +1284,7 @@ final class MAN_Shortcodes {
 		wp_enqueue_script( 'man-estaciones' );
 		$id   = $this->id();
 		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '460px';
-		$var  = in_array( $atts['variable'], array( 'nivel', 'precipitacion', 'caudal', 'temperatura' ), true ) ? $atts['variable'] : 'nivel';
+		$var  = array_key_exists( sanitize_key( $atts['variable'] ), MAN_Sync_Ideam::redes() ) ? sanitize_key( $atts['variable'] ) : 'nivel';
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>" class="man man-estaciones"

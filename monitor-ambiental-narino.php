@@ -3,7 +3,7 @@
  * Plugin Name:  Monitor Ambiental y Fenómeno El Niño — Nariño
  * Plugin URI:   https://gobiernoabierto.narino.gov.co/datos/enso/
  * Description:  Visualización ciudadana de ENSO (El Niño / La Niña) y condiciones ambientales de los 64 municipios de Nariño. Shortcodes independientes, APIs en tiempo real y front minimalista configurable.
- * Version:      1.30.1
+ * Version:      1.31.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:       Gobernación de Nariño · Secretaría TIC, Innovación y Gobierno Abierto
@@ -26,7 +26,7 @@ use GobernacionNarino\MonitorAmbiental\MAN_Activator;
 /* -------------------------------------------------------------------------
  * Constantes del plugin
  * ---------------------------------------------------------------------- */
-define( 'MAN_VERSION', '1.30.1' );
+define( 'MAN_VERSION', '1.31.0' );
 define( 'MAN_FILE', __FILE__ );
 define( 'MAN_DIR', plugin_dir_path( __FILE__ ) );      // .../monitor-ambiental-narino/
 define( 'MAN_URL', plugin_dir_url( __FILE__ ) );        // URL pública de assets

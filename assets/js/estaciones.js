@@ -57,19 +57,36 @@
     setTimeout(function () { map.invalidateSize(); }, 250);
   }
 
+  function categoriaIca(v) {
+    if (v == null) { return ''; }
+    if (v <= 0.25) { return 'muy mala'; }
+    if (v <= 0.50) { return 'mala'; }
+    if (v <= 0.70) { return 'regular'; }
+    if (v <= 0.90) { return 'aceptable'; }
+    return 'buena';
+  }
+
   function detalle(info, e) {
     info.innerHTML = '';
     var u = e.unidad || '';
+    var esIca = u === 'ICA';
     info.appendChild(C.el('p', 'man-estaciones__nombre', C.esc(e.estacion || 'Estación')));
     info.appendChild(C.el('p', 'man-estaciones__meta',
       (e.corriente ? 'Río ' + C.esc(e.corriente) + ' · ' : '') + C.esc(e.municipio || '') + ' · alerta: ' + C.esc(e.nivel_alerta || '—')));
     if (e.valor != null) {
-      info.appendChild(C.el('p', 'man-estaciones__nivel',
-        'Último valor: ' + C.num(e.valor, 2) + ' ' + C.esc(u) + (e.umbral != null ? ' · umbral ' + C.num(e.umbral, 2) + ' ' + C.esc(u) : '')));
+      var detalleVal = esIca
+        ? 'Índice de calidad del agua (ICA): ' + C.num(e.valor, 2) + ' · ' + categoriaIca(e.valor)
+        : 'Último valor: ' + C.num(e.valor, 2) + ' ' + C.esc(u) + (e.umbral != null ? ' · umbral ' + C.num(e.umbral, 2) + ' ' + C.esc(u) : '');
+      info.appendChild(C.el('p', 'man-estaciones__nivel', detalleVal));
     }
-    var lienzo = C.el('div', 'man-estaciones__serie');
-    info.appendChild(lienzo);
-    cargarSerie(lienzo, e.id, e.tipo_serie || 'H');
+    // La red de calidad no expone serie temporal por el proxy: solo el último valor.
+    if (e.tipo_serie) {
+      var lienzo = C.el('div', 'man-estaciones__serie');
+      info.appendChild(lienzo);
+      cargarSerie(lienzo, e.id, e.tipo_serie);
+    } else if (esIca) {
+      info.appendChild(C.el('p', 'man-mute-line', 'Escala ICA 0–1: ≤0,25 muy mala, ≤0,50 mala, ≤0,70 regular, ≤0,90 aceptable, >0,90 buena.'));
+    }
   }
 
   function cargarSerie(lienzo, cod, tipo) {

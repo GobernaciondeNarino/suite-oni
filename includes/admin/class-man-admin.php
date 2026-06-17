@@ -393,17 +393,20 @@ final class MAN_Admin {
 			),
 			'ideam'      => array(
 				'etiqueta'  => 'IDEAM (FEWS)',
-				'intro'     => 'Redes de estaciones de Nariño del Sistema de Alerta Temprana FEWS de IDEAM: nivel de ríos (con umbral de alerta), precipitación, caudal y temperatura. Clic en una estación muestra su detalle y la serie de tiempo. (Embalses no tiene estaciones en Nariño; las subzonas SZH son polígonos de 8 MB y no se incluyen.)',
+				'intro'     => 'Redes de estaciones de Nariño del Sistema de Alerta Temprana FEWS de IDEAM. Siete redes consultadas en vivo: nivel de ríos (observado, con umbral de alerta), precipitación, caudal, temperatura, nivel pronosticado y caudal pronosticado (con umbrales amarilla/naranja/roja) y calidad del agua (Índice ICA). Clic en una estación muestra su detalle y, cuando aplica, su serie de tiempo. (Embalses: 25 estaciones en el país pero ninguna en Nariño, no aplica. Subzonas SZH_Alertas y SZH_Pobs: polígonos de ~8 MB cada uno; quedan fuera por peso de carga en el front.)',
 				'elementos' => array(
 					$c(
 						'Estaciones hidrológicas (mapa por variable)',
-						'Mismo mapa, cambiando el atributo "variable": nivel de ríos (con alertas), precipitación, caudal o temperatura. Clic en una estación abre su detalle y su serie de tiempo. Incluye descripción y análisis.',
+						'El mismo mapa cambia con el atributo "variable" para recorrer las siete redes FEWS de Nariño. Nivel, precipitación, caudal y temperatura traen serie de tiempo al hacer clic; nivel y caudal pronosticados marcan alerta graduada (amarilla/naranja/roja); calidad colorea por categoría ICA (muy mala→excelente) y muestra el último índice. Incluye descripción y análisis.',
 						array_merge(
 							array(
-								'Nivel de ríos'  => '[man_estaciones variable="nivel"]',
-								'Precipitación'  => '[man_estaciones variable="precipitacion"]',
-								'Caudal'         => '[man_estaciones variable="caudal"]',
-								'Temperatura'    => '[man_estaciones variable="temperatura"]',
+								'Nivel de ríos'        => '[man_estaciones variable="nivel"]',
+								'Precipitación'        => '[man_estaciones variable="precipitacion"]',
+								'Caudal'               => '[man_estaciones variable="caudal"]',
+								'Temperatura'          => '[man_estaciones variable="temperatura"]',
+								'Nivel pronosticado'   => '[man_estaciones variable="nivel_pronostico"]',
+								'Caudal pronosticado'  => '[man_estaciones variable="caudal_pronostico"]',
+								'Calidad del agua ICA' => '[man_estaciones variable="calidad"]',
 							),
 							$info( 'estaciones' )
 						)
@@ -763,6 +766,9 @@ final class MAN_Admin {
 	 * @return string HTML escapado.
 	 */
 	private function badge_capa( $capa ) {
+		if ( '' === (string) $capa ) {
+			return '<span class="man-badge man-badge-mixto">No aplica</span>';
+		}
 		$mapa = array(
 			'cron'      => array( 'Cron (servidor)', 'man-badge-cron' ),
 			'navegador' => array( 'Navegador', 'man-badge-navegador' ),
@@ -883,16 +889,52 @@ final class MAN_Admin {
 			),
 			'territorio' => array(
 				'titulo' => 'Territorio y alertas',
-				'intro'  => 'Las alertas y el pronóstico oficial colombiano provienen del IDEAM a través del portal de datos abiertos datos.gov.co (consultas SoQL, sincronizadas por cron). La cartografía de los 64 municipios es del DANE y se sirve desde un GeoJSON local del plugin.',
+				'intro'  => 'Las alertas hidrológicas y la situación de las estaciones provienen del IDEAM a través del visor FEWS (fews.ideam.gov.co/visorfews), que publica un JSON estático por red de estaciones. El cron sincroniza la red de NIVEL (alertas de ríos) y las demás redes se consultan en vivo con caché. El dataset antiguo de datos.gov.co dejó de existir. La cartografía de los 64 municipios es del DANE y se sirve desde un GeoJSON local del plugin.',
 				'filas'  => array(
 					array(
-						'dato'       => 'Alertas por municipio (fenómeno, nivel, fechas, sinopsis) y pronóstico oficial',
-						'fuente'     => 'IDEAM vía datos.gov.co (Socrata/SODA, SoQL)',
-						'endpoint'   => 'datos.gov.co/resource/{dataset-id}.json',
+						'dato'       => 'Nivel de ríos en Nariño con umbral de alerta (red sincronizada por cron; alimenta [man_estado] y [man_mapa])',
+						'fuente'     => 'IDEAM — FEWS · ReporteTablaEstaciones.json',
+						'endpoint'   => 'fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones.json',
 						'capa'       => 'cron',
-						'licencia'   => 'Datos abiertos de Colombia',
+						'licencia'   => 'IDEAM — datos abiertos',
 						'config'     => 'ideam',
-						'shortcodes' => array( '[man_mapa]', '[man_estado]' ),
+						'shortcodes' => array( '[man_estaciones variable="nivel"]', '[man_mapa]', '[man_estado]' ),
+					),
+					array(
+						'dato'       => 'Precipitación, caudal y temperatura por estación (último dato observado)',
+						'fuente'     => 'IDEAM — FEWS · ReporteTablaEstacionesPobs / EstacionesQ / EstacionesTobs',
+						'endpoint'   => 'fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones{Pobs|Q|Tobs}.json',
+						'capa'       => 'navegador',
+						'licencia'   => 'IDEAM — datos abiertos',
+						'config'     => 'ideam',
+						'shortcodes' => array( '[man_estaciones variable="precipitacion"]', '[man_estaciones variable="caudal"]', '[man_estaciones variable="temperatura"]' ),
+					),
+					array(
+						'dato'       => 'Nivel y caudal pronosticados con umbrales amarilla/naranja/roja (modelo de simulación FEWS)',
+						'fuente'     => 'IDEAM — FEWS · ReporteTablaEstacionesHsim / EstacionesQsim',
+						'endpoint'   => 'fews.ideam.gov.co/visorfews/data/ReporteTablaEstaciones{Hsim|Qsim}.json',
+						'capa'       => 'navegador',
+						'licencia'   => 'IDEAM — datos abiertos',
+						'config'     => 'ideam',
+						'shortcodes' => array( '[man_estaciones variable="nivel_pronostico"]', '[man_estaciones variable="caudal_pronostico"]' ),
+					),
+					array(
+						'dato'       => 'Calidad del agua: Índice de Calidad del Agua (ICA) por estación de la red nacional',
+						'fuente'     => 'IDEAM — FEWS · ReporteTablaEstacionesCalidad.json',
+						'endpoint'   => 'fews.ideam.gov.co/visorfews/data/ReporteTablaEstacionesCalidad.json',
+						'capa'       => 'navegador',
+						'licencia'   => 'IDEAM — datos abiertos',
+						'config'     => 'ideam',
+						'shortcodes' => array( '[man_estaciones variable="calidad"]' ),
+					),
+					array(
+						'dato'       => 'No aplican a Nariño: Embalses VolUtil (0 estaciones en el departamento) y subzonas SZH_Alertas/SZH_Pobs (polígonos ~8 MB, excluidos por peso)',
+						'fuente'     => 'IDEAM — FEWS · EmbalsesVolUtil / SZH_Alertas / SZH_Pobs',
+						'endpoint'   => 'fews.ideam.gov.co/visorfews/data/{ReporteTablaEmbalsesVolUtil|SZH_Alertas|SZH_Pobs}.json',
+						'capa'       => '',
+						'licencia'   => 'IDEAM — datos abiertos',
+						'config'     => '',
+						'shortcodes' => array(),
 					),
 					array(
 						'dato'       => 'Cartografía y límites de los 64 municipios (centroides y polígonos DIVIPOLA)',
