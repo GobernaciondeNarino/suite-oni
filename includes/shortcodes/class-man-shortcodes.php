@@ -63,6 +63,8 @@ final class MAN_Shortcodes {
 		// Descripción y análisis del mapa coroplético (texto, sin el mapa).
 		add_shortcode( 'man_mapa_descripcion', array( $this, 'sc_mapa_descripcion' ) );
 		add_shortcode( 'man_mapa_analisis', array( $this, 'sc_mapa_analisis' ) );
+		// Descripción/análisis de los componentes (estado, pronóstico, hídrico, mar, salud, globo…).
+		add_shortcode( 'man_info', array( $this, 'sc_info' ) );
 		add_shortcode( 'man_filtro', array( $this, 'sc_filtro' ) );
 		add_shortcode( 'man_panel', array( $this, 'sc_panel' ) );
 		add_shortcode( 'man_mar', array( $this, 'sc_mar' ) );
@@ -711,6 +713,48 @@ final class MAN_Shortcodes {
 		);
 		$bloque = isset( $t[ $var ] ) ? $t[ $var ] : $t['riesgo'];
 		return isset( $bloque[ $tipo ] ) ? $bloque[ $tipo ] : $bloque['descripcion'];
+	}
+
+	/**
+	 * [man_info] — descripción o análisis (texto, ≥375 car.) de un COMPONENTE
+	 * que no es una vista del motor de gráficos (estado, pronóstico, hídrico,
+	 * mar, salud, globo, timeline, animación, estaciones, datos).
+	 *
+	 * Atributos: elemento="estado|pronostico|hidrico|mar|salud|globo|timeline|
+	 * animacion|estaciones|datos", tipo="descripcion|analisis".
+	 */
+	public function sc_info( $atts ) {
+		$atts = $this->fusionar( array( 'elemento' => 'estado', 'tipo' => 'descripcion' ), $atts, 'man_info' );
+		wp_enqueue_style( 'man-estilos' );
+		$elemento = sanitize_key( $atts['elemento'] );
+		$tipo     = ( 'analisis' === $atts['tipo'] ) ? 'analisis' : 'descripcion';
+		$txt      = $this->info_elemento( $elemento, $tipo );
+		if ( '' === $txt ) {
+			return '';
+		}
+		$cls = 'analisis' === $tipo ? 'man-g__analisis-desc man-info--analisis' : 'man-g__analisis-desc man-info--descripcion';
+		return '<div class="man man-analisis-bloque" style="' . esc_attr( MAN_Estilos::estilo_inline( $atts ) ) . '">'
+			. '<p class="' . esc_attr( $cls ) . '">' . esc_html( $txt ) . '</p></div>';
+	}
+
+	/**
+	 * Texto (descripcion|analisis) de un componente, desde
+	 * includes/data/textos-elementos.php (cacheado en memoria).
+	 *
+	 * @param string $elemento Slug del componente.
+	 * @param string $tipo     descripcion | analisis.
+	 * @return string
+	 */
+	private function info_elemento( $elemento, $tipo ) {
+		static $t = null;
+		if ( null === $t ) {
+			$ruta = MAN_DIR . 'includes/data/textos-elementos.php';
+			$t    = is_readable( $ruta ) ? include $ruta : array();
+			if ( ! is_array( $t ) ) {
+				$t = array();
+			}
+		}
+		return isset( $t[ $elemento ][ $tipo ] ) ? $t[ $elemento ][ $tipo ] : '';
 	}
 
 	/**

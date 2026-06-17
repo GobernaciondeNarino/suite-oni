@@ -277,6 +277,17 @@ final class MAN_Admin {
 		$s = function ( $tag, $titulo, $desc, $ejemplo, $attrs = array() ) {
 			return array( 'tipo' => 'simple', 'tag' => $tag, 'titulo' => $titulo, 'desc' => $desc, 'ejemplo' => $ejemplo, 'attrs' => $attrs );
 		};
+		// Card con varias piezas (componente + variantes + descripción/análisis).
+		$c = function ( $titulo, $desc, $piezas ) {
+			return array( 'tipo' => 'multi', 'titulo' => $titulo, 'desc' => $desc, 'piezas' => $piezas );
+		};
+		// Atajo: piezas de descripción y análisis de un componente ([man_info]).
+		$info = function ( $elemento ) {
+			return array(
+				'Descripción' => '[man_info elemento="' . $elemento . '" tipo="descripcion"]',
+				'Análisis'    => '[man_info elemento="' . $elemento . '" tipo="analisis"]',
+			);
+		};
 		return array(
 			'noaa'       => array(
 				'etiqueta'  => 'NOAA/CPC (ENSO)',
@@ -287,8 +298,17 @@ final class MAN_Admin {
 					$g( 'oni_pronostico', 'line', 'ONI pronosticado', 'Tramo proyectado (oficial + modelo del plugin).' ),
 					$g( 'prob_fase', 'stacked_bar', 'Probabilidad de fase', 'El Niño / Neutral / La Niña por trimestre.' ),
 					$g( 'episodios', 'bar', 'Episodios históricos', 'ONI pico de los eventos 2015–2024.' ),
-					$s( 'man_estado', 'Estado actual', 'Semáforo ENSO + ONI vigente, fase e intensidad.', '[man_estado municipio="departamento"]', array( '<code>municipio</code>', '<code>compacto</code>' ) ),
-					$s( 'man_estado_select', 'Estado actual · con selector', 'Igual que el estado actual pero con un menú de los 64 municipios que recarga el dato sin recargar la página.', '[man_estado_select municipio="52001"]', array( '<code>municipio</code> (inicial)' ) ),
+					$c(
+						'Estado actual del fenómeno',
+						'Semáforo ENSO + ONI vigente, fase e intensidad. Úsalo fijo (un municipio o el departamento) o con selector de los 64 municipios, y acompáñalo con su descripción y análisis.',
+						array_merge(
+							array(
+								'Estado (fijo)' => '[man_estado municipio="departamento"]',
+								'Con selector'  => '[man_estado_select municipio="52001"]',
+							),
+							$info( 'estado' )
+						)
+					),
 					array(
 						'tipo'   => 'multi',
 						'titulo' => 'Predicción ENSO (gráfico y piezas)',
@@ -302,8 +322,21 @@ final class MAN_Admin {
 							'Ficha técnica'  => '[man_prediccion_ficha hasta="2027-02"]',
 						),
 					),
-					$s( 'man_globo', 'Globo 3D', 'Globo con la anomalía SST del Pacífico y el foco de Nariño.', '[man_globo calidad="auto"]', array( '<code>calidad</code>', '<code>autorotar</code>' ) ),
-					$s( 'man_timeline', 'Línea de tiempo', 'Slider de meses del ONI que controla el globo.', '[man_timeline]', array( '<code>inicio</code>', '<code>fin</code>', '<code>autoplay</code>' ) ),
+					$c(
+						'Globo 3D',
+						'Globo terráqueo con la anomalía SST del Pacífico y el foco de Nariño. Se acompaña de su descripción y análisis.',
+						array_merge( array( 'Globo' => '[man_globo calidad="auto"]' ), $info( 'globo' ) )
+					),
+					$c(
+						'Línea de tiempo',
+						'Slider de meses del ONI (con franja de calor) que controla el globo. Se acompaña de su descripción y análisis.',
+						array_merge( array( 'Línea de tiempo' => '[man_timeline]' ), $info( 'timeline' ) )
+					),
+					$c(
+						'Animación del mecanismo',
+						'Animación explicativa (Anime.js) del Pacífico ecuatorial: alisios, piscina cálida, termoclina y lluvias; compara Neutral / El Niño / La Niña. Con su descripción y análisis.',
+						array_merge( array( 'Animación' => '[man_animacion estado="el_nino"]' ), $info( 'animacion' ) )
+					),
 				),
 			),
 			'openmeteo'  => array(
@@ -313,10 +346,28 @@ final class MAN_Admin {
 					$g( 'deficit_municipios', 'bar', 'Déficit hídrico por municipio', 'REAL, derivado de la precipitación reciente.' ),
 					$g( 'deficit_serie', 'line', 'Déficit hídrico mensual', 'Serie del escenario de planeación.' ),
 					$g( 'precip_caudal', 'line', 'Precipitación y caudal', 'Dos series mensuales superpuestas.' ),
-					$s( 'man_pronostico', 'Pronóstico 7–16 días', 'Pronóstico en vivo por municipio con gráfico y texto.', '[man_pronostico municipio="52001" dias="14"]', array( '<code>municipio</code>', '<code>dias</code>' ) ),
-					$s( 'man_pronostico_select', 'Pronóstico · con selector', 'Pronóstico con menú de los 64 municipios que recarga el gráfico por AJAX.', '[man_pronostico_select municipio="52001" dias="14"]', array( '<code>municipio</code> (inicial)', '<code>dias</code>' ) ),
-					$s( 'man_hidrico', 'Recursos hídricos', 'Caudal de ríos (GloFAS) y humedad de suelo.', '[man_hidrico municipio="52001"]', array( '<code>municipio</code>' ) ),
-					$s( 'man_hidrico_select', 'Recursos hídricos · con selector', 'Recursos hídricos con menú de los 64 municipios que recarga por AJAX.', '[man_hidrico_select municipio="52001"]', array( '<code>municipio</code> (inicial)' ) ),
+					$c(
+						'Pronóstico 7–16 días',
+						'Pronóstico del tiempo en vivo por municipio (temperatura y precipitación). Fijo o con selector de los 64 municipios (recarga por AJAX), con su descripción y análisis.',
+						array_merge(
+							array(
+								'Pronóstico (fijo)' => '[man_pronostico municipio="52001" dias="14"]',
+								'Con selector'      => '[man_pronostico_select municipio="52001" dias="14"]',
+							),
+							$info( 'pronostico' )
+						)
+					),
+					$c(
+						'Recursos hídricos',
+						'Caudal de ríos (GloFAS) y humedad de suelo por municipio. Fijo o con selector de los 64 municipios (recarga por AJAX), con su descripción y análisis.',
+						array_merge(
+							array(
+								'Hídrico (fijo)' => '[man_hidrico municipio="52001"]',
+								'Con selector'   => '[man_hidrico_select municipio="52001"]',
+							),
+							$info( 'hidrico' )
+						)
+					),
 				),
 			),
 			'firms'      => array(
@@ -331,21 +382,33 @@ final class MAN_Admin {
 				'etiqueta'  => 'IOC (nivel del mar)',
 				'intro'     => 'Mareógrafos del IOC/VLIZ (COI-UNESCO) en la costa Pacífica (Tumaco).',
 				'elementos' => array(
-					$s( 'man_mar', 'Mar y oleaje', 'Nivel del mar (IOC) + oleaje del Pacífico (Open-Meteo Marine).', '[man_mar]', array( '<code>estacion</code>' ) ),
+					$c(
+						'Mar y oleaje',
+						'Nivel del mar (IOC) + oleaje del Pacífico (Open-Meteo Marine) frente a Tumaco. Con su descripción y análisis.',
+						array_merge( array( 'Mar y oleaje' => '[man_mar]' ), $info( 'mar' ) )
+					),
 				),
 			),
 			'ideam'      => array(
 				'etiqueta'  => 'IDEAM (FEWS)',
 				'intro'     => 'Estaciones hidrológicas de Nariño del Sistema de Alerta Temprana FEWS de IDEAM, con nivel de río, umbral de alerta y serie de tiempo por estación.',
 				'elementos' => array(
-					$s( 'man_estaciones', 'Estaciones hidrológicas (mapa)', 'Mapa de las estaciones FEWS de Nariño con marcadores por nivel de alerta; clic en una muestra su detalle y la serie de nivel del río.', '[man_estaciones]', array( '<code>alto</code>' ) ),
+					$c(
+						'Estaciones hidrológicas (mapa)',
+						'Mapa de las estaciones FEWS de Nariño con marcadores por nivel de alerta; clic en una muestra su detalle y la serie de nivel del río. Con su descripción y análisis.',
+						array_merge( array( 'Mapa de estaciones' => '[man_estaciones]' ), $info( 'estaciones' ) )
+					),
 				),
 			),
 			'sivigila'   => array(
 				'etiqueta'  => 'SIVIGILA (salud)',
 				'intro'     => 'Casos de dengue sensibles al clima (INS/SIVIGILA vía datos.gov.co).',
 				'elementos' => array(
-					$s( 'man_salud', 'Salud y clima', 'Casos de dengue por año.', '[man_salud evento="dengue"]', array( '<code>evento</code>', '<code>anio</code>' ) ),
+					$c(
+						'Salud y clima (dengue)',
+						'Casos de dengue (SIVIGILA) sensibles al clima. Con su descripción y análisis.',
+						array_merge( array( 'Salud y clima' => '[man_salud evento="dengue"]' ), $info( 'salud' ) )
+					),
 				),
 			),
 			'combinados' => array(
@@ -359,7 +422,11 @@ final class MAN_Admin {
 					$g( 'acueductos', 'bar', 'Acueductos en racionamiento', 'Escenario de recursos por mes.' ),
 					$g( 'hidro_reduccion', 'line', 'Reducción hidroeléctrica', 'Escenario de recursos por mes.' ),
 					$s( 'man_mapa', 'Mapa coroplético', '64 municipios por variable (NOAA + IDEAM + escenario).', '[man_mapa variable="riesgo" mes="2026-10"]', array( '<code>variable</code>', '<code>mes</code>' ) ),
-					$s( 'man_datos', 'Descarga de datos', 'JSON/CSV/Ver API/Copiar URL (CC BY 4.0).', '[man_datos recurso="prediccion" texto="Descarga la predicción"]', array( '<code>recurso</code>', '<code>municipio</code>', '<code>mes</code>' ) ),
+					$c(
+						'Descarga de datos abiertos',
+						'Botones para descargar JSON/CSV, ver la API y copiar la URL (CC BY 4.0). Con su descripción y análisis.',
+						array_merge( array( 'Descarga de datos' => '[man_datos recurso="prediccion" texto="Descarga la predicción"]' ), $info( 'datos' ) )
+					),
 					$s( 'man_estado_api', 'Salud de las APIs', 'Estado de cada fuente de datos del plugin.', '[man_estado_api]', array() ),
 				),
 			),
