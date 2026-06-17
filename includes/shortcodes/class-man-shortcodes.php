@@ -1280,6 +1280,7 @@ final class MAN_Shortcodes {
 		$atts = $this->fusionar( array( 'alto' => '460px', 'variable' => 'nivel' ), $atts, 'man_estaciones' );
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_style( 'leaflet' );
+		wp_enqueue_script( 'd3plus' );
 		wp_enqueue_script( 'man-estaciones' );
 		$id   = $this->id();
 		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '460px';
@@ -1288,7 +1289,9 @@ final class MAN_Shortcodes {
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>" class="man man-estaciones"
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>" data-man-estaciones
-			data-variable="<?php echo esc_attr( $var ); ?>">
+			data-variable="<?php echo esc_attr( $var ); ?>"
+			data-geojson="<?php echo esc_url( MAN_URL . 'data/narino_municipios.geojson' ); ?>"
+			data-geojson-depto="<?php echo esc_url( MAN_URL . 'data/narino_departamento.geojson' ); ?>">
 			<div class="man-estaciones__mapa" style="height:<?php echo esc_attr( $alto ); ?>"></div>
 			<div class="man-estaciones__info"></div>
 			<?php echo $this->skeleton( 'Cargando estaciones IDEAM/FEWS…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
