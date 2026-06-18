@@ -411,6 +411,13 @@ final class MAN_Admin {
 							$info( 'estaciones' )
 						)
 					),
+					$s(
+						'man_mapa_fews',
+						'Mapa de estaciones FEWS (todas las redes en capas)',
+						'Un mapa con las 7 redes de estaciones FEWS de Nariño superpuestas y conmutables desde el control de capas (nivel, precipitación, caudal, temperatura, nivel y caudal pronosticados, calidad). Dibuja los límites de departamento, subregiones y municipios; cada estación se colorea por su red y resalta cuando está en alerta. Clic en un punto abre su detalle.',
+						'[man_mapa_fews]',
+						array( '<code>alto</code> — altura del mapa (ej. 560px)' )
+					),
 					// Una tarjeta de gráfico por cada API FEWS (gráfico + descripción + análisis cualitativo/cuantitativo).
 					$g( 'fews_nivel', 'bar', 'Nivel de ríos · ReporteTablaEstaciones', 'Último nivel observado (m) por estación de Nariño; barras (top 15) con mapa de calor.' ),
 					$g( 'fews_precipitacion', 'bar', 'Precipitación · ReporteTablaEstacionesPobs', 'Último dato de lluvia (mm) por estación de Nariño; barras (top 15).' ),
@@ -459,6 +466,13 @@ final class MAN_Admin {
 							'Análisis cualitativo'  => '[man_mapa_analisis variable="riesgo"]',
 							'Análisis cuantitativo' => '[man_mapa_cuantitativo mes="2026-10"]',
 						)
+					),
+					$s(
+						'man_mapa_geo',
+						'Mapa multi-fuente (todos los datos georreferenciados)',
+						'Un solo mapa que superpone TODAS las APIs con coordenadas: las 7 redes de estaciones FEWS, los focos de calor de NASA FIRMS (por municipio) y el mareógrafo IOC de Tumaco. Cada capa se enciende o apaga desde el control. Dibuja los límites de departamento, subregiones y municipios. Los marcadores se colorean por su capa y resaltan en rojo/ámbar cuando hay alerta.',
+						'[man_mapa_geo]',
+						array( '<code>alto</code> — altura del mapa (ej. 600px)' )
 					),
 					$c(
 						'Descarga de datos abiertos',

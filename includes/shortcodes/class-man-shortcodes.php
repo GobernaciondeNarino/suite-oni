@@ -75,6 +75,8 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
 		add_shortcode( 'man_estado_api', array( $this, 'sc_estado_api' ) );
 		add_shortcode( 'man_estaciones', array( $this, 'sc_estaciones' ) );
+		add_shortcode( 'man_mapa_fews', array( $this, 'sc_mapa_fews' ) );
+		add_shortcode( 'man_mapa_geo', array( $this, 'sc_mapa_geo' ) );
 	}
 
 	/**
@@ -106,6 +108,7 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-pronostico', MAN_URL . 'assets/js/pronostico.js', array( 'd3', 'man-core', 'man-municipios' ), MAN_VERSION, true );
 		wp_register_script( 'man-mapa', MAN_URL . 'assets/js/mapa.js', array( 'leaflet', 'man-core', 'man-municipios' ), MAN_VERSION, true );
 		wp_register_script( 'man-estaciones', MAN_URL . 'assets/js/estaciones.js', array( 'leaflet', 'man-core' ), MAN_VERSION, true );
+		wp_register_script( 'man-mapa-geo', MAN_URL . 'assets/js/mapa-geo.js', array( 'leaflet', 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-datos', MAN_URL . 'assets/js/datos.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-timeline', MAN_URL . 'assets/js/timeline.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-historico', MAN_URL . 'assets/js/historico.js', array( 'd3', 'man-core' ), MAN_VERSION, true );
@@ -1296,6 +1299,49 @@ final class MAN_Shortcodes {
 			<div class="man-estaciones__info"></div>
 			<?php echo $this->skeleton( 'Cargando estaciones IDEAM/FEWS…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'IDEAM — FEWS (visorfews) · OpenStreetMap' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/** [man_mapa_fews] — mapa de las 7 redes de estaciones FEWS en capas conmutables. */
+	public function sc_mapa_fews( $atts ) {
+		$atts = $this->fusionar( array( 'alto' => '560px' ), $atts, 'man_mapa_fews' );
+		return $this->render_mapa_geo( $atts, 'fews', 'IDEAM — FEWS (visorfews) · OpenStreetMap' );
+	}
+
+	/** [man_mapa_geo] — mapa multi-fuente con todos los datos georreferenciados. */
+	public function sc_mapa_geo( $atts ) {
+		$atts = $this->fusionar( array( 'alto' => '600px' ), $atts, 'man_mapa_geo' );
+		return $this->render_mapa_geo( $atts, 'todas', 'IDEAM/FEWS · NASA FIRMS · IOC/VLIZ · OpenStreetMap' );
+	}
+
+	/**
+	 * Render común de los mapas multi-fuente ([man_mapa_fews]/[man_mapa_geo]).
+	 *
+	 * @param array  $atts   Atributos fusionados.
+	 * @param string $set    fews | todas.
+	 * @param string $fuente Texto de atribución del pie.
+	 * @return string
+	 */
+	private function render_mapa_geo( $atts, $set, $fuente ) {
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_style( 'leaflet' );
+		wp_enqueue_script( 'man-mapa-geo' );
+		$id   = $this->id();
+		$alto = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $atts['alto'] ) ? $atts['alto'] : '560px';
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>" class="man man-mapa man-mapa-geo"
+			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-mapa-geo
+			data-set="<?php echo esc_attr( $set ); ?>"
+			data-geojson="<?php echo esc_url( MAN_URL . 'data/narino_municipios.geojson' ); ?>"
+			data-geojson-sub="<?php echo esc_url( MAN_URL . 'data/narino_subregiones.geojson' ); ?>"
+			data-geojson-depto="<?php echo esc_url( MAN_URL . 'data/narino_departamento.geojson' ); ?>">
+			<div class="man-mapa__lienzo" style="height:<?php echo esc_attr( $alto ); ?>"></div>
+			<?php echo $this->skeleton( 'Cargando mapa multi-fuente…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( $fuente ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

@@ -145,6 +145,14 @@ final class MAN_Rest {
 			),
 		) );
 
+		// Capas georreferenciadas para mapas: set=fews (redes FEWS) o set=todas (todas las APIs con geo).
+		register_rest_route( self::NS, '/geo', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_geo' ),
+			'permission_callback' => $publico,
+			'args'                => array( 'set' => array( 'sanitize_callback' => 'sanitize_key' ) ),
+		) );
+
 		register_rest_route( self::NS, '/salud', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_salud' ),
@@ -365,6 +373,151 @@ final class MAN_Rest {
 			MAN_Cache::set( $clave, $salida, 3600, 'ideam' ); // 1 h.
 		}
 		return rest_ensure_response( $salida );
+	}
+
+	/**
+	 * Capas georreferenciadas para los mapas multi-fuente.
+	 * set=fews: las 7 redes de estaciones FEWS. set=todas: además focos NASA
+	 * FIRMS (por centroide municipal) y el mareógrafo IOC de Tumaco.
+	 */
+	public function ruta_geo( $req = null ) {
+		$set = $req ? sanitize_key( (string) $req->get_param( 'set' ) ) : 'fews';
+		if ( 'todas' !== $set ) {
+			$set = 'fews';
+		}
+
+		$colores = array(
+			'nivel'             => '#0080C3',
+			'precipitacion'     => '#3498DB',
+			'caudal'            => '#16A085',
+			'temperatura'       => '#FF7300',
+			'nivel_pronostico'  => '#9B59B6',
+			'caudal_pronostico' => '#844E80',
+			'calidad'           => '#2ECC71',
+		);
+		$redes = MAN_Sync_Ideam::redes();
+		$capas = array();
+
+		foreach ( $colores as $var => $color ) {
+			$est = self::geo_red( $var );
+			if ( empty( $est ) ) {
+				continue;
+			}
+			$items = array();
+			foreach ( $est as $e ) {
+				if ( ! isset( $e['lat'], $e['lng'] ) || null === $e['lat'] || null === $e['lng'] ) {
+					continue;
+				}
+				$items[] = array(
+					'lat'       => (float) $e['lat'],
+					'lng'       => (float) $e['lng'],
+					'nombre'    => isset( $e['estacion'] ) ? $e['estacion'] : '',
+					'municipio' => isset( $e['municipio'] ) ? $e['municipio'] : '',
+					'valor'     => isset( $e['valor'] ) ? $e['valor'] : null,
+					'unidad'    => isset( $e['unidad'] ) ? $e['unidad'] : '',
+					'alerta'    => isset( $e['nivel_alerta'] ) ? $e['nivel_alerta'] : 'normal',
+				);
+			}
+			if ( $items ) {
+				$capas[] = array(
+					'id'       => 'fews_' . $var,
+					'etiqueta' => isset( $redes[ $var ]['nombre'] ) ? $redes[ $var ]['nombre'] : $var,
+					'tipo'     => 'estacion',
+					'color'    => $color,
+					'items'    => $items,
+				);
+			}
+		}
+
+		if ( 'todas' === $set ) {
+			// NASA FIRMS: focos por municipio, ubicados en el centroide municipal.
+			$focos = MAN_Cache::get( 'focos_calor' );
+			if ( is_array( $focos ) && ! empty( $focos['por_muni'] ) ) {
+				$items = array();
+				foreach ( $focos['por_muni'] as $cod => $n ) {
+					$n = (int) $n;
+					if ( $n <= 0 ) {
+						continue;
+					}
+					$mun = MAN_Municipios::por_divipola( (string) $cod );
+					if ( ! $mun ) {
+						continue;
+					}
+					$items[] = array(
+						'lat'       => (float) $mun['lat'],
+						'lng'       => (float) $mun['lon'],
+						'nombre'    => $mun['nombre'],
+						'municipio' => $mun['nombre'],
+						'valor'     => $n,
+						'unidad'    => 'focos',
+						'alerta'    => $n >= 10 ? 'alta' : ( $n >= 3 ? 'media' : 'normal' ),
+					);
+				}
+				if ( $items ) {
+					$capas[] = array(
+						'id'       => 'firms_focos',
+						'etiqueta' => 'Focos de calor (NASA FIRMS)',
+						'tipo'     => 'foco',
+						'color'    => '#C0392B',
+						'items'    => $items,
+					);
+				}
+			}
+
+			// IOC / Open-Meteo Marine: mareógrafo de Tumaco (punto costero).
+			$mar = MAN_Cache::get( 'mar_nivel' );
+			$valor_mar = ( is_array( $mar ) && isset( $mar['nivel'] ) && is_numeric( $mar['nivel'] ) ) ? round( (float) $mar['nivel'], 2 ) : null;
+			$capas[] = array(
+				'id'       => 'ioc_mar',
+				'etiqueta' => 'Nivel del mar (IOC · Tumaco)',
+				'tipo'     => 'mar',
+				'color'    => '#34495E',
+				'items'    => array(
+					array(
+						'lat'       => 1.8262,
+						'lng'       => -78.7666,
+						'nombre'    => 'Mareógrafo de Tumaco',
+						'municipio' => 'San Andrés de Tumaco',
+						'valor'     => $valor_mar,
+						'unidad'    => 'm',
+						'alerta'    => 'normal',
+					),
+				),
+			);
+		}
+
+		return rest_ensure_response( array(
+			'set'         => $set,
+			'capas'       => $capas,
+			'actualizado' => current_time( 'mysql', true ),
+		) );
+	}
+
+	/**
+	 * Estaciones de una red FEWS de Nariño con caché de 1 h (reutiliza la clave
+	 * de la ruta de estaciones). Para la red de nivel usa la caché del cron.
+	 *
+	 * @param string $variable Clave de red.
+	 * @return array[]
+	 */
+	private static function geo_red( $variable ) {
+		if ( 'nivel' === $variable ) {
+			$cache = MAN_Cache::get( 'ideam_alertas' );
+			if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
+				return array_values( $cache['registros'] );
+			}
+		}
+		$clave    = 'fews_red_' . $variable;
+		$cacheada = MAN_Cache::get( $clave );
+		if ( is_array( $cacheada ) && ! empty( $cacheada['estaciones'] ) ) {
+			return $cacheada['estaciones'];
+		}
+		$res = MAN_Sync_Ideam::estaciones_narino( $variable );
+		if ( ! empty( $res['estaciones'] ) ) {
+			MAN_Cache::set( $clave, array( 'variable' => $variable, 'estaciones' => $res['estaciones'] ), 3600, 'ideam' );
+			return $res['estaciones'];
+		}
+		return array();
 	}
 
 	/** Serie de tiempo de una estación FEWS (proxy servidor; código validado). */
