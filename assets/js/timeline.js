@@ -54,9 +54,33 @@
       li.setAttribute('tabindex', '0');
       li.setAttribute('aria-label', mesLargo(s.mes) + (s.proyectado ? ' (proyectado)' : ' (observado)'));
       li.addEventListener('click', function () { pausar(); set(i); });
-      li.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pausar(); set(i); } });
+      li.addEventListener('keydown', function (e) {
+        var k = e.key;
+        if (k === 'Enter' || k === ' ') { e.preventDefault(); pausar(); set(i); return; }
+        var destino = null;
+        if (k === 'ArrowRight' || k === 'ArrowDown') { destino = i + 1; }
+        else if (k === 'ArrowLeft' || k === 'ArrowUp') { destino = i - 1; }
+        else if (k === 'Home') { destino = 0; }
+        else if (k === 'End') { destino = serie.length - 1; }
+        if (destino !== null) {
+          e.preventDefault();
+          destino = Math.max(0, Math.min(serie.length - 1, destino));
+          pausar(); set(destino);
+          var foco = marcas.querySelector('.man-timeline__marca[data-i="' + destino + '"]');
+          if (foco) { foco.focus(); }
+        }
+      });
       marcas.appendChild(li);
     });
+
+    // Región accesible que anuncia el mes y el ONI vigentes a lectores de pantalla.
+    var vivo = cont.querySelector('.man-timeline__vivo');
+    if (!vivo) {
+      vivo = document.createElement('p');
+      vivo.className = 'man-timeline__vivo man-sr-only';
+      vivo.setAttribute('aria-live', 'polite');
+      cont.appendChild(vivo);
+    }
 
     // Divisor observado/proyectado.
     var idxUltObs = -1;
@@ -92,6 +116,10 @@
         li.classList.toggle('activo', on);
         li.setAttribute('aria-current', on ? 'true' : 'false');
       });
+      if (vivo) {
+        vivo.textContent = mesLargo(s.mes) + ': ONI ' + (Number(s.oni) >= 0 ? '+' : '') + (Math.round(Number(s.oni) * 100) / 100)
+          + ' °C, fase ' + (s.fase || '') + (s.proyectado ? ' (proyectado)' : ' (observado)');
+      }
       window.dispatchEvent(new CustomEvent('man:mes', {
         detail: {
           mes: s.mes, oni: s.oni, fase: s.fase, tipo: s.proyectado ? 'proyectado' : 'observado',
@@ -108,8 +136,8 @@
         set(v);
       }, intervalo);
     }
-    function reproducir() { playing = true; btnPlay.textContent = '⏸'; btnPlay.classList.add('is-playing'); arrancar(); }
-    function pausar() { playing = false; btnPlay.textContent = '▶'; btnPlay.classList.remove('is-playing'); clearInterval(timer); }
+    function reproducir() { playing = true; btnPlay.textContent = '⏸'; btnPlay.classList.add('is-playing'); btnPlay.setAttribute('aria-label', 'Pausar la reproducción'); btnPlay.setAttribute('aria-pressed', 'true'); arrancar(); }
+    function pausar() { playing = false; btnPlay.textContent = '▶'; btnPlay.classList.remove('is-playing'); btnPlay.setAttribute('aria-label', 'Reproducir la línea de tiempo'); btnPlay.setAttribute('aria-pressed', 'false'); clearInterval(timer); }
 
     rango.addEventListener('input', function () { pausar(); set(parseInt(rango.value, 10)); });
     cont.querySelector('[data-accion="anterior"]').addEventListener('click', function () { pausar(); set(parseInt(rango.value, 10) - 1); });

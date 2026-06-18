@@ -805,15 +805,35 @@ class GloboMAN {
     Array.prototype.forEach.call(this.cont.querySelectorAll('[data-camara]'), function (b) {
       b.addEventListener('click', function () { self.irACamara(b.getAttribute('data-camara')); });
     });
-    // Drawers (mecanismo / histórico).
+    // Drawers (mecanismo / histórico): se exponen como diálogos accesibles.
+    Array.prototype.forEach.call(this.cont.querySelectorAll('.man-globo__drawer'), function (d) {
+      d.setAttribute('role', 'dialog');
+      d.setAttribute('aria-modal', 'true');
+      d.setAttribute('tabindex', '-1');
+    });
     Array.prototype.forEach.call(this.cont.querySelectorAll('[data-panel]'), function (b) {
       b.addEventListener('click', function () { self._toggleDrawer(b.getAttribute('data-panel'), b); });
     });
     Array.prototype.forEach.call(this.cont.querySelectorAll('.man-globo__drawer [data-cerrar]'), function (x) {
-      x.addEventListener('click', function () {
-        var d = x.closest('.man-globo__drawer'); if (d) { d.hidden = true; }
-      });
+      x.addEventListener('click', function () { self._cerrarDrawers(); });
     });
+    // Esc cierra el drawer abierto y devuelve el foco al botón que lo abrió.
+    this.cont.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && self.cont.querySelector('.man-globo__drawer:not([hidden])')) {
+        e.preventDefault();
+        self._cerrarDrawers();
+      }
+    });
+  }
+
+  _cerrarDrawers() {
+    var self = this;
+    Array.prototype.forEach.call(this.cont.querySelectorAll('.man-globo__drawer'), function (d) { d.hidden = true; });
+    Array.prototype.forEach.call(this.cont.querySelectorAll('[data-panel]'), function (b) { b.setAttribute('aria-expanded', 'false'); });
+    if (self._drawerTrigger && typeof self._drawerTrigger.focus === 'function') {
+      self._drawerTrigger.focus();
+      self._drawerTrigger = null;
+    }
   }
 
   _toggleDrawer(cual, btn) {
@@ -826,7 +846,17 @@ class GloboMAN {
     var abrir = drawer.hidden;
     drawer.hidden = !abrir;
     if (btn) { btn.setAttribute('aria-expanded', abrir ? 'true' : 'false'); }
-    if (!abrir) { return; }
+    if (!abrir) {
+      // Se cerró por el propio botón: devuelve el foco a él.
+      if (btn && typeof btn.focus === 'function') { btn.focus(); }
+      this._drawerTrigger = null;
+      return;
+    }
+    // Al abrir: recuerda el disparador y mueve el foco al botón de cierre del diálogo.
+    this._drawerTrigger = btn || null;
+    var cerrar = drawer.querySelector('[data-cerrar]');
+    if (cerrar && typeof cerrar.focus === 'function') { cerrar.focus(); }
+    else { drawer.focus(); }
     var cuerpo = drawer.querySelector('.man-globo__drawer-cuerpo');
     if (cuerpo.getAttribute('data-listo')) { return; }
     if (cual === 'mecanismo') { self._pintarMecanismo(cuerpo); }

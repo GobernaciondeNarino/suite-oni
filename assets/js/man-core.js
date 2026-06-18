@@ -68,7 +68,13 @@
     quitarSkeleton(cont);
     var prev = cont.querySelector('.man-error');
     if (prev) { prev.parentNode.removeChild(prev); }
-    var box = el('div', 'man-error', '<p>' + esc(msg || 'No se pudieron cargar los datos. Intente de nuevo.') + '</p>');
+    var base = esc(msg || 'No se pudieron cargar los datos. Intente de nuevo.');
+    // Pista de contexto: si el navegador está sin conexión, se aclara.
+    var pista = (typeof navigator !== 'undefined' && navigator.onLine === false)
+      ? '<span class="man-mute-line">Parece que no hay conexión a internet.</span>'
+      : '';
+    var box = el('div', 'man-error', '<p>' + base + '</p>' + pista);
+    box.setAttribute('role', 'alert');
     var b = el('button', 'man-btn', 'Reintentar');
     b.type = 'button';
     b.addEventListener('click', function () {

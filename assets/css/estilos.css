@@ -375,7 +375,29 @@
 .man-animacion__controles { display: flex; gap: 8px; flex-wrap: wrap; margin: .6em 0 .2em; }
 .man-animacion__narracion { min-height: 2.4em; }
 
+/* Accesibilidad: contenido solo para lectores de pantalla (no visible). */
+.man-sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+  white-space: nowrap; border: 0;
+}
+
+/* Tooltips: nunca exceden el ancho del viewport (móvil). */
+.man-globo__tip, .man-pronostico__tip { max-width: min(240px, 86vw); }
+
+/* Móviles muy estrechos (≤400px): evita el solape de las marcas de mes
+   mostrando una de cada dos (la activa siempre se ve). El globo conserva su
+   altura por requisito de diseño. */
+@media (max-width: 400px) {
+  .man-timeline__marca { font-size: .62rem; }
+  .man-timeline__marca:not(.activo):nth-child(even) { visibility: hidden; }
+  .man-pronostico__tip { white-space: normal; }
+}
+
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
 @media (prefers-reduced-motion: reduce) {
   .man-btn { transition: none; }
+  .man-timeline__heat { transition: none; }
 }

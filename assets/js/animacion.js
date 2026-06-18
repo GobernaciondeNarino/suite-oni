@@ -69,7 +69,7 @@
     function parar() { if (timer) { clearInterval(timer); timer = null; } }
 
     Array.prototype.forEach.call(botones, function (b) {
-      b.addEventListener('click', function () { parar(); ir(b.getAttribute('data-fase'), true); });
+      b.addEventListener('click', function () { parar(); ir(b.getAttribute('data-fase'), !reduce); });
     });
 
     ir(estado, false); // estado inicial sin animación
