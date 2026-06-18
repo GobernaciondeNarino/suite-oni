@@ -65,6 +65,7 @@ final class MAN_Shortcodes {
 		// Descripción y análisis del mapa coroplético (texto, sin el mapa).
 		add_shortcode( 'man_mapa_descripcion', array( $this, 'sc_mapa_descripcion' ) );
 		add_shortcode( 'man_mapa_analisis', array( $this, 'sc_mapa_analisis' ) );
+		add_shortcode( 'man_mapa_prediccion', array( $this, 'sc_mapa_prediccion' ) );
 		add_shortcode( 'man_mapa_cuantitativo', array( $this, 'sc_mapa_cuantitativo' ) );
 		// Descripción/análisis de los componentes (estado, pronóstico, hídrico, mar, salud, globo…).
 		add_shortcode( 'man_info', array( $this, 'sc_info' ) );
@@ -684,6 +685,14 @@ final class MAN_Shortcodes {
 		return $this->bloque_texto_mapa( $atts, 'analisis' );
 	}
 
+	/** [man_mapa_prediccion] — predicción (estimación condicionada por ENSO) del mapa coroplético. */
+	public function sc_mapa_prediccion( $atts ) {
+		$atts = $this->fusionar( array( 'variable' => 'riesgo', 'mes' => '' ), $atts, 'man_mapa_prediccion' );
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_style( 'man-grafico-css' );
+		return $this->bloque_texto_mapa( $atts, 'prediccion' );
+	}
+
 	/**
 	 * [man_mapa_cuantitativo] — análisis CUANTITATIVO del mapa con cifras en vivo
 	 * (nº de municipios por nivel, promedio departamental, municipio más expuesto),
@@ -717,9 +726,15 @@ final class MAN_Shortcodes {
 	private function bloque_texto_mapa( $atts, $tipo ) {
 		$var = sanitize_key( $atts['variable'] );
 		$txt = $this->texto_mapa( $var, $tipo );
-		$cls = 'analisis' === $tipo ? 'man-g__analisis-desc man-mapa-analisis' : 'man-g__analisis-desc man-mapa-descripcion';
+		$clases = array(
+			'descripcion' => 'man-g__analisis-desc man-mapa-descripcion',
+			'analisis'    => 'man-g__analisis-desc man-mapa-analisis',
+			'prediccion'  => 'man-g__analisis-pred man-mapa-prediccion',
+		);
+		$cls = isset( $clases[ $tipo ] ) ? $clases[ $tipo ] : $clases['descripcion'];
+		$etq = ( 'prediccion' === $tipo ) ? '<p class="man-g__pred-etq">Predicción (estimación)</p>' : '';
 		return '<div class="man man-analisis-bloque" style="' . esc_attr( MAN_Estilos::estilo_inline( $atts ) ) . '">'
-			. '<p class="' . esc_attr( $cls ) . '">' . esc_html( $txt ) . '</p></div>';
+			. $etq . '<p class="' . esc_attr( $cls ) . '">' . esc_html( $txt ) . '</p></div>';
 	}
 
 	/**
@@ -734,14 +749,17 @@ final class MAN_Shortcodes {
 			'riesgo'        => array(
 				'descripcion' => 'Este mapa coroplético colorea los 64 municipios de Nariño según su índice de riesgo ambiental compuesto (escala 0 a 1) para el mes seleccionado. El índice integra el empuje del fenómeno ENSO (magnitud del ONI), la anomalía de lluvia esperada, la exposición del territorio (población, ladera y costa, con cartografía del DANE) y la sensibilidad sectorial agrícola e hídrica de cada subregión. El color va de verde (bajo) a rojo (extremo); al hacer clic en un municipio se abre su panel con el detalle. Es un escenario de planeación, no un pronóstico oficial.',
 				'analisis'    => 'Lectura del mapa: en El Niño, el altiplano andino y la cordillera tienden a concentrar el mayor riesgo por déficit de lluvia, mientras el litoral Pacífico (Sanquianga, Pacífico Sur, Telembí) responde de forma inversa, con exceso de precipitación y oleaje. Conviene mirar la evolución mes a mes: el pico del escenario se ubica hacia septiembre–octubre, cuando coinciden la temporada seca andina y la fase cálida del Pacífico. Use el mapa para priorizar municipios y contraste siempre con los boletines vigentes del IDEAM y de NOAA-CPC antes de tomar decisiones operativas.',
+				'prediccion'  => 'Estimación: el riesgo se proyecta condicionado al ONI previsto. El índice incorpora directamente la magnitud del ONI proyectado con tendencia amortiguada, de modo que si el modelo anticipa un fortalecimiento de El Niño hacia septiembre–octubre, el riesgo sube sobre todo en el altiplano andino y la cordillera; si se prevé La Niña, el foco se desplaza a crecientes en el litoral Pacífico. Es una estimación de escenario, no un pronóstico oficial; contraste con el IDEAM y la NOAA-CPC.',
 			),
 			'anomalia'      => array(
 				'descripcion' => 'Este mapa coroplético muestra, municipio a municipio, la anomalía climática esperada para el mes seleccionado en los 64 territorios de Nariño: cuánto se desvía la temperatura o la lluvia respecto a su valor normal histórico. Los tonos cálidos indican condiciones más secas o cálidas de lo habitual y los fríos lo contrario. La anomalía se deriva del pronóstico de Open-Meteo y de la fase ENSO vigente, y permite ver de un vistazo qué zonas se apartan más de su clima típico. Al pulsar un municipio se despliega su ficha con los valores concretos.',
 				'analisis'    => 'Interpretación: las anomalías no son uniformes en el departamento. La vertiente andina (Sabana, Ex-Provincia de Obando, Río Mayo) suele mostrar déficit de lluvia en El Niño, con anomalías secas que estresan cultivos y acueductos; la franja del Pacífico, en cambio, puede registrar anomalías húmedas y mayor oleaje. La magnitud crece con la intensidad del ONI y con la cercanía a la primavera boreal, cuando la incertidumbre es mayor. Tome la anomalía como una señal de alerta temprana y verifíquela contra los boletines oficiales del IDEAM y NOAA-CPC.',
+				'prediccion'  => 'Estimación: la anomalía esperada se intensifica con el ONI proyectado. Si la tendencia amortiguada del índice apunta a una fase cálida más marcada, se anticipan anomalías secas más profundas en la vertiente andina y húmedas en el Pacífico; la incertidumbre crece con el horizonte y en la primavera boreal, por eso conviene leerla como señal temprana. Es una estimación derivada del pronóstico y de la fase ENSO, a contrastar con el IDEAM y la NOAA-CPC.',
 			),
 			'precipitacion' => array(
 				'descripcion' => 'Este mapa coroplético representa la precipitación esperada para el mes seleccionado en cada uno de los 64 municipios de Nariño, con una escala de color que va de seco a muy lluvioso. Los datos provienen del pronóstico en vivo de Open-Meteo combinado con la señal del fenómeno ENSO, de modo que refleja tanto el régimen climático propio de cada subregión como el empuje del Pacífico. La fuerte heterogeneidad del relieve nariñense hace que costa, cordillera y altiplano se comporten de forma muy distinta. Al hacer clic en un municipio se abre su panel con el detalle de precipitación.',
 				'analisis'    => 'Cómo leerlo: el litoral Pacífico es estructuralmente muy húmedo (cientos de milímetros al mes) y en El Niño puede intensificar lluvias y oleaje; el altiplano andino y la cordillera son más secos y, en la fase cálida, tienden al déficit que dispara el riesgo de incendios y el racionamiento de acueductos. La precipitación mensual no debe leerse aislada: combínela con el índice de riesgo y el déficit hídrico para entender el impacto real. Recuerde que es un escenario de planeación y debe contrastarse con los boletines vigentes del IDEAM y de NOAA-CPC.',
+				'prediccion'  => 'Estimación: con el ONI proyectado se anticipa el sesgo de la lluvia por subregión. Una fase cálida prevista refuerza el déficit en el altiplano andino (riesgo de incendios y racionamiento) y puede aumentar los acumulados en el litoral Pacífico; en La Niña el patrón se invierte. La señal proviene del pronóstico de Open-Meteo modulado por la fase ENSO estimada, con incertidumbre creciente. Es orientativa; contraste con los boletines del IDEAM y la NOAA-CPC.',
 			),
 		);
 		$bloque = isset( $t[ $var ] ) ? $t[ $var ] : $t['riesgo'];
@@ -759,15 +777,23 @@ final class MAN_Shortcodes {
 	public function sc_info( $atts ) {
 		$atts = $this->fusionar( array( 'elemento' => 'estado', 'tipo' => 'descripcion' ), $atts, 'man_info' );
 		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_style( 'man-grafico-css' );
 		$elemento = sanitize_key( $atts['elemento'] );
-		$tipo     = ( 'analisis' === $atts['tipo'] ) ? 'analisis' : 'descripcion';
+		$tipo     = in_array( $atts['tipo'], array( 'descripcion', 'analisis', 'cuantitativo', 'prediccion' ), true ) ? $atts['tipo'] : 'descripcion';
 		$txt      = $this->info_elemento( $elemento, $tipo );
 		if ( '' === $txt ) {
 			return '';
 		}
-		$cls = 'analisis' === $tipo ? 'man-g__analisis-desc man-info--analisis' : 'man-g__analisis-desc man-info--descripcion';
+		$clases = array(
+			'descripcion'  => 'man-g__analisis-desc man-info--descripcion',
+			'analisis'     => 'man-g__analisis-desc man-info--analisis',
+			'cuantitativo' => 'man-g__analisis-num man-info--cuantitativo',
+			'prediccion'   => 'man-g__analisis-pred man-info--prediccion',
+		);
+		$cls   = isset( $clases[ $tipo ] ) ? $clases[ $tipo ] : $clases['descripcion'];
+		$etq   = ( 'prediccion' === $tipo ) ? '<p class="man-g__pred-etq">Predicción (estimación)</p>' : '';
 		return '<div class="man man-analisis-bloque" style="' . esc_attr( MAN_Estilos::estilo_inline( $atts ) ) . '">'
-			. '<p class="' . esc_attr( $cls ) . '">' . esc_html( $txt ) . '</p></div>';
+			. $etq . '<p class="' . esc_attr( $cls ) . '">' . esc_html( $txt ) . '</p></div>';
 	}
 
 	/**
