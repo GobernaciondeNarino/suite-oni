@@ -319,6 +319,7 @@ final class MAN_Rest {
 				'measures'          => $view['measures'],
 				'analisis'          => isset( $view['analisis'] ) ? $view['analisis'] : null,
 				'como_funciona'     => isset( $view['como_funciona'] ) ? $view['como_funciona'] : '',
+				'prediccion'        => isset( $view['prediccion'] ) ? $view['prediccion'] : '',
 				'heatmap'           => ! empty( $view['heatmap'] ),
 			),
 			'data'       => $view['data'],

@@ -68,6 +68,7 @@ final class MAN_Plugin {
 		// Análisis.
 		require_once $base . 'analysis/class-man-enso.php';
 		require_once $base . 'analysis/class-man-forecast.php';
+		require_once $base . 'analysis/class-man-predict.php';
 		require_once $base . 'analysis/class-man-risk.php';
 		require_once $base . 'analysis/class-man-texto.php';
 

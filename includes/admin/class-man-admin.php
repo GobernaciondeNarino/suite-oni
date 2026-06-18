@@ -221,6 +221,7 @@ final class MAN_Admin {
 					'Descripción'           => '[man_descripcion view="' . $v . '"]',
 					'Análisis cualitativo'  => '[man_analisis_cualitativo view="' . $v . '"]',
 					'Análisis cuantitativo' => '[man_analisis_cuantitativo view="' . $v . '"]',
+					'Predicción'            => '[man_prediccion_dato view="' . $v . '"]',
 					'¿Cómo funciona?'       => '[man_explicacion view="' . $v . '"]',
 				);
 				foreach ( $piezas as $etq => $sc ) {
