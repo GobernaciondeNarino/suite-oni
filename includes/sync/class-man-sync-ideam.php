@@ -17,6 +17,20 @@ final class MAN_Sync_Ideam {
 	const BASE = 'https://fews.ideam.gov.co/visorfews/data/';
 
 	/**
+	 * Subzonas hidrográficas (SZH IDEAM) cuyas cuencas drenan territorio de
+	 * Nariño: vertiente Pacífica sur (zonas 51 Mira, 52 Patía, 53 Tapaje) y el
+	 * nacimiento del Putumayo (zona 47). Algunas cruzan límites departamentales
+	 * (Patía alto y Mayo con Cauca; alto Putumayo y San Miguel con Putumayo).
+	 * Las capas SZH no traen campo de departamento, por eso se acotan por código.
+	 */
+	const SZH_NARINO = array(
+		'5101', '5102', '5103', '5104', // Mira, Rosario, Chagüí, San Juan (frontera Ecuador).
+		'5201', '5202', '5203', '5204', '5205', '5206', '5207', '5209', // Cuenca del Patía.
+		'5302', '5303',                 // Tapaje e Iscuandé (costa Pacífica nariñense).
+		'4701', '4702',                 // Alto Putumayo y San Miguel (La Cocha–Guamués).
+	);
+
+	/**
 	 * Redes FEWS soportadas. 'alerta' indica cómo se calcula el nivel de alerta:
 	 *   umbral  → alta si valor ≥ umbral (nivel observado).
 	 *   graded  → media/alta según umbrales amarilla/naranja/roja (pronóstico).
@@ -148,6 +162,65 @@ final class MAN_Sync_Ideam {
 			'alertas'    => $alertas,
 			'total_red'  => count( $feats ),
 		);
+	}
+
+	/**
+	 * Subzonas hidrográficas de las cuencas de Nariño con su alerta y
+	 * precipitación observada. Las capas SZH_Alertas y SZH_Pobs comparten el
+	 * mismo payload (~8 MB), así que se descarga una vez y se cachea 6 h.
+	 *
+	 * @param bool $ssl Verificar certificado.
+	 * @return array {ok, subzonas[{subzona,nombre,ah,zona,alerta_texto,alerta_nivel,pobs}], fecha, total_nacional}
+	 */
+	public static function subzonas_narino( $ssl = false ) {
+		$cache = MAN_Cache::get( 'fews_szh_narino' );
+		if ( is_array( $cache ) && ! empty( $cache['subzonas'] ) ) {
+			return $cache;
+		}
+
+		$r = MAN_Sync::http_get( self::BASE . 'SZH_Alertas.json', $ssl, array( 'timeout' => 45 ) );
+		if ( ! $r['ok'] ) {
+			$dur = MAN_Cache::get_durable( 'fews_szh_narino' );
+			return is_array( $dur ) ? $dur : array( 'ok' => false, 'subzonas' => array(), 'mensaje' => 'HTTP ' . $r['codigo'] );
+		}
+		$json  = json_decode( $r['cuerpo'], true );
+		$feats = ( is_array( $json ) && ! empty( $json['features'] ) ) ? $json['features'] : array();
+		if ( empty( $feats ) ) {
+			return array( 'ok' => false, 'subzonas' => array(), 'mensaje' => 'Capa SZH vacía' );
+		}
+
+		$wl    = array_flip( self::SZH_NARINO );
+		$out   = array();
+		$fecha = '';
+		foreach ( $feats as $f ) {
+			$p   = isset( $f['properties'] ) && is_array( $f['properties'] ) ? $f['properties'] : array();
+			$cod = isset( $p['SZH'] ) ? (string) $p['SZH'] : '';
+			if ( ! isset( $wl[ $cod ] ) ) {
+				continue;
+			}
+			$fecha = isset( $p['Fecha'] ) ? $p['Fecha'] : $fecha;
+			$out[] = array(
+				'subzona'      => $cod,
+				'nombre'       => isset( $p['NOMSZH'] ) ? $p['NOMSZH'] : $cod,
+				'ah'           => isset( $p['NOMAH'] ) ? $p['NOMAH'] : '',
+				'zona'         => isset( $p['NOMZH'] ) ? $p['NOMZH'] : '',
+				'alerta_texto' => ( isset( $p['umbralaler'] ) && '' !== $p['umbralaler'] && null !== $p['umbralaler'] ) ? $p['umbralaler'] : 'Sin alerta',
+				'alerta_nivel' => isset( $p['Alerta'] ) && is_numeric( $p['Alerta'] ) ? (int) $p['Alerta'] : 0,
+				'pobs'         => isset( $p['pobsszh'] ) && is_numeric( $p['pobsszh'] ) ? round( (float) $p['pobsszh'], 1 ) : 0.0,
+			);
+		}
+
+		$res = array(
+			'ok'             => count( $out ) > 0,
+			'fuente'         => 'IDEAM — FEWS · Subzonas hidrográficas (SZH)',
+			'subzonas'       => $out,
+			'fecha'          => $fecha,
+			'total_nacional' => count( $feats ),
+		);
+		if ( $res['ok'] ) {
+			MAN_Cache::set( 'fews_szh_narino', $res, 6 * HOUR_IN_SECONDS, 'ideam' );
+		}
+		return $res;
 	}
 
 	/**
