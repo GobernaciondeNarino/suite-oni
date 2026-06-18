@@ -81,6 +81,10 @@
     if ((modo === 'ambos' || modo === 'cuantitativo') && a && a.cuantitativo) {
       box.appendChild(C.el('p', 'man-g__analisis-num', C.esc(a.cuantitativo))); algo = true;
     }
+    if (modo === 'prediccion' && v.prediccion) {
+      box.appendChild(C.el('p', 'man-g__pred-etq', 'Predicción (estimación)'));
+      box.appendChild(C.el('p', 'man-g__analisis-pred', C.esc(v.prediccion))); algo = true;
+    }
     if (!algo) { box.appendChild(C.el('p', 'man-g__analisis-desc', 'Sin contenido disponible para esta vista.')); }
   }
 

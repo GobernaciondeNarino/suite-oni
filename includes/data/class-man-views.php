@@ -339,6 +339,7 @@ final class MAN_Views {
 			'data'            => $datos,
 			'analisis'        => self::analisis( $id, $datos ),
 			'como_funciona'   => self::como_funciona( $id ),
+			'prediccion'      => self::prediccion( $id, $datos, $args ),
 			'heatmap'         => $heatmap,
 		);
 	}
@@ -384,6 +385,40 @@ final class MAN_Views {
 	}
 
 	/**
+	 * Texto de METODOLOGÍA de la predicción de una vista (explica el método, no
+	 * la cifra). La cifra dinámica la antepone MAN_Views::prediccion().
+	 *
+	 * @param string $id Id de la vista.
+	 * @return string
+	 */
+	public static function prediccion_larga( $id ) {
+		// Permite sobrescribir desde textos-graficos.php; si no, usa la metodología base.
+		$t = self::textos_largos();
+		if ( isset( $t[ $id ]['prediccion'] ) && '' !== $t[ $id ]['prediccion'] ) {
+			return $t[ $id ]['prediccion'];
+		}
+
+		$enso = 'El método proyecta el ONI con una tendencia lineal amortiguada (estilo Holt) estimada por mínimos cuadrados sobre la cola observada, con reversión a la media climatológica; la fase y su probabilidad salen de una gaussiana sobre los umbrales ±0,5 °C, y la banda crece con el horizonte y en la barrera de predictibilidad de primavera boreal. Es una estimación auditable, no un pronóstico oficial.';
+		$ols  = 'El método ajusta una regresión lineal por mínimos cuadrados (OLS) a la serie y proyecta los próximos pasos con una banda de incertidumbre del 90% que crece con el horizonte (raíz del paso); se reporta la pendiente y el R² como medida de ajuste. Es una extrapolación de planeación, a contrastar con los boletines de IDEAM y NOAA-CPC.';
+		$cond = 'Como esta vista es una fotografía del momento (sin serie propia), la predicción se condiciona a la fase ENSO proyectada: se toma el ONI estimado a tres meses (tendencia amortiguada + gaussiana) y se traduce su signo a la respuesta típica de Nariño (sequía andina o más lluvia y oleaje en el Pacífico). Es una estimación cualitativa orientativa.';
+		$umb  = 'La predicción combina la dispersión de los valores actuales frente a los umbrales con la fase ENSO proyectada a tres meses; donde el dato lo permite, la probabilidad de superar un umbral se calcula con una gaussiana (cruce de umbral). Es una estimación para anticipación temprana, no un aviso oficial de emergencia.';
+		$sim  = 'En esta red el valor ya es el resultado del modelo de simulación hidrológica del FEWS, es decir un pronóstico operativo del propio IDEAM; aquí se resume cuáles estaciones proyecta el modelo más cerca de sus umbrales de alerta. La vigilancia debe apoyarse en los boletines y avisos oficiales del IDEAM.';
+
+		$map = array(
+			'oni_serie' => $enso, 'oni_observado' => $enso, 'oni_pronostico' => $enso,
+			'prob_fase' => 'La probabilidad de cada fase se obtiene integrando una gaussiana centrada en el ONI proyectado, con desviación igual a la semibanda de incertidumbre, sobre los umbrales NOAA de ±0,5 °C; por eso las tres fases suman 100% en cada trimestre. La predicción señala el trimestre y la fase con mayor probabilidad.',
+			'episodios' => 'Esta vista es de referencia histórica y no se proyecta: los episodios pasados de El Niño se usan como análogos para dimensionar el evento vigente. La estimación a futuro del fenómeno se hace en las vistas del ONI y de probabilidad de fase.',
+			'riesgo_subregion' => $cond, 'riesgo_municipios' => $cond, 'deficit_municipios' => $cond, 'focos_municipios' => $cond,
+			'deficit_serie' => $ols, 'focos_serie' => $ols, 'cultivos_riesgo' => $ols, 'acueductos' => $ols, 'hidro_reduccion' => $ols, 'precip_caudal' => $ols,
+			'historico_apis' => 'La proyección aplica una regresión lineal (OLS) al índice anual normalizado y estima el año siguiente con su banda del 90%, reportando la pendiente y el R²; al estar normalizado, indica la dirección de la tendencia más que una magnitud absoluta. Se interpreta junto con la fase ENSO prevista.',
+			'fews_nivel' => $umb, 'fews_precipitacion' => $umb, 'fews_caudal' => $umb, 'fews_temperatura' => $umb, 'fews_calidad' => $umb,
+			'fews_szh_alertas' => $umb, 'fews_szh_pobs' => $umb,
+			'fews_nivel_pronostico' => $sim, 'fews_caudal_pronostico' => $sim,
+		);
+		return isset( $map[ $id ] ) ? $map[ $id ] : '';
+	}
+
+	/**
 	 * Explicación "¿Cómo funciona?" de una vista: qué calcula, con qué fuente y
 	 * cómo leerla. Pensada para el botón/modal de explicación de cada gráfico.
 	 *
@@ -419,6 +454,245 @@ final class MAN_Views {
 			'fews_szh_pobs'           => 'Precipitación observada agregada por subzona hidrográfica (SZH de IDEAM) en las cuencas de Nariño (Pacífico sur y alto Putumayo). Se obtiene del mismo payload SZH (campo pobsszh) cacheado 6 h. Permite ver qué cuencas reciben más lluvia, no qué municipio.',
 		);
 		return isset( $map[ $id ] ) ? $map[ $id ] : '';
+	}
+
+	/**
+	 * PREDICCIÓN de la vista: una estimación a futuro calculada con ciencia de
+	 * datos (OLS, Holt amortiguado, gaussiana de cruce de umbral o proyección
+	 * condicionada por ENSO según la categoría), seguida del texto de
+	 * metodología. SIEMPRE se etiqueta como estimación, no como dato oficial.
+	 *
+	 * @param string $id    Id de la vista.
+	 * @param array  $datos Filas de la vista.
+	 * @param array  $args  {hasta, mes}.
+	 * @return string
+	 */
+	private static function prediccion( $id, $datos, $args ) {
+		$cifra = self::prediccion_cifra( $id, $datos, $args );
+		$metod = self::prediccion_larga( $id );
+		$cifra = trim( (string) $cifra );
+		if ( '' === $cifra ) {
+			return $metod;
+		}
+		return $metod ? $cifra . ' ' . $metod : $cifra;
+	}
+
+	/**
+	 * Calcula la frase cuantitativa de la predicción (la cifra) por categoría.
+	 *
+	 * @param string $id    Id de la vista.
+	 * @param array  $datos Filas.
+	 * @param array  $args  {hasta, mes}.
+	 * @return string
+	 */
+	private static function prediccion_cifra( $id, $datos, $args ) {
+		$n = count( $datos );
+
+		// --- ENSO: proyección Holt amortiguada + fase gaussiana ---
+		if ( in_array( $id, array( 'oni_serie', 'oni_observado', 'oni_pronostico' ), true ) ) {
+			$o = self::oni_proyectado( $args );
+			if ( ! $o ) {
+				return '';
+			}
+			return sprintf(
+				'Estimación: el ONI se proyecta en %s °C hacia %s (fase %s ≈ %s%%, banda 90%%: %s a %s °C).',
+				self::signo( $o['valor'] ),
+				MAN_Texto::mes_largo( $o['mes'] ),
+				$o['fase'],
+				number_format_i18n( $o['prob'], 0 ),
+				self::signo( $o['banda_min'] ),
+				self::signo( $o['banda_max'] )
+			);
+		}
+
+		if ( 'prob_fase' === $id && $n ) {
+			$mx = $datos[0];
+			foreach ( $datos as $f ) {
+				if ( (float) $f['el_nino'] > (float) $mx['el_nino'] ) {
+					$mx = $f;
+				}
+			}
+			return sprintf( 'Estimación: la probabilidad de El Niño alcanza su máximo (%s%%) en el trimestre %s.', number_format_i18n( (float) $mx['el_nino'], 0 ), $mx['trimestre'] );
+		}
+
+		// --- Series temporales (escenario mensual / anual): OLS + banda ---
+		$temporales = array(
+			'deficit_serie'   => 'deficit',
+			'focos_serie'     => 'focos',
+			'cultivos_riesgo' => 'cultivos_pct',
+			'acueductos'      => 'acueductos',
+			'hidro_reduccion' => 'reduccion_pct',
+		);
+		if ( isset( $temporales[ $id ] ) ) {
+			return self::pred_serie_simple( $datos, $temporales[ $id ] );
+		}
+		if ( 'precip_caudal' === $id ) {
+			$vals = array();
+			foreach ( $datos as $r ) {
+				if ( isset( $r['serie'] ) && false !== strpos( $r['serie'], 'Precip' ) ) {
+					$vals[] = (float) $r['valor'];
+				}
+			}
+			$p = MAN_Predict::serie_temporal( $vals, array(), 3 );
+			return self::frase_proyeccion( $p, 'la precipitación', 'mm' );
+		}
+		if ( 'historico_apis' === $id ) {
+			// Proyecta la serie del ONI anual normalizado (la primera disponible).
+			$serie = '';
+			$vals  = array();
+			foreach ( $datos as $r ) {
+				if ( '' === $serie && isset( $r['serie'] ) ) {
+					$serie = $r['serie'];
+				}
+				if ( isset( $r['serie'] ) && $r['serie'] === $serie ) {
+					$vals[] = (float) $r['valor'];
+				}
+			}
+			$p = MAN_Predict::serie_temporal( $vals, array(), 1 );
+			return self::frase_proyeccion( $p, 'el índice de «' . $serie . '»', '' );
+		}
+
+		// --- Estaciones FEWS simuladas: el valor ya es pronóstico del modelo ---
+		if ( in_array( $id, array( 'fews_nivel_pronostico', 'fews_caudal_pronostico' ), true ) && $n ) {
+			return sprintf( 'Estimación del modelo FEWS: la estación con mayor pronóstico es %s. Se recomienda vigilar las %d estaciones graficadas frente a sus umbrales de alerta.', $datos[0]['estacion'], $n );
+		}
+
+		// --- Estaciones/subzonas FEWS observadas: dispersión + outlook ENSO ---
+		if ( in_array( $id, array( 'fews_nivel', 'fews_precipitacion', 'fews_caudal', 'fews_temperatura', 'fews_calidad', 'fews_szh_alertas', 'fews_szh_pobs' ), true ) ) {
+			return self::pred_outlook_enso( $args, 'la red' );
+		}
+
+		// --- Riesgo / categóricas: condicionado por el ONI proyectado ---
+		if ( in_array( $id, array( 'riesgo_municipios', 'riesgo_subregion', 'deficit_municipios', 'focos_municipios' ), true ) ) {
+			$top = isset( $datos[0] ) ? $datos[0] : null;
+			$ter = $top ? ( isset( $top['municipio'] ) ? $top['municipio'] : ( isset( $top['subregion'] ) ? $top['subregion'] : '' ) ) : '';
+			return self::pred_outlook_enso( $args, $ter ? 'la situación de ' . $ter : 'la situación' );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Proyección de una serie {…, $medida} con MAN_Predict y frase resultante.
+	 *
+	 * @param array  $datos  Filas.
+	 * @param string $medida Clave numérica.
+	 * @return string
+	 */
+	private static function pred_serie_simple( $datos, $medida ) {
+		$vals = array();
+		foreach ( $datos as $r ) {
+			if ( isset( $r[ $medida ] ) && is_numeric( $r[ $medida ] ) ) {
+				$vals[] = (float) $r[ $medida ];
+			}
+		}
+		$p = MAN_Predict::serie_temporal( $vals, array(), 3 );
+		return self::frase_proyeccion( $p, 'el indicador', '' );
+	}
+
+	/**
+	 * Construye la frase de una proyección temporal de MAN_Predict.
+	 *
+	 * @param array  $p      Resultado de serie_temporal.
+	 * @param string $sujeto Sujeto («la precipitación», «el indicador»…).
+	 * @param string $unidad Unidad.
+	 * @return string
+	 */
+	private static function frase_proyeccion( $p, $sujeto, $unidad ) {
+		if ( empty( $p['proyeccion'] ) ) {
+			return 'Estimación: serie insuficiente para proyectar con fiabilidad.';
+		}
+		$ult = end( $p['proyeccion'] );
+		$u   = $unidad ? ' ' . $unidad : '';
+		return sprintf(
+			'Estimación: %s se proyecta en %s%s a %d paso(s) (banda 90%%: %s a %s%s; R²=%s, %s).',
+			$sujeto,
+			number_format_i18n( $ult['valor'], 1 ),
+			$u,
+			(int) $p['horizonte'],
+			number_format_i18n( $ult['banda_min'], 1 ),
+			number_format_i18n( $ult['banda_max'], 1 ),
+			$u,
+			number_format_i18n( $p['r2'], 2 ),
+			MAN_Predict::etiqueta_tendencia( $p['pendiente'], $unidad )
+		);
+	}
+
+	/**
+	 * Outlook condicionado por el ONI proyectado para vistas-instantánea (que no
+	 * tienen serie propia): enmarca la estimación en la fase ENSO prevista.
+	 *
+	 * @param array  $args   {hasta, mes}.
+	 * @param string $sujeto Sujeto de la frase.
+	 * @return string
+	 */
+	private static function pred_outlook_enso( $args, $sujeto ) {
+		$o = self::oni_proyectado( $args );
+		if ( ! $o ) {
+			return '';
+		}
+		$tendencia = ( $o['valor'] >= 0.5 )
+			? 'tienda a agravarse en el altiplano andino (más sequía) y a aumentar la lluvia y el oleaje en el litoral Pacífico'
+			: ( ( $o['valor'] <= -0.5 ) ? 'tienda a más lluvia y crecientes, sobre todo en la vertiente Pacífica' : 'se mantenga cerca de lo normal, sin un forzamiento ENSO marcado' );
+		return sprintf(
+			'Estimación: con el ONI proyectado en %s °C (fase %s ≈ %s%%) hacia %s, es probable que %s %s.',
+			self::signo( $o['valor'] ),
+			$o['fase'],
+			number_format_i18n( $o['prob'], 0 ),
+			MAN_Texto::mes_largo( $o['mes'] ),
+			$sujeto,
+			$tendencia
+		);
+	}
+
+	/**
+	 * Proyección del ONI a ~3 meses (cacheada en memoria por petición): valor,
+	 * fase, probabilidad de esa fase y banda 90%.
+	 *
+	 * @param array $args {hasta}.
+	 * @return array|null {valor, mes, fase, prob, banda_min, banda_max}
+	 */
+	private static function oni_proyectado( $args ) {
+		static $cache = null;
+		if ( null !== $cache ) {
+			return $cache;
+		}
+		$oni   = MAN_Rest::construir_oni();
+		$serie = isset( $oni['serie'] ) ? $oni['serie'] : array();
+		$obs   = array();
+		$ultmes = '';
+		foreach ( $serie as $s ) {
+			if ( empty( $s['proyectado'] ) ) {
+				$obs[]  = (float) $s['oni'];
+				$ultmes = $s['mes'];
+			}
+		}
+		if ( count( $obs ) < 6 || '' === $ultmes ) {
+			$cache = false;
+			return null;
+		}
+		$hasta = isset( $args['hasta'] ) ? $args['hasta'] : MAN_Forecast::sumar_meses( $ultmes, 3 );
+		$proy  = MAN_Forecast::proyectar_oni( $obs, $hasta );
+		if ( empty( $proy ) ) {
+			$cache = false;
+			return null;
+		}
+		// Toma el horizonte ~3 meses (o el último disponible).
+		$objetivo = isset( $proy[2] ) ? $proy[2] : end( $proy );
+		$valor    = (float) $objetivo['oni'];
+		$sigma    = isset( $objetivo['sigma'] ) ? (float) $objetivo['sigma'] : 0.3;
+		$fase     = MAN_Enso::clasificar_fase( $valor );
+		$prob     = MAN_Forecast::probabilidad_gaussiana( $valor, $sigma );
+		$pf       = ( $valor >= 0.5 ) ? $prob['el_nino'] : ( ( $valor <= -0.5 ) ? $prob['la_nina'] : $prob['neutral'] );
+		$cache    = array(
+			'valor'     => round( $valor, 2 ),
+			'mes'       => isset( $objetivo['mes'] ) ? $objetivo['mes'] : $hasta,
+			'fase'      => $fase,
+			'prob'      => round( (float) $pf, 0 ),
+			'banda_min' => isset( $objetivo['banda_min'] ) ? (float) $objetivo['banda_min'] : $valor - 0.5,
+			'banda_max' => isset( $objetivo['banda_max'] ) ? (float) $objetivo['banda_max'] : $valor + 0.5,
+		);
+		return $cache;
 	}
 
 	/**

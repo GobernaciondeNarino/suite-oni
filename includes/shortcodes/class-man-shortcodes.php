@@ -50,6 +50,8 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_analisis_cualitativo', array( $this, 'sc_analisis_cualitativo' ) );
 		add_shortcode( 'man_analisis_cuantitativo', array( $this, 'sc_analisis_cuantitativo' ) );
 		add_shortcode( 'man_explicacion', array( $this, 'sc_explicacion' ) );
+		add_shortcode( 'man_prediccion_dato', array( $this, 'sc_prediccion_dato' ) );
+		add_shortcode( 'man_analisis_predictivo', array( $this, 'sc_prediccion_dato' ) );
 		// Piezas separadas de la predicción ENSO.
 		add_shortcode( 'man_prediccion_grafico', array( $this, 'sc_prediccion_grafico' ) );
 		add_shortcode( 'man_prediccion_descripcion', array( $this, 'sc_prediccion_descripcion' ) );
@@ -1000,6 +1002,15 @@ final class MAN_Shortcodes {
 	public function sc_explicacion( $atts ) {
 		$atts = $this->fusionar( $this->defaults_bloque(), $atts, 'man_explicacion' );
 		return $this->bloque_analisis( $atts, 'como_funciona' );
+	}
+
+	/**
+	 * [man_prediccion_dato] / [man_analisis_predictivo] — SOLO la predicción
+	 * (estimación a futuro con ciencia de datos) de la vista.
+	 */
+	public function sc_prediccion_dato( $atts ) {
+		$atts = $this->fusionar( $this->defaults_bloque(), $atts, 'man_prediccion_dato' );
+		return $this->bloque_analisis( $atts, 'prediccion' );
 	}
 
 	/** Atributos por defecto de los bloques de texto separados. */

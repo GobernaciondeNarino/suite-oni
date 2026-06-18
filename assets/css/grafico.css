@@ -114,6 +114,9 @@
 .man-g__analisis-desc { font-size: 13px; line-height: 1.5; color: var(--man-g-soft); margin: .35em 0; }
 .man-g__analisis-num { font-size: 13px; line-height: 1.5; color: var(--man-g-ink); font-weight: 600; margin: .35em 0; }
 .man-g__analisis-titulo { font-size: 14px; font-weight: 700; color: var(--man-g-ink); margin: 0 0 .15em; }
+/* Predicción (estimación con ciencia de datos). */
+.man-g__pred-etq { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6d28d9; background: #f3e8ff; border-radius: 999px; padding: 2px 9px; margin: .5em 0 .2em; }
+.man-g__analisis-pred { font-size: 13px; line-height: 1.55; color: var(--man-g-ink); margin: .2em 0; border-left: 3px solid #9b59b6; padding-left: 10px; }
 
 /* [man_analisis] — bloque de análisis INDEPENDIENTE (sin la tarjeta del gráfico).
    Reaprovecha los estilos de texto pero define sus propios tokens y un marco
