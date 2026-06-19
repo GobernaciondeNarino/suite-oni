@@ -24,6 +24,23 @@
     var cuerpo = C.el('div', 'man-mar__cuerpo');
     cuerpo.appendChild(C.el('p', 'man-titulo', 'Mar y oleaje — Pacífico de Nariño'));
 
+    // Nivel del mar (mareógrafo IOC de Tumaco), si está sincronizado.
+    var nivel = d.nivel || null;
+    if (nivel && nivel.ultimo && nivel.ultimo.valor != null) {
+      cuerpo.appendChild(C.el('p', 'man-mar__nivel',
+        'Nivel del mar (Tumaco · IOC): ' + C.num(nivel.ultimo.valor, 2) + ' m' +
+        (nivel.rango != null ? ' · amplitud de marea ' + C.num(nivel.min, 2) + '–' + C.num(nivel.max, 2) + ' m' : '')));
+      var serie = nivel.serie || [];
+      if (serie.length > 1) {
+        var horas = serie.map(function (p) { return String(p.hora).slice(11, 16); });
+        var vals = serie.map(function (p) { return p.valor; });
+        var chartN = C.el('div', 'man-mar__grafico');
+        chartN.style.minHeight = '200px';
+        cuerpo.appendChild(chartN);
+        C.lineaInteractiva(chartN, horas, vals, { area: true, color: '#0080C3', xTitle: 'Hora (UTC)', yTitle: 'Nivel del mar (m)', serie: 'Nivel' });
+      }
+    }
+
     var dd = o.daily || {};
     var fechas = dd.time || [], olas = dd.wave_height_max || [];
     if (fechas.length) {

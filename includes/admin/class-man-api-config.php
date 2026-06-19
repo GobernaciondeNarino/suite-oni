@@ -204,8 +204,9 @@ final class MAN_Api_Config {
 				$ds = isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : '';
 				return rtrim( $url, '/' ) . '/' . rawurlencode( $ds ) . '.json?$limit=1';
 			case 'ioc':
-				$code = isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : '';
-				return rtrim( $url, '/' ) . '/?query=stationlist&code=' . rawurlencode( $code );
+				$code = ! empty( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : 'tumc2';
+				$svc  = ( $url && false !== strpos( $url, 'service.php' ) ) ? $url : 'https://www.ioc-sealevelmonitoring.org/service.php';
+				return $svc . '?query=data&format=json&period=0.1&code=' . rawurlencode( $code );
 			case 'iri_enso':
 				return $url; // página oficial NOAA/CPC de probabilidades ENSO
 			case 'deficit':
@@ -232,6 +233,8 @@ final class MAN_Api_Config {
 				return 'Consigue una <strong>MAP_KEY gratuita</strong> en <a href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noopener">firms.modaps.eosdis.nasa.gov/api/map_key/</a>. Pega la clave y pulsa <strong>Guardar configuración</strong> ANTES de «Probar» o «Sincronizar»: si pruebas sin guardar, FIRMS responde <code>HTTP 400</code> porque la clave aún va vacía.';
 			case 'ideam':
 				return 'Usa <strong>FEWS de IDEAM</strong> (visorfews): trae las redes de estaciones de Nariño (nivel, precipitación, caudal, temperatura, nivel y caudal pronosticados, calidad del agua) y las subzonas hidrográficas. No requiere clave. El cron sincroniza la red de nivel; las demás se consultan en vivo con caché. El antiguo dataset de datos.gov.co dejó de existir. Revisa cada capa en las pestañas de abajo.';
+			case 'ioc':
+				return 'Nivel del mar del <strong>IOC Sea Level Monitoring</strong> (COI-UNESCO). Usa el servicio <code>service.php</code> (el antiguo <code>api.ioc-…</code> devuelve HTML, no datos). El <code>dataset-id</code> es el código de estación: <strong>tumc2</strong> para Tumaco. Devuelve muestras por minuto de dos sensores (burbuja y radar) en metros; el plugin filtra las anomalías y se queda con el sensor más continuo.';
 			case 'sivigila':
 				return 'El dataset de SIVIGILA en datos.gov.co cambia de identificador con frecuencia y puede no existir. Fija un <code>dataset-id</code> vigente o deja la fuente <strong>inactiva</strong>.';
 			default:
