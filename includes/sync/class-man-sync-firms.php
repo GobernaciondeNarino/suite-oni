@@ -36,7 +36,9 @@ final class MAN_Sync_Firms {
 		}
 
 		$sensor = ! empty( $cfg['dataset_id'] ) ? sanitize_text_field( $cfg['dataset_id'] ) : 'VIIRS_SNPP_NRT';
-		$dias   = 2;
+		// Ventana de detección en días (FIRMS admite 1–10). 7 días captura focos en
+		// más municipios; con 1–2 días, en temporada húmeda suele aparecer uno solo.
+		$dias   = isset( $cfg['dias'] ) && is_numeric( $cfg['dias'] ) ? max( 1, min( 10, (int) $cfg['dias'] ) ) : 7;
 		$base   = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) : 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
 		$url    = $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $sensor ) . '/' . self::BBOX . '/' . $dias;
 
