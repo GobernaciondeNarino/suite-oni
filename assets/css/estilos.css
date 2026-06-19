@@ -313,6 +313,7 @@
 /* --- [man_mar] / [man_hidrico] --- */
 .man-mar__cuerpo .man-grafico,
 .man-hidrico__cuerpo .man-grafico { margin: .4em 0; }
+.man-mar__nivel { font-size: .9em; font-weight: 600; color: var(--man-texto, #1a1f2c); margin: .2em 0 .1em; }
 
 /* --- [man_estado_api] tabla --- */
 .man-tabla { width: 100%; border-collapse: collapse; font-size: .92em; }

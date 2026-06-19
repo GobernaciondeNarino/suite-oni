@@ -228,14 +228,14 @@ final class MAN_Activator {
 			),
 			'ioc' => array(
 				'nombre'           => 'IOC Sea Level Monitoring (nivel del mar)',
-				'activa'           => false, // activar al fijar el código de estación
+				'activa'           => true,
 				'capa'             => 'cron',
-				'url'              => 'https://api.ioc-sealevelmonitoring.org/',
-				'dataset_id'       => '', // código de estación (ej. Tumaco)
+				'url'              => 'https://www.ioc-sealevelmonitoring.org/service.php',
+				'dataset_id'       => 'tumc2', // código de estación de Tumaco.
 				'clave'            => '',
 				'frecuencia'       => 6,
 				'ttl'              => 60,
-				'sslverify'        => true,
+				'sslverify'        => false,
 				'ultima_sync'      => 0,
 				'ultimo_resultado' => '',
 			),

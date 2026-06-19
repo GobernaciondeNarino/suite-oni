@@ -467,7 +467,7 @@ final class MAN_Rest {
 
 			// IOC / Open-Meteo Marine: mareógrafo de Tumaco (punto costero).
 			$mar = MAN_Cache::get( 'mar_nivel' );
-			$valor_mar = ( is_array( $mar ) && isset( $mar['nivel'] ) && is_numeric( $mar['nivel'] ) ) ? round( (float) $mar['nivel'], 2 ) : null;
+			$valor_mar = ( is_array( $mar ) && isset( $mar['ultimo']['valor'] ) && is_numeric( $mar['ultimo']['valor'] ) ) ? round( (float) $mar['ultimo']['valor'], 2 ) : null;
 			$capas[] = array(
 				'id'       => 'ioc_mar',
 				'etiqueta' => 'Nivel del mar (IOC · Tumaco)',
