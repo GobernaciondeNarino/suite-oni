@@ -167,7 +167,12 @@ final class MAN_Api_Config {
 		$ms = (int) round( ( microtime( true ) - $t0 ) * 1000 );
 
 		if ( ! $r['ok'] ) {
-			wp_send_json_error( array( 'mensaje' => 'Falla · HTTP ' . $r['codigo'] . ' ' . $r['error'] ) );
+			// Varias fuentes explican el motivo en el cuerpo con texto plano
+			// (FIRMS responde «Invalid MAP_KEY» o «Invalid day range»): sin él,
+			// un «HTTP 400» a secas no dice qué hay que corregir.
+			$motivo = trim( wp_strip_all_tags( (string) $r['cuerpo'] ) );
+			$motivo = ( '' !== $motivo && strlen( $motivo ) < 200 ) ? ' — ' . $motivo : '';
+			wp_send_json_error( array( 'mensaje' => 'Falla · HTTP ' . $r['codigo'] . ' ' . $r['error'] . $motivo ) );
 		}
 
 		// Un HTTP 200 no basta: el pronóstico oficial de NOAA/CPC estuvo meses
@@ -235,6 +240,9 @@ final class MAN_Api_Config {
 			case 'firms':
 				if ( false !== stripos( $cuerpo, 'Invalid MAP_KEY' ) ) {
 					return array( 'ok' => false, 'mensaje' => 'MAP_KEY inválida o no guardada' );
+				}
+				if ( false !== stripos( $cuerpo, 'Invalid day range' ) ) {
+					return array( 'ok' => false, 'mensaje' => 'ventana de días fuera del rango admitido por FIRMS (1–' . MAN_Sync_Firms::DIAS_MAX . ')' );
 				}
 				$cab = strtolower( strtok( $cuerpo, "\n" ) );
 				if ( false === strpos( $cab, 'latitude' ) || false === strpos( $cab, 'longitude' ) ) {
@@ -321,7 +329,7 @@ final class MAN_Api_Config {
 				$base = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) : 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
 				// Misma ventana que la sincronización real: si la prueba usa otro
 				// rango, puede pasar mientras la sincronización falla.
-				$dias = isset( $cfg['dias'] ) && is_numeric( $cfg['dias'] ) ? max( 1, min( 10, (int) $cfg['dias'] ) ) : 7;
+				$dias = isset( $cfg['dias'] ) && is_numeric( $cfg['dias'] ) ? max( 1, min( MAN_Sync_Firms::DIAS_MAX, (int) $cfg['dias'] ) ) : MAN_Sync_Firms::DIAS_MAX;
 				return $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $ds ) . '/' . MAN_Sync_Firms::BBOX . '/' . $dias;
 			default:
 				return $url;

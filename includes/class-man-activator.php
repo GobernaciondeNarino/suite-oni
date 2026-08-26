@@ -183,6 +183,13 @@ final class MAN_Activator {
 				$config['firms']['activa'] = true;
 				$cambio                    = true;
 			}
+			// FIRMS solo acepta ventanas de 1 a 5 días. La v1.37.1 la subió a 7
+			// para cubrir más municipios y, sin saberlo, dejó la fuente
+			// respondiendo HTTP 400 en cada corrida.
+			if ( isset( $config['firms']['dias'] ) && (int) $config['firms']['dias'] > MAN_Sync_Firms::DIAS_MAX ) {
+				$config['firms']['dias'] = MAN_Sync_Firms::DIAS_MAX;
+				$cambio                  = true;
+			}
 			if ( $cambio ) {
 				update_option( 'man_api_config', $config );
 				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Config migrada en la actualización a ' . MAN_VERSION );
