@@ -17,7 +17,7 @@
       .catch(function () { C.error(cont, 'No se pudieron cargar las estaciones IDEAM/FEWS.', function () { init(cont); }); });
   }
 
-  function colorAlerta(a) { return a === 'alta' ? '#C0392B' : (a === 'media' ? '#F1C40F' : '#2ECC71'); }
+  function colorAlerta(a) { return C.colorAlerta(a); }
 
   function montar(cont, estaciones) {
     C.quitarSkeleton(cont);

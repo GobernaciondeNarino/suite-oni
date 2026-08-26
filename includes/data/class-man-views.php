@@ -1085,14 +1085,11 @@ final class MAN_Views {
 	 * @return array[]
 	 */
 	private static function filas_fews_estaciones( $variable ) {
-		$clave = 'fews_red_' . $variable;
-		$res   = MAN_Cache::get( $clave );
-		if ( ! is_array( $res ) || ! isset( $res['estaciones'] ) ) {
-			$res = MAN_Sync_Ideam::estaciones_narino( $variable );
-			if ( ! empty( $res['ok'] ) ) {
-				MAN_Cache::set( $clave, $res, HOUR_IN_SECONDS, 'ideam' );
-			}
-		}
+		// Una sola puerta de entrada a la red FEWS (MAN_Rest::red_fews): antes
+		// esta vista cacheaba el resultado crudo bajo la misma clave que el
+		// endpoint, y la respuesta de /estaciones cambiaba de forma según quién
+		// hubiera poblado la caché primero.
+		$res  = MAN_Rest::estaciones_red( $variable );
 		$rows = array();
 		foreach ( ( isset( $res['estaciones'] ) ? $res['estaciones'] : array() ) as $e ) {
 			if ( ! isset( $e['valor'] ) || null === $e['valor'] || ! is_numeric( $e['valor'] ) ) {

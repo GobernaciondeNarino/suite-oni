@@ -1,0 +1,17 @@
+# Archivos que NO se empaquetan en el ZIP del plugin.
+# El prototipo mockup-oni/ y las herramientas de desarrollo no forman parte del
+# producto instalable: mockup-oni/ conserva versiones previas de globo.js,
+# timeline.js y estilos.css que ningún PHP del plugin referencia (~4.500 líneas
+# que solo pesarían en el paquete y confunden al buscar código en producción).
+
+/mockup-oni
+/docs
+/tests
+/.claude
+/.github
+/.git
+/.gitignore
+/.distignore
+/skills-lock.json
+/guia.md
+/skill

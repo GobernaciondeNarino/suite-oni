@@ -34,6 +34,15 @@ function latLngAVector3(lat, lng, radio) {
 var _oc1 = new THREE.Color(0x2196f3), _oc2 = new THREE.Color(0xffeb3b),
   _oc3 = new THREE.Color(0xff9800), _oc4 = new THREE.Color(0xd32f2f),
   _ocScratch = new THREE.Color();
+
+/* Colores de las partículas de alisios (blanco cálido → azul frío), también
+   reutilizados para no crear objetos dentro del bucle de partículas. */
+var _aliCal = new THREE.Color(0xffffff), _aliFrio = new THREE.Color(0x6db4ff),
+  _aliScratch = new THREE.Color();
+
+/* Ídem para las flechas de alisios (amarillean al debilitarse). */
+var _flechaDebil = new THREE.Color(0xfff5b0), _flechaFuerte = new THREE.Color(0xffffff),
+  _flechaScratch = new THREE.Color();
 function colorPorOni(oni) {
   var v = Math.max(0, Math.min(2, oni));
   if (v < 0.5) { return _ocScratch.lerpColors(_oc1, _oc2, v / 0.5); }
@@ -946,24 +955,48 @@ class GloboMAN {
 
   _eventos() {
     var self = this;
-    window.addEventListener('man:mes', function (e) {
-      if (e.detail) { self.setOni(+e.detail.oni, e.detail.mes, e.detail.fase, e.detail.prob, e.detail.resumen); }
-    });
-    // Capas: activar/desactivar elementos del globo desde el menú "Capas".
-    window.addEventListener('man:capa', function (e) {
-      if (!e.detail) { return; }
-      var v = !!e.detail.visible;
-      switch (e.detail.capa) {
-        case 'calor': if (self.heat) { self.heat.visible = v; } break;
-        case 'foco': self._focoBloqueado = !v; if (self.foco && !v) { self.foco.visible = false; } break;
-        case 'nubes': if (self.nubes) { self.nubes.visible = v; } break;
-        case 'mapa': if (self.mapaGrupo) { self.mapaGrupo.visible = v; } break;
-      }
-    });
-    window.addEventListener('resize', function () { self.redimensionar(); });
+
+    // Los handlers se guardan para poder retirarlos en destruir(): al ser
+    // listeners de window, sin quitarlos mantendrían viva toda la escena
+    // Three.js aunque el nodo del globo desaparezca del DOM.
+    this._handlers = {
+      mes: function (e) {
+        if (e.detail) { self.setOni(+e.detail.oni, e.detail.mes, e.detail.fase, e.detail.prob, e.detail.resumen); }
+      },
+      // Capas: activar/desactivar elementos del globo desde el menú "Capas".
+      capa: function (e) {
+        if (!e.detail) { return; }
+        var v = !!e.detail.visible;
+        switch (e.detail.capa) {
+          case 'calor': if (self.heat) { self.heat.visible = v; } break;
+          case 'foco': self._focoBloqueado = !v; if (self.foco && !v) { self.foco.visible = false; } break;
+          case 'nubes': if (self.nubes) { self.nubes.visible = v; } break;
+          case 'mapa': if (self.mapaGrupo) { self.mapaGrupo.visible = v; } break;
+        }
+      },
+      resize: function () { self.redimensionar(); }
+    };
+
+    window.addEventListener('man:mes', this._handlers.mes);
+    window.addEventListener('man:capa', this._handlers.capa);
+    window.addEventListener('resize', this._handlers.resize);
+
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (es) { self.visible = es[0].isIntersecting; }, { threshold: 0.04 }).observe(this.lienzo);
+      this._io = new IntersectionObserver(function (es) { self.visible = es[0].isIntersecting; }, { threshold: 0.04 });
+      this._io.observe(this.lienzo);
     }
+  }
+
+  /** Retira listeners y observadores; detiene el bucle de animación. */
+  destruir() {
+    if (this._handlers) {
+      window.removeEventListener('man:mes', this._handlers.mes);
+      window.removeEventListener('man:capa', this._handlers.capa);
+      window.removeEventListener('resize', this._handlers.resize);
+      this._handlers = null;
+    }
+    if (this._io) { this._io.disconnect(); this._io = null; }
+    this.destruido = true;
   }
 
   _cargaInicial() {
@@ -997,6 +1030,7 @@ class GloboMAN {
     var self = this;
     var ultimo = performance.now();
     function tick(ahora) {
+      if (self.destruido) { return; }
       requestAnimationFrame(tick);
       if (!self.visible) { ultimo = ahora; return; }
       var dt = Math.min(0.05, (ahora - ultimo) / 1000); ultimo = ahora;
@@ -1014,7 +1048,7 @@ class GloboMAN {
 
       // Alisios: se debilitan (encogen y amarillean) al subir el ONI.
       var factor = Math.max(0.15, 1 - e.oni * 0.6);
-      var colAli = new THREE.Color().lerpColors(new THREE.Color(0xfff5b0), new THREE.Color(0xffffff), factor);
+      var colAli = _flechaScratch.lerpColors(_flechaDebil, _flechaFuerte, factor);
       self.flechas.forEach(function (f) {
         var obj = f.userData.escalaBase * factor;
         f.scale.setScalar(f.scale.x + (obj - f.scale.x) * Math.min(1, dt * 3));
@@ -1060,7 +1094,11 @@ class GloboMAN {
       // Partículas de alisios: fluyen de E→O (lng decrece); frenan y se enfrían al subir el ONI.
       var velFlujo = Math.max(0, 1.2 - e.oni * 0.9);
       var pa = self.pAli.geometry.attributes.position.array, ca = self.pAli.geometry.attributes.color.array;
-      var cCal = new THREE.Color(0xffffff), cFrio = new THREE.Color(0x6db4ff), mez = Math.min(1, e.oni / 1.2);
+      // El color de los alisios depende solo del ONI, así que se calcula una
+      // vez por fotograma en lugar de crear un THREE.Color por partícula.
+      var mez = Math.min(1, e.oni / 1.2);
+      var cA = _aliScratch.lerpColors(_aliCal, _aliFrio, mez);
+      var cAr = cA.r, cAg = cA.g, cAb = cA.b;
       for (var ia = 0; ia < self._pAli.length; ia++) {
         var ptA = self._pAli[ia];
         ptA.lng -= velFlujo * ptA.vel * dt * 8;
@@ -1068,8 +1106,7 @@ class GloboMAN {
         if (ptA.lng > -100) { ptA.lng = -175; }
         var vA = latLngAVector3(ptA.lat, ptA.lng, ptA.radio);
         pa[ia * 3] = vA.x; pa[ia * 3 + 1] = vA.y; pa[ia * 3 + 2] = vA.z;
-        var cA = new THREE.Color().lerpColors(cCal, cFrio, mez);
-        ca[ia * 3] = cA.r; ca[ia * 3 + 1] = cA.g; ca[ia * 3 + 2] = cA.b;
+        ca[ia * 3] = cAr; ca[ia * 3 + 1] = cAg; ca[ia * 3 + 2] = cAb;
       }
       self.pAli.geometry.attributes.position.needsUpdate = true;
       self.pAli.geometry.attributes.color.needsUpdate = true;

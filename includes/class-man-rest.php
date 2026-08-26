@@ -355,35 +355,10 @@ final class MAN_Rest {
 			$variable = 'nivel';
 		}
 
-		// Nivel: usa la caché del cron (rápida). Otras variables: fetch + caché propia.
-		if ( 'nivel' === $variable ) {
-			$cache = MAN_Cache::get( 'ideam_alertas' );
-			$est   = ( is_array( $cache ) && ! empty( $cache['registros'] ) ) ? array_values( $cache['registros'] ) : array();
-			$act   = isset( $cache['actualizado'] ) ? $cache['actualizado'] : null;
-			// Si el cron aún no corrió, intenta poblarla en vivo.
-			if ( empty( $est ) ) {
-				$res = MAN_Sync_Ideam::estaciones_narino( 'nivel' );
-				$est = $res['estaciones'];
-			}
-			return rest_ensure_response( array( 'variable' => 'nivel', 'estaciones' => $est, 'actualizado' => $act, 'fuente' => 'IDEAM — FEWS · Nivel de ríos' ) );
-		}
-
-		$clave    = 'fews_red_' . $variable;
-		$cacheada = MAN_Cache::get( $clave );
-		if ( is_array( $cacheada ) && ! empty( $cacheada['estaciones'] ) ) {
-			return rest_ensure_response( $cacheada );
-		}
-		$res    = MAN_Sync_Ideam::estaciones_narino( $variable );
-		$salida = array(
-			'variable'    => $variable,
-			'estaciones'  => $res['estaciones'],
-			'actualizado' => current_time( 'mysql', true ),
-			'fuente'      => isset( $res['fuente'] ) ? $res['fuente'] : 'IDEAM — FEWS',
-		);
-		if ( ! empty( $res['estaciones'] ) ) {
-			MAN_Cache::set( $clave, $salida, 3600, 'ideam' ); // 1 h.
-		}
-		return rest_ensure_response( $salida );
+		// Nivel usa la caché del cron; el resto se trae y cachea bajo demanda.
+		// Toda la lógica vive en red_fews() para que endpoint y mapa compartan
+		// la misma forma de respuesta.
+		return rest_ensure_response( self::red_fews( $variable ) );
 	}
 
 	/**
@@ -505,30 +480,68 @@ final class MAN_Rest {
 	}
 
 	/**
-	 * Estaciones de una red FEWS de Nariño con caché de 1 h (reutiliza la clave
-	 * de la ruta de estaciones). Para la red de nivel usa la caché del cron.
+	 * Estaciones de una red FEWS de Nariño, cacheadas 1 h bajo una única forma.
+	 *
+	 * Es la fuente común de /estaciones y de las capas del mapa: antes cada una
+	 * cacheaba su propio formato bajo la misma clave, así que la respuesta del
+	 * endpoint variaba según quién la hubiera poblado primero.
+	 *
+	 * @param string $variable Clave de red.
+	 * @return array {variable, estaciones, actualizado, fuente}
+	 */
+	public static function estaciones_red( $variable ) {
+		return self::red_fews( $variable );
+	}
+
+	/**
+	 * Implementación interna de la caché de red FEWS. Ver estaciones_red().
+	 *
+	 * @param string $variable Clave de red.
+	 * @return array
+	 */
+	private static function red_fews( $variable ) {
+		if ( 'nivel' === $variable ) {
+			$cache = MAN_Cache::get( 'ideam_alertas' );
+			if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
+				return array(
+					'variable'    => 'nivel',
+					'estaciones'  => array_values( $cache['registros'] ),
+					'actualizado' => isset( $cache['actualizado'] ) ? $cache['actualizado'] : null,
+					'fuente'      => 'IDEAM — FEWS · Nivel de ríos',
+				);
+			}
+		}
+
+		$clave    = 'fews_red_' . $variable;
+		$cacheada = MAN_Cache::get( $clave );
+		if ( is_array( $cacheada ) && isset( $cacheada['estaciones'] ) ) {
+			return $cacheada;
+		}
+
+		$res    = MAN_Sync_Ideam::estaciones_narino( $variable, self::ssl_ideam() );
+		$salida = array(
+			'variable'    => $variable,
+			'estaciones'  => isset( $res['estaciones'] ) ? $res['estaciones'] : array(),
+			'actualizado' => current_time( 'mysql', true ),
+			'fuente'      => isset( $res['fuente'] ) ? $res['fuente'] : 'IDEAM — FEWS',
+		);
+
+		// Se cachea también el resultado vacío (5 min): si no, con la fuente
+		// caída cada visita repetiría la petición saliente.
+		$ttl = empty( $salida['estaciones'] ) ? 300 : 3600;
+		MAN_Cache::set( $clave, $salida, $ttl, 'ideam' );
+		return $salida;
+	}
+
+	/**
+	 * Solo la lista de estaciones de una red (para las capas del mapa).
 	 *
 	 * @param string $variable Clave de red.
 	 * @return array[]
 	 */
 	private static function geo_red( $variable ) {
-		if ( 'nivel' === $variable ) {
-			$cache = MAN_Cache::get( 'ideam_alertas' );
-			if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
-				return array_values( $cache['registros'] );
-			}
-		}
-		$clave    = 'fews_red_' . $variable;
-		$cacheada = MAN_Cache::get( $clave );
-		if ( is_array( $cacheada ) && ! empty( $cacheada['estaciones'] ) ) {
-			return $cacheada['estaciones'];
-		}
-		$res = MAN_Sync_Ideam::estaciones_narino( $variable );
-		if ( ! empty( $res['estaciones'] ) ) {
-			MAN_Cache::set( $clave, array( 'variable' => $variable, 'estaciones' => $res['estaciones'] ), 3600, 'ideam' );
-			return $res['estaciones'];
-		}
-		return array();
+		$red = self::red_fews( $variable );
+		return isset( $red['estaciones'] ) ? $red['estaciones'] : array();
 	}
 
 	/** Serie de tiempo de una estación FEWS (proxy servidor; código validado). */
@@ -548,24 +561,60 @@ final class MAN_Rest {
 		$clave    = 'fews_serie_' . $tipo . '_' . $cod;
 		$cacheada = MAN_Cache::get( $clave );
 		if ( is_array( $cacheada ) ) {
+			if ( ! empty( $cacheada['_fallo'] ) ) {
+				return new \WP_Error( 'man_fews', 'No se pudo cargar la serie FEWS.', array( 'status' => 502 ) );
+			}
 			return rest_ensure_response( $cacheada );
+		}
+
+		// Cada código distinto es un fallo de caché que dispara una petición a
+		// un servidor estatal: sin un cupo propio, inventar códigos convierte
+		// este endpoint en un amplificador de carga contra IDEAM.
+		if ( ! MAN_Security::rate_limit( 'fews_serie', 20, 60 ) ) {
+			return new \WP_Error( 'man_rate', 'Demasiadas consultas de series. Intente en un minuto.', array( 'status' => 429 ) );
 		}
 
 		$cod_full = str_pad( $cod, 10, '0', STR_PAD_LEFT );
 		$url      = 'https://fews.ideam.gov.co/visorfews/data/series/json' . $tipo . '/' . $cod_full . '.json';
 		// redirection=0: el proxy no sigue redirecciones (defensa en profundidad anti-SSRF).
-		$r        = MAN_Sync::http_get( $url, false, array( 'timeout' => 15, 'redirection' => 0 ) );
+		$r        = MAN_Sync::http_get( $url, self::ssl_ideam(), array( 'timeout' => 15, 'redirection' => 0 ) );
 		if ( ! $r['ok'] ) {
+			self::cachear_fallo( $clave );
 			return new \WP_Error( 'man_fews', 'No se pudo cargar la serie FEWS.', array( 'status' => 502 ) );
 		}
 		$json = json_decode( $r['cuerpo'], true );
 		if ( ! is_array( $json ) ) {
+			self::cachear_fallo( $clave );
 			return new \WP_Error( 'man_fews', 'Respuesta FEWS inválida (¿código sin serie?).', array( 'status' => 502 ) );
 		}
 
 		$salida = self::parsear_serie_fews( $json );
 		MAN_Cache::set( $clave, $salida, 1800, 'ideam' ); // 30 min.
 		return rest_ensure_response( $salida );
+	}
+
+	/**
+	 * Recuerda brevemente un fallo para no repetir la petición saliente en cada
+	 * visita mientras la fuente esté caída o el código no exista.
+	 *
+	 * @param string $clave Clave de caché del recurso.
+	 */
+	private static function cachear_fallo( $clave ) {
+		MAN_Cache::set( $clave, array( '_fallo' => true ), 300, 'ideam' ); // 5 min.
+	}
+
+	/**
+	 * Verificación TLS configurada para IDEAM.
+	 *
+	 * El panel permite desactivarla por los certificados de portales estatales,
+	 * pero esa decisión debe respetarse igual en cron y en las consultas en
+	 * vivo: antes las rutas REST la desactivaban siempre, ignorando el ajuste.
+	 *
+	 * @return bool
+	 */
+	public static function ssl_ideam() {
+		$config = get_option( 'man_api_config', array() );
+		return ! empty( $config['ideam']['sslverify'] );
 	}
 
 	/**
@@ -722,9 +771,10 @@ final class MAN_Rest {
 		}
 
 		$out = array( 'rows' => $rows, 'desde' => $ini );
-		if ( ! empty( $rows ) ) {
-			MAN_Cache::set( 'historico_apis', $out, 86400, 'historico' ); // 24 h.
-		}
+		// Con resultado vacío se cachea igualmente, pero solo 10 min: si no,
+		// con las fuentes caídas cada visita repetiría dos descargas remotas de
+		// hasta 20 y 30 s dentro de una petición pública.
+		MAN_Cache::set( 'historico_apis', $out, empty( $rows ) ? 600 : 86400, 'historico' );
 		return $out;
 	}
 
@@ -1704,14 +1754,32 @@ final class MAN_Rest {
 		if ( ! $cache || empty( $cache['registros'] ) ) {
 			return null;
 		}
-		$clave = strtoupper( remove_accents( $nombre ) );
+		// Comparación contra el campo «municipio», no contra el registro entero
+		// serializado: buscando el nombre como subcadena, el municipio de
+		// Nariño (52480) casaba con TODAS las filas, porque todas llevan
+		// depart="Nariño", y se le atribuía la primera alerta de la lista.
+		$clave = self::normalizar_municipio( $nombre );
+		if ( '' === $clave ) {
+			return null;
+		}
 		foreach ( $cache['registros'] as $row ) {
-			$blob = strtoupper( remove_accents( wp_json_encode( $row ) ) );
-			if ( false !== strpos( $blob, $clave ) ) {
+			if ( isset( $row['municipio'] ) && self::normalizar_municipio( $row['municipio'] ) === $clave ) {
 				return $row;
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Normaliza un nombre de municipio para comparar (sin tildes, sin dobles
+	 * espacios, en mayúsculas).
+	 *
+	 * @param string $nombre Nombre.
+	 * @return string
+	 */
+	private static function normalizar_municipio( $nombre ) {
+		$n = strtoupper( remove_accents( (string) $nombre ) );
+		return trim( preg_replace( '/\s+/', ' ', $n ) );
 	}
 
 	/**

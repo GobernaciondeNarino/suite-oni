@@ -82,6 +82,8 @@ final class MAN_Sync_Firms {
 		$lineas = preg_split( '/\r\n|\r|\n/', (string) $csv );
 		$cab    = array();
 		$out    = array();
+		$la     = false;
+		$lo     = false;
 		foreach ( $lineas as $linea ) {
 			$linea = trim( $linea );
 			if ( '' === $linea ) {
@@ -89,11 +91,14 @@ final class MAN_Sync_Firms {
 			}
 			$cols = str_getcsv( $linea );
 			if ( ! $cab ) {
+				// Los índices de columna se resuelven una sola vez con la
+				// cabecera: buscarlos por fila repetía la búsqueda miles de
+				// veces en un CSV de focos grande.
 				$cab = array_map( 'strtolower', array_map( 'trim', $cols ) );
+				$la  = array_search( 'latitude', $cab, true );
+				$lo  = array_search( 'longitude', $cab, true );
 				continue;
 			}
-			$la = array_search( 'latitude', $cab, true );
-			$lo = array_search( 'longitude', $cab, true );
 			if ( false !== $la && false !== $lo && isset( $cols[ $la ], $cols[ $lo ] ) && is_numeric( $cols[ $la ] ) && is_numeric( $cols[ $lo ] ) ) {
 				$out[] = array( (float) $cols[ $lo ], (float) $cols[ $la ] );
 			}

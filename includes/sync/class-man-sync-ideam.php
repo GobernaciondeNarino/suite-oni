@@ -110,7 +110,9 @@ final class MAN_Sync_Ideam {
 	 * @param bool   $ssl      Verificar certificado.
 	 * @return array {ok, fuente, estaciones[], alertas, total_red}
 	 */
-	public static function estaciones_narino( $variable, $ssl = false ) {
+	public static function estaciones_narino( $variable, $ssl = null ) {
+		// null = usar lo configurado en el panel (no forzar la desactivación).
+		$ssl = ( null === $ssl ) ? MAN_Rest::ssl_ideam() : (bool) $ssl;
 		$redes = self::redes();
 		$cfgv  = isset( $redes[ $variable ] ) ? $redes[ $variable ] : $redes['nivel'];
 
@@ -136,7 +138,7 @@ final class MAN_Sync_Ideam {
 			$valor  = self::primer_valor( $p, $cfgv['valor'] );
 			$umbral = ( 'umbral' === $cfgv['alerta'] ) ? self::primer_valor( $p, $cfgv['umbral'] ) : null;
 			$alerta = self::nivel_alerta( $valor, $umbral, $p, $cfgv );
-			if ( 'alta' === $alerta ) {
+			if ( 'alta' === $alerta || 'maxima' === $alerta ) {
 				$alertas++;
 			}
 
@@ -172,7 +174,8 @@ final class MAN_Sync_Ideam {
 	 * @param bool $ssl Verificar certificado.
 	 * @return array {ok, subzonas[{subzona,nombre,ah,zona,alerta_texto,alerta_nivel,pobs}], fecha, total_nacional}
 	 */
-	public static function subzonas_narino( $ssl = false ) {
+	public static function subzonas_narino( $ssl = null ) {
+		$ssl = ( null === $ssl ) ? MAN_Rest::ssl_ideam() : (bool) $ssl;
 		$cache = MAN_Cache::get( 'fews_szh_narino' );
 		if ( is_array( $cache ) && ! empty( $cache['subzonas'] ) ) {
 			return $cache;
@@ -217,14 +220,16 @@ final class MAN_Sync_Ideam {
 			'fecha'          => $fecha,
 			'total_nacional' => count( $feats ),
 		);
-		if ( $res['ok'] ) {
-			MAN_Cache::set( 'fews_szh_narino', $res, 6 * HOUR_IN_SECONDS, 'ideam' );
-		}
+		// También se cachea el resultado vacío, aunque solo 10 min: esta capa
+		// pesa ~8 MB y la piden rutas públicas; sin caché de fallo, cada visita
+		// repetiría la descarga completa mientras la fuente esté degradada.
+		MAN_Cache::set( 'fews_szh_narino', $res, $res['ok'] ? 6 * HOUR_IN_SECONDS : 10 * MINUTE_IN_SECONDS, 'ideam' );
 		return $res;
 	}
 
 	/**
-	 * Calcula el nivel de alerta (normal|media|alta) según el modo de la red.
+	 * Calcula el nivel de alerta (normal|media|alta|maxima) según el modo de
+	 * la red. 'maxima' corresponde al umbral rojo de las redes graduadas.
 	 *
 	 * @param mixed $valor  Último valor.
 	 * @param mixed $umbral Umbral (modo umbral).
@@ -245,10 +250,13 @@ final class MAN_Sync_Ideam {
 				$am   = isset( $g[0] ) ? self::primer_valor( $p, array( $g[0] ) ) : null;
 				$nar  = isset( $g[1] ) ? self::primer_valor( $p, array( $g[1] ) ) : null;
 				$roja = isset( $g[2] ) ? self::primer_valor( $p, array( $g[2] ) ) : null;
-				if ( null !== $nar && $v >= (float) $nar ) {
-					return 'alta';
-				}
+				// De mayor a menor: el umbral rojo es más alto que el naranja,
+				// así que evaluarlo primero es obligatorio. Al revés, la rama
+				// roja era inalcanzable y la alerta máxima nunca se distinguía.
 				if ( null !== $roja && $v >= (float) $roja ) {
+					return 'maxima';
+				}
+				if ( null !== $nar && $v >= (float) $nar ) {
 					return 'alta';
 				}
 				if ( null !== $am && $v >= (float) $am ) {

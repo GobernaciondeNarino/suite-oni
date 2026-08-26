@@ -88,6 +88,15 @@
     return fase(oni).color;
   }
 
+  /** Color del nivel de alerta hidrológica IDEAM/FEWS.
+      'maxima' corresponde al umbral rojo; 'alta', al naranja. */
+  function colorAlerta(nivel, base) {
+    if (nivel === 'maxima') { return '#7B241C'; }
+    if (nivel === 'alta') { return '#C0392B'; }
+    if (nivel === 'media') { return '#F1C40F'; }
+    return base || '#2ECC71';
+  }
+
   /** Vacía el cuerpo y los errores previos de un componente antes de repintar. */
   function limpiar(cont, claseCuerpo) {
     quitarSkeleton(cont);
@@ -293,6 +302,7 @@
     mes: mes,
     fase: fase,
     faseColor: faseColor,
+    colorAlerta: colorAlerta,
     copiar: copiar,
     objetivo: objetivo,
     MAN: MAN

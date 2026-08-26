@@ -1,4 +1,12 @@
 <?php
+/**
+ * Textos descriptivos de las vistas del motor de gráficos.
+ *
+ * @package MonitorAmbientalNarino
+ */
+
+defined( 'ABSPATH' ) || exit;
+
 return array(
 	'oni_serie' => array(
 		'descripcion' => 'Esta vista muestra la evolución del Índice Oceánico de El Niño (ONI) mes a mes, expresado en grados Celsius como anomalía de la temperatura del océano Pacífico tropical. La fuente es NOAA/CPC para el tramo observado y un ensamble de pronóstico para el tramo proyectado. El eje horizontal indica el tiempo y el eje vertical la anomalía: por encima de cero el océano está más cálido de lo normal y por debajo más frío. La línea permite seguir cómo cambia el índice a lo largo del año.',

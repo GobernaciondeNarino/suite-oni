@@ -120,7 +120,12 @@ final class MAN_Api_Config {
 			$config[ $slug ]['activa']     = ! empty( $nuevo['activa'] );
 			$config[ $slug ]['sslverify']  = ! empty( $nuevo['sslverify'] );
 			$config[ $slug ]['url']        = isset( $nuevo['url'] ) ? esc_url_raw( trim( $nuevo['url'] ) ) : ( isset( $cfg['url'] ) ? $cfg['url'] : '' );
-			$config[ $slug ]['dataset_id'] = isset( $nuevo['dataset_id'] ) ? sanitize_text_field( $nuevo['dataset_id'] ) : '';
+			// Se preserva el valor previo si el campo no llegó en el POST (igual
+			// que la URL): un guardado parcial borraba el código de estación
+			// del IOC o el dataset de SIVIGILA.
+			$config[ $slug ]['dataset_id'] = isset( $nuevo['dataset_id'] )
+				? sanitize_text_field( $nuevo['dataset_id'] )
+				: ( isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : '' );
 			$config[ $slug ]['frecuencia'] = isset( $nuevo['frecuencia'] ) ? max( 1, (int) $nuevo['frecuencia'] ) : 12;
 			$config[ $slug ]['ttl']        = isset( $nuevo['ttl'] ) ? max( 1, (int) $nuevo['ttl'] ) : 60;
 

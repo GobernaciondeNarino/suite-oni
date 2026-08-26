@@ -15,6 +15,9 @@ final class MAN_Admin {
 	/** @var MAN_Api_Config */
 	private $config;
 
+	/** @var string[] Hooks exactos de las páginas del plugin (para encolar). */
+	private $hooks = array();
+
 	public function __construct() {
 		$this->config = new MAN_Api_Config();
 		add_action( 'admin_menu', array( $this, 'menu' ) );
@@ -26,7 +29,8 @@ final class MAN_Admin {
 	 * Registra el menú y submenús.
 	 */
 	public function menu() {
-		add_menu_page(
+		$this->hooks   = array();
+		$this->hooks[] = add_menu_page(
 			'Monitor Ambiental',
 			'Monitor Ambiental',
 			'manage_options',
@@ -35,20 +39,25 @@ final class MAN_Admin {
 			'dashicons-chart-area',
 			58
 		);
-		add_submenu_page( 'man-salud', 'Salud de APIs', 'Salud de APIs', 'manage_options', 'man-salud', array( $this, 'pagina_salud' ) );
-		add_submenu_page( 'man-salud', 'Elementos y shortcodes', 'Elementos', 'manage_options', 'man-elementos', array( $this, 'pagina_elementos' ) );
-		add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
-		add_submenu_page( 'man-salud', 'APIs y datos', 'APIs y datos', 'manage_options', 'man-apis-datos', array( $this, 'pagina_apis_datos' ) );
-		add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Salud de APIs', 'Salud de APIs', 'manage_options', 'man-salud', array( $this, 'pagina_salud' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Elementos y shortcodes', 'Elementos', 'manage_options', 'man-elementos', array( $this, 'pagina_elementos' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'APIs y datos', 'APIs y datos', 'manage_options', 'man-apis-datos', array( $this, 'pagina_apis_datos' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
+		$this->hooks   = array_filter( $this->hooks );
 	}
 
 	/**
 	 * Encola assets del admin solo en las páginas del plugin.
 	 *
+	 * Se comparan los hooks exactos que devolvió add_submenu_page(): buscar la
+	 * subcadena «man-» encolaba también en páginas ajenas cuyo hook la
+	 * contuviera (p. ej. un plugin llamado «woman-…»).
+	 *
 	 * @param string $hook Hook de la página actual.
 	 */
 	public function assets( $hook ) {
-		if ( false === strpos( $hook, 'man-' ) ) {
+		if ( ! in_array( $hook, (array) $this->hooks, true ) ) {
 			return;
 		}
 		wp_enqueue_script( 'man-admin', MAN_URL . 'assets/js/admin.js', array(), MAN_VERSION, true );

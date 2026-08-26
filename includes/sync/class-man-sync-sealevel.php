@@ -32,7 +32,9 @@ final class MAN_Sync_Sealevel {
 	 */
 	public static function sincronizar( $cfg ) {
 		$code = ! empty( $cfg['dataset_id'] ) ? sanitize_text_field( $cfg['dataset_id'] ) : 'tumc2';
-		$ssl  = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : false;
+		// Verificación TLS activa por defecto: ioc-sealevelmonitoring.org presenta un
+		// certificado válido; desactivarla solo si el panel lo indica.
+		$ssl  = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : true;
 		$ttl  = isset( $cfg['ttl'] ) ? (int) $cfg['ttl'] * 60 : 3600;
 		// 'period' en días (admite decimales). Por defecto 1 día (ciclo de marea).
 		$period = isset( $cfg['period'] ) && is_numeric( $cfg['period'] ) ? (float) $cfg['period'] : 1;
