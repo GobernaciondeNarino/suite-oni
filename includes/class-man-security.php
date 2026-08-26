@@ -59,7 +59,25 @@ final class MAN_Security {
 		if ( preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', $valor ) ) {
 			return $valor;
 		}
-		return gmdate( 'Y-m' );
+		return self::mes_actual();
+	}
+
+	/**
+	 * Mes en curso en hora local del sitio (Colombia, UTC-5).
+	 *
+	 * Con gmdate() el plugin saltaba de mes a las 19:00 hora local del último
+	 * día, pidiendo un mes sin datos durante cinco horas.
+	 *
+	 * @return string AAAA-MM.
+	 */
+	public static function mes_actual() {
+		if ( function_exists( 'wp_date' ) ) {
+			$mes = wp_date( 'Y-m' );
+			if ( $mes ) {
+				return $mes;
+			}
+		}
+		return gmdate( 'Y-m', time() - 5 * HOUR_IN_SECONDS );
 	}
 
 	/**
@@ -93,26 +111,46 @@ final class MAN_Security {
 	 * @return bool True si se permite; false si se excedió el límite.
 	 */
 	public static function rate_limit( $clave_base, $max = 60, $ventana = 60 ) {
-		$ip    = self::ip_cliente();
-		$clave = 'man_rl_' . md5( $clave_base . '|' . $ip );
-		$n     = (int) get_transient( $clave );
+		$ventana = max( 1, (int) $ventana );
+		$ip      = self::ip_cliente();
 
+		// Ventana FIJA codificada en la clave. Con ventana deslizante, cada
+		// petición permitida renovaba el TTL y el contador nunca expiraba: un
+		// cliente legítimo que sondease sin pausa acababa bloqueado pese a
+		// mantenerse por debajo del límite por minuto.
+		$slot  = (int) floor( time() / $ventana );
+		$clave = 'man_rl_' . md5( $clave_base . '|' . $ip . '|' . $slot );
+
+		$n = (int) get_transient( $clave );
 		if ( $n >= (int) $max ) {
 			return false;
 		}
-		set_transient( $clave, $n + 1, (int) $ventana );
+		// TTL doble: cubre el desfase entre slots sin estirar la ventana.
+		set_transient( $clave, $n + 1, $ventana * 2 );
 		return true;
 	}
 
 	/**
 	 * Obtiene la IP del cliente de forma segura.
 	 *
+	 * Se usa REMOTE_ADDR porque las cabeceras X-Forwarded-* son falsificables.
+	 * Tras un proxy o CDN de confianza, todos los visitantes comparten IP y
+	 * agotarían el mismo cupo: en ese caso resuelva la IP real con el filtro
+	 * `man_ip_cliente`, que debe devolver una IP ya validada.
+	 *
 	 * @return string
 	 */
 	public static function ip_cliente() {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '0.0.0.0';
 		$ip = filter_var( $ip, \FILTER_VALIDATE_IP ) ? $ip : '0.0.0.0';
-		return $ip;
+
+		/**
+		 * Filtra la IP usada para el rate-limit (entornos con proxy inverso).
+		 *
+		 * @param string $ip IP validada de REMOTE_ADDR.
+		 */
+		$filtrada = apply_filters( 'man_ip_cliente', $ip );
+		return ( is_string( $filtrada ) && filter_var( $filtrada, \FILTER_VALIDATE_IP ) ) ? $filtrada : $ip;
 	}
 
 	/* ----------------------------------------------------------------- */

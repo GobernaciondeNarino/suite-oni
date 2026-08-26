@@ -157,6 +157,14 @@ final class MAN_Activator {
 				$config['ideam']['nombre']     = 'IDEAM — FEWS (estaciones hidrológicas y alertas de nivel)';
 				$cambio                        = true;
 			}
+			// NOAA/CPC ENSO: la URL .php quedó como stub con meta-refresh (HTTP
+			// 200 sin tabla), que wp_remote_get no sigue. La página de datos es
+			// el directorio con barra final.
+			if ( isset( $config['iri_enso']['url'] )
+				&& false !== strpos( $config['iri_enso']['url'], 'roni/probabilities.php' ) ) {
+				$config['iri_enso']['url'] = 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/';
+				$cambio                    = true;
+			}
 			if ( $cambio ) {
 				update_option( 'man_api_config', $config );
 				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Config migrada en la actualización a ' . MAN_VERSION );
@@ -243,7 +251,9 @@ final class MAN_Activator {
 				'nombre'           => 'NOAA/CPC — pronóstico ENSO oficial (consenso CPC/IRI)',
 				'activa'           => true,
 				'capa'             => 'cron',
-				'url'              => 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities.php',
+				// Con barra final: la variante .php es un stub con meta-refresh
+				// que wp_remote_get no sigue (solo redirecciones 3xx).
+				'url'              => 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/',
 				'dataset_id'       => '',
 				'clave'            => '',
 				'frecuencia'       => 12,

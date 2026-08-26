@@ -898,7 +898,7 @@ final class MAN_Views {
 	 * @return array[]
 	 */
 	private static function datos( $id, $args ) {
-		$hasta = isset( $args['hasta'] ) ? $args['hasta'] : '2027-02';
+		$hasta = isset( $args['hasta'] ) ? $args['hasta'] : MAN_Rest::objetivo_por_defecto();
 		$mes   = isset( $args['mes'] ) ? $args['mes'] : gmdate( 'Y-m' );
 
 		switch ( $id ) {

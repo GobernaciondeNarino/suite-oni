@@ -12,25 +12,8 @@
           btn.textContent = '¡URL copiada!';
           setTimeout(function () { btn.textContent = original; }, 1600);
         };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url).then(ok, function () { fallback(url); ok(); });
-        } else {
-          fallback(url);
-          ok();
-        }
+        C.copiar(url).then(ok, ok);
       });
     });
   });
-
-  function fallback(text) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'absolute';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch (e) { /* ignorado */ }
-    document.body.removeChild(ta);
-  }
 })();

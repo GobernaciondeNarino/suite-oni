@@ -161,8 +161,5 @@
   function total(a) {
     return a.filter(function (x) { return x != null; }).reduce(function (s, x) { return s + x; }, 0);
   }
-  function limpiar(cont) {
-    var x = cont.querySelector('.man-pronostico__cuerpo'); if (x) { x.parentNode.removeChild(x); }
-    var e = cont.querySelector('.man-error'); if (e) { e.parentNode.removeChild(e); }
-  }
+  function limpiar(cont) { C.limpiar(cont, 'man-pronostico__cuerpo'); }
 })();

@@ -1,9 +1,10 @@
 /* [man_prediccion] — predicción de la trayectoria del ONI hasta el mes objetivo
-   (por defecto febrero de 2027).
+   (horizonte móvil desde el último dato observado).
 
-   Dibuja, con D3 puro: ONI observado (línea sólida) + ensamble oficial proyectado
-   (línea discontinua) + modelo propio del plugin (línea de puntos) + banda de
-   incertidumbre, con umbrales de fase ±0,5 °C, separador observado/proyección,
+   Dibuja, con D3 puro: ONI observado de NOAA (línea sólida) + proyección del
+   plugin (línea discontinua) + escenario de planeación sembrado (línea de
+   puntos) + banda de incertidumbre, con umbrales de fase ±0,5 °C,
+   separador observado/proyección,
    marcador del mes objetivo y reveal animado de la proyección (respeta
    prefers-reduced-motion). Añade barras de probabilidad por trimestre y la
    narrativa predictiva automática. Componente independiente y maquetable. */
@@ -22,7 +23,7 @@
   function cargar(cont) {
     var pa = (cont.getAttribute('data-partes') || '').trim();
     var opts = {
-      hasta: cont.getAttribute('data-hasta') || '2027-02',
+      hasta: cont.getAttribute('data-hasta') || C.objetivo(),
       modelo: cont.getAttribute('data-modelo') !== 'no',
       probabilidad: cont.getAttribute('data-probabilidad') !== 'no',
       // null = todas las secciones; si no, solo las indicadas.
@@ -123,6 +124,7 @@
       if (p.banda_min != null) { vals.push(+p.banda_min); }
       if (p.banda_max != null) { vals.push(+p.banda_max); }
       if (p.modelo_oni != null) { vals.push(+p.modelo_oni); }
+      if (p.escenario_oni != null) { vals.push(+p.escenario_oni); }
     });
     var minv = Math.min.apply(null, vals.concat([-0.6]));
     var maxv = Math.max.apply(null, vals.concat([0.6]));
@@ -188,10 +190,14 @@
     trazo(svg, segmento(serie, 0, iLastObs, 'oni'), x, y, 'var(--man-texto,#1a1f2c)', 2.4, null, false);
     var lineaProj = trazo(gProj, segmento(serie, iLastObs, n - 1, 'oni'), x, y, '#003087', 2.4, '6 4', false);
 
-    // Línea del modelo propio del plugin (puntos), si procede.
+    // Línea de contraste (puntos): el escenario de planeación sembrado. La
+    // central ya es el modelo del plugin recalculado con el ONI vigente.
     if (opts.modelo) {
       var mod = [{ i: iLastObs, v: +serie[iLastObs].oni }];
-      for (var mm = iProj; mm < n; mm++) { if (serie[mm].modelo_oni != null) { mod.push({ i: mm, v: +serie[mm].modelo_oni }); } }
+      for (var mm = iProj; mm < n; mm++) {
+        var alt = serie[mm].escenario_oni != null ? serie[mm].escenario_oni : serie[mm].modelo_oni;
+        if (alt != null) { mod.push({ i: mm, v: +alt }); }
+      }
       if (mod.length > 1) { trazo(gProj, mod, x, y, 'var(--man-acento,#10A13B)', 1.8, '1 4', true); }
     }
 
@@ -270,7 +276,9 @@
       if (s.banda_min != null && s.banda_max != null) {
         lineas.push('Banda ' + C.num(s.banda_min, 2) + ' a ' + C.num(s.banda_max, 2) + ' °C');
       }
-      if (s.modelo_oni != null) {
+      if (s.escenario_oni != null) {
+        lineas.push('Escenario de planeación ' + (s.escenario_oni >= 0 ? '+' : '') + C.num(s.escenario_oni, 2) + ' °C');
+      } else if (s.modelo_oni != null) {
         lineas.push('Modelo plugin ' + (s.modelo_oni >= 0 ? '+' : '') + C.num(s.modelo_oni, 2) + ' °C');
       }
 
@@ -356,8 +364,10 @@
 
   function leyenda(svg, m, ih, conModelo) {
     var y0 = m.t + ih + 30, x0 = m.l;
-    var items = [['Observado', 'var(--man-texto,#1a1f2c)', 'solid'], ['Ensamble NOAA/IRI', '#003087', 'dash']];
-    if (conModelo) { items.push(['Modelo del plugin', 'var(--man-acento,#10A13B)', 'dot']); }
+    // La línea central es la proyección del plugin sobre el ONI observado de
+    // NOAA; el ensamble oficial se comunica aparte, como probabilidades.
+    var items = [['ONI observado (NOAA)', 'var(--man-texto,#1a1f2c)', 'solid'], ['Proyección del plugin', '#003087', 'dash']];
+    if (conModelo) { items.push(['Escenario de planeación', 'var(--man-acento,#10A13B)', 'dot']); }
     var cx = x0;
     items.forEach(function (it) {
       var ln = linea(cx, y0, cx + 22, y0, it[1], 2.4);
@@ -467,22 +477,14 @@
   }
 
   /* ---------- Formato ---------- */
-  function mesCorto(mes) {
-    var p = String(mes || '').split('-');
-    if (p.length < 2) { return String(mes || ''); }
-    var i = (+p[1] - 1) % 12;
-    return MESES[i] + ' ' + p[0].slice(2);
-  }
+  function mesCorto(mes) { return C.mes(mes, 'corto'); }
   function mesLargo(mes) {
     var nombres = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     var p = String(mes || '').split('-');
     if (p.length < 2) { return String(mes || ''); }
     return nombres[(+p[1] - 1) % 12] + ' de ' + p[0];
   }
-  function faseColor(oni) { return oni >= 0.5 ? '#c62828' : (oni <= -0.5 ? '#1565c0' : '#2e7d32'); }
+  function faseColor(oni) { return C.faseColor(oni); }
 
-  function limpiar(cont) {
-    var x = cont.querySelector('.man-prediccion__cuerpo'); if (x) { x.parentNode.removeChild(x); }
-    var e = cont.querySelector('.man-error'); if (e) { e.parentNode.removeChild(e); }
-  }
+  function limpiar(cont) { C.limpiar(cont, 'man-prediccion__cuerpo'); }
 })();

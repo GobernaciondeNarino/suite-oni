@@ -32,8 +32,5 @@
     cont.insertBefore(cuerpo, cont.querySelector('.man-fuentes'));
   }
 
-  function limpiar(cont) {
-    var x = cont.querySelector('.man-salud__cuerpo'); if (x) { x.parentNode.removeChild(x); }
-    var e = cont.querySelector('.man-error'); if (e) { e.parentNode.removeChild(e); }
-  }
+  function limpiar(cont) { C.limpiar(cont, 'man-salud__cuerpo'); }
 })();

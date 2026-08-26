@@ -15,7 +15,7 @@
 
   function cargar(cont) {
     var tipo = cont.getAttribute('data-tipo') || 'oni';
-    var hasta = cont.getAttribute('data-hasta') || '2027-02';
+    var hasta = cont.getAttribute('data-hasta') || C.objetivo();
     var mes = cont.getAttribute('data-mes') || '';
     var lienzo = cont.querySelector('.man-estadisticas__lienzo');
     var has = (typeof window.d3plus !== 'undefined');

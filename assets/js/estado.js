@@ -130,10 +130,7 @@
     svg.appendChild(t);
   }
 
-  function faseColor(oni) { return oni >= 0.5 ? '#c62828' : (oni <= -0.5 ? '#1565c0' : '#2e7d32'); }
+  function faseColor(oni) { return C.faseColor(oni); }
 
-  function limpiar(cont) {
-    var x = cont.querySelector('.man-estado__cuerpo'); if (x) { x.parentNode.removeChild(x); }
-    var e = cont.querySelector('.man-error'); if (e) { e.parentNode.removeChild(e); }
-  }
+  function limpiar(cont) { C.limpiar(cont, 'man-estado__cuerpo'); }
 })();
