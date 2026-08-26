@@ -165,6 +165,24 @@ final class MAN_Activator {
 				$config['iri_enso']['url'] = 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/';
 				$cambio                    = true;
 			}
+			// SIVIGILA: el dataset quedó identificado (4hyg-wa9d, eventos de
+			// notificación obligatoria por municipio y semana). Se siembra en
+			// instalaciones que nunca pudieron configurarlo, sin pisar un
+			// dataset que el operador haya fijado a mano.
+			if ( isset( $config['sivigila'] ) && empty( $config['sivigila']['dataset_id'] ) ) {
+				$config['sivigila']['dataset_id'] = '4hyg-wa9d';
+				$config['sivigila']['activa']     = true;
+				$config['sivigila']['sslverify']  = true;
+				$config['sivigila']['nombre']     = 'SIVIGILA / INS vía datos.gov.co (enfermedades sensibles al clima)';
+				$cambio                           = true;
+			}
+			// FIRMS: si el operador ya guardó su MAP_KEY, la fuente debe quedar
+			// activa. Venía desactivada por defecto porque sin clave no sirve,
+			// pero esa condición deja de aplicar en cuanto la clave existe.
+			if ( ! empty( $config['firms']['clave'] ) && empty( $config['firms']['activa'] ) ) {
+				$config['firms']['activa'] = true;
+				$cambio                    = true;
+			}
 			if ( $cambio ) {
 				update_option( 'man_api_config', $config );
 				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Config migrada en la actualización a ' . MAN_VERSION );
@@ -222,15 +240,17 @@ final class MAN_Activator {
 				'ultimo_resultado' => '',
 			),
 			'sivigila' => array(
-				'nombre'           => 'SIVIGILA / INS vía datos.gov.co (dengue)',
-				'activa'           => false, // requiere fijar dataset-id vigente
+				'nombre'           => 'SIVIGILA / INS vía datos.gov.co (enfermedades sensibles al clima)',
+				'activa'           => true,
 				'capa'             => 'cron',
 				'url'              => 'https://www.datos.gov.co/resource/',
-				'dataset_id'       => '',
+				// Eventos de notificación obligatoria por municipio y semana
+				// epidemiológica. La consulta se agrega con SoQL en el servidor.
+				'dataset_id'       => '4hyg-wa9d',
 				'clave'            => '',
 				'frecuencia'       => 24,
-				'ttl'              => 720,
-				'sslverify'        => false,
+				'ttl'              => 1440,
+				'sslverify'        => true,
 				'ultima_sync'      => 0,
 				'ultimo_resultado' => '',
 			),

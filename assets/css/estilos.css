@@ -397,6 +397,51 @@
   .man-pronostico__tip { white-space: normal; }
 }
 
+/* ---------------------------------------------------------------------------
+   [man_salud] — enfermedades sensibles al clima (SIVIGILA)
+   Sigue el minimalismo del plugin: sin fondos ni bordes propios, solo ritmo
+   vertical y las barras, que son el dato.
+--------------------------------------------------------------------------- */
+.man-salud__cuerpo { display: flex; flex-direction: column; gap: .9em; }
+.man-salud .man-subtitulo { font-weight: 600; margin: .4em 0 -.2em; font-size: .95em; }
+
+.man-salud__cifras { display: flex; flex-wrap: wrap; gap: 1.4em; }
+.man-salud__cifra { display: flex; flex-direction: column; gap: .1em; }
+.man-salud__cifra strong { font-size: 1.5em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.man-salud__cifra-rotulo { font-size: .8em; color: var(--man-mute, #6b7280); }
+
+.man-salud__grafico { display: flex; flex-direction: column; gap: .4em; }
+.man-salud__grafico svg { width: 100%; height: auto; }
+
+.man-salud__leyenda { display: flex; flex-wrap: wrap; gap: 1em; font-size: .8em; color: var(--man-mute, #6b7280); }
+.man-salud__leyenda-item { display: inline-flex; align-items: center; gap: .4em; }
+.man-salud__swatch { width: .7em; height: .7em; border-radius: 2px; display: inline-block; flex: none; }
+
+.man-salud__barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35em; }
+.man-salud__barra { display: grid; grid-template-columns: minmax(7em, 11em) 1fr auto; align-items: center; gap: .7em; font-size: .88em; }
+.man-salud__barra-rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.man-salud__barra-pista { background: var(--man-borde-color, #e5e7eb); border-radius: 2px; height: .7em; overflow: hidden; }
+.man-salud__barra-pista i { display: block; height: 100%; border-radius: 2px; }
+.man-salud__barra-valor { font-variant-numeric: tabular-nums; color: var(--man-mute, #6b7280); }
+
+@media (max-width: 480px) {
+  .man-salud__barra { grid-template-columns: minmax(5.5em, 8em) 1fr auto; font-size: .82em; }
+}
+
+/* Aviso de procedencia: se muestra SOLO cuando el dato no viene de la fuente
+   viva. Discreto pero inconfundible; no compite con el contenido. */
+.man-aviso {
+  margin: 0;
+  padding: .55em .75em;
+  border-left: 3px solid #ef6c00;
+  background: color-mix(in srgb, #ef6c00 8%, transparent);
+  font-size: .88em;
+  line-height: 1.45;
+}
+@supports not (background: color-mix(in srgb, red 8%, transparent)) {
+  .man-aviso { background: rgba(239, 108, 0, .08); }
+}
+
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
 @media (prefers-reduced-motion: reduce) {
   .man-btn { transition: none; }

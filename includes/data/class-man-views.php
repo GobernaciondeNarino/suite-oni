@@ -120,6 +120,40 @@ final class MAN_Views {
 				'default'     => 'bar',
 			),
 
+			// --- Salud sensible al clima (SIVIGILA/INS) ---
+			'salud_anual'        => array(
+				'name'        => 'Casos por año y grupo de enfermedad',
+				'description' => 'Enfermedades sensibles al clima en Nariño por año: transmitidas por vectores (ETV) y por agua y alimentos (ETA).',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'anio', 'grupo' ),
+				'measures'    => array( 'casos' ),
+				'default'     => 'stacked_area',
+			),
+			'salud_eventos'      => array(
+				'name'        => 'Casos por enfermedad',
+				'description' => 'Distribución de casos entre las enfermedades vigiladas (dengue, malaria, leishmaniasis, hepatitis A…).',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'evento', 'grupo' ),
+				'measures'    => array( 'casos' ),
+				'default'     => 'treemap',
+			),
+			'salud_estacional'   => array(
+				'name'        => 'Estacionalidad por semana epidemiológica',
+				'description' => 'Casos acumulados en cada semana del año: muestra en qué meses se concentra la transmisión.',
+				'category'    => 'temporal',
+				'dimensions'  => array( 'semana', 'grupo' ),
+				'measures'    => array( 'casos' ),
+				'default'     => 'line',
+			),
+			'salud_municipios'   => array(
+				'name'        => 'Municipios con más casos',
+				'description' => 'Los 15 municipios con mayor número de casos en la ventana reciente.',
+				'category'    => 'categorical',
+				'dimensions'  => array( 'municipio' ),
+				'measures'    => array( 'casos' ),
+				'default'     => 'bar',
+			),
+
 			// --- Fase 2: vistas sectoriales ---
 			'deficit_municipios' => array(
 				'name'        => 'Déficit hídrico por municipio (real)',
@@ -402,6 +436,7 @@ final class MAN_Views {
 		$ols  = 'El método ajusta una regresión lineal por mínimos cuadrados (OLS) a la serie y proyecta los próximos pasos con una banda de incertidumbre del 90% que crece con el horizonte (raíz del paso); se reporta la pendiente y el R² como medida de ajuste. Es una extrapolación de planeación, a contrastar con los boletines de IDEAM y NOAA-CPC.';
 		$cond = 'Como esta vista es una fotografía del momento (sin serie propia), la predicción se condiciona a la fase ENSO proyectada: se toma el ONI estimado a tres meses (tendencia amortiguada + gaussiana) y se traduce su signo a la respuesta típica de Nariño (sequía andina o más lluvia y oleaje en el Pacífico). Es una estimación cualitativa orientativa.';
 		$umb  = 'La predicción combina la dispersión de los valores actuales frente a los umbrales con la fase ENSO proyectada a tres meses; donde el dato lo permite, la probabilidad de superar un umbral se calcula con una gaussiana (cruce de umbral). Es una estimación para anticipación temprana, no un aviso oficial de emergencia.';
+		$salud = 'Esta vista NO se proyecta: son casos ya notificados a la vigilancia epidemiológica, con el rezago propio del sistema. La relación con el ENSO es indirecta y no inmediata —el clima altera la abundancia del vector y la calidad del agua, pero la incidencia depende además de la cobertura de control vectorial, la minería, la movilidad y el acceso a servicios—, así que la serie debe leerse junto a esos factores y no como efecto directo del fenómeno.';
 		$sim  = 'En esta red el valor ya es el resultado del modelo de simulación hidrológica del FEWS, es decir un pronóstico operativo del propio IDEAM; aquí se resume cuáles estaciones proyecta el modelo más cerca de sus umbrales de alerta. La vigilancia debe apoyarse en los boletines y avisos oficiales del IDEAM.';
 
 		$map = array(
@@ -411,6 +446,7 @@ final class MAN_Views {
 			'riesgo_subregion' => $cond, 'riesgo_municipios' => $cond, 'deficit_municipios' => $cond, 'focos_municipios' => $cond,
 			'deficit_serie' => $ols, 'focos_serie' => $ols, 'cultivos_riesgo' => $ols, 'acueductos' => $ols, 'hidro_reduccion' => $ols, 'precip_caudal' => $ols,
 			'historico_apis' => 'La proyección aplica una regresión lineal (OLS) al índice anual normalizado y estima el año siguiente con su banda del 90%, reportando la pendiente y el R²; al estar normalizado, indica la dirección de la tendencia más que una magnitud absoluta. Se interpreta junto con la fase ENSO prevista.',
+			'salud_anual' => $salud, 'salud_eventos' => $salud, 'salud_estacional' => $salud, 'salud_municipios' => $salud,
 			'fews_nivel' => $umb, 'fews_precipitacion' => $umb, 'fews_caudal' => $umb, 'fews_temperatura' => $umb, 'fews_calidad' => $umb,
 			'fews_szh_alertas' => $umb, 'fews_szh_pobs' => $umb,
 			'fews_nivel_pronostico' => $sim, 'fews_caudal_pronostico' => $sim,
@@ -434,6 +470,10 @@ final class MAN_Views {
 			'riesgo_subregion'   => 'Riesgo ambiental medio (0–1) por subregión: promedia el índice de los municipios de cada subregión. El índice combina empuje ENSO, anomalía de lluvia, exposición y sensibilidad sectorial.',
 			'riesgo_municipios'  => 'Los 15 municipios con mayor índice de riesgo (0–1) en el mes elegido. El índice pondera ENSO, anomalía de lluvia (déficit real cuando hay), exposición y sector.',
 			'episodios'          => 'Compara los episodios históricos de El Niño (2015–2024) por su ONI pico. Útil para dimensionar el evento actual frente a los pasados.',
+			'salud_anual'        => 'Casos notificados a SIVIGILA en Nariño, agrupados por año. ETV son las enfermedades transmitidas por vectores (dengue, malaria, leishmaniasis, chikunguña, zika) y ETA las transmitidas por agua y alimentos (fiebre tifoidea, hepatitis A). Las muertes se reportan aparte y no se suman a los casos. Fuente: INS/SIVIGILA vía datos.gov.co.',
+			'salud_eventos'      => 'Reparto de los casos entre las enfermedades vigiladas en todo el histórico disponible. En Nariño la malaria falcíparum domina el total, concentrada en los municipios del litoral Pacífico. Fuente: INS/SIVIGILA.',
+			'salud_estacional'   => 'Casos acumulados en cada semana epidemiológica del año (1–53), sumando todos los años disponibles. Describe la estacionalidad típica del departamento: en qué momento del año se concentra la transmisión, con independencia de si un año fue de El Niño o de La Niña.',
+			'salud_municipios'   => 'Municipios con más casos notificados en la ventana reciente. La carga se concentra en el litoral Pacífico (Sanquianga, Telembí, Pacífico Sur), donde la malaria es endémica. Fuente: INS/SIVIGILA.',
 			'deficit_municipios' => 'Déficit hídrico (0–100) por municipio: se deriva EN VIVO de la precipitación reciente de Open-Meteo frente a un umbral climatológico. 100 = sin lluvia respecto a lo esperado. Dato real.',
 			'focos_municipios'   => 'Focos de calor activos por municipio detectados por satélite (NASA FIRMS, VIIRS/MODIS) en los últimos días, asignados a cada municipio por su polígono. Dato real.',
 			'deficit_serie'      => 'Evolución mensual del déficit hídrico departamental del escenario de planeación. Modelado (semilla), no medición directa.',
@@ -787,6 +827,87 @@ final class MAN_Views {
 				}
 				break;
 
+			case 'salud_anual':
+				$desc = 'Casos notificados a la vigilancia epidemiológica (SIVIGILA) de enfermedades sensibles al clima en Nariño: transmitidas por vectores (ETV) y por agua y alimentos (ETA). Las muertes se reportan aparte.';
+				if ( $n ) {
+					$pico  = $datos[0];
+					$total = 0;
+					foreach ( $datos as $f ) {
+						$total += (int) $f['casos'];
+						if ( (int) $f['casos'] > (int) $pico['casos'] ) {
+							$pico = $f;
+						}
+					}
+					$cuant = sprintf(
+						'%s casos acumulados en la serie. El máximo corresponde a %s en %s, con %s casos.',
+						number_format_i18n( $total ),
+						$pico['grupo'],
+						$pico['anio'],
+						number_format_i18n( (int) $pico['casos'] )
+					);
+				}
+				break;
+
+			case 'salud_eventos':
+				$desc = 'Reparto de los casos entre las enfermedades vigiladas. El tamaño refleja el peso de cada una en la carga total del departamento.';
+				if ( $n ) {
+					$top   = $datos[0];
+					$total = 0;
+					foreach ( $datos as $f ) {
+						$total += (int) $f['casos'];
+					}
+					$pct   = $total ? round( (int) $top['casos'] / $total * 100 ) : 0;
+					$cuant = sprintf(
+						'%s concentra el %s%% de los casos (%s de %s).',
+						$top['evento'],
+						number_format_i18n( $pct ),
+						number_format_i18n( (int) $top['casos'] ),
+						number_format_i18n( $total )
+					);
+				}
+				break;
+
+			case 'salud_estacional':
+				$desc = 'Casos acumulados en cada semana epidemiológica, sumando todos los años disponibles: muestra en qué momento del año se concentra la transmisión.';
+				if ( $n ) {
+					$pico = $datos[0];
+					foreach ( $datos as $f ) {
+						if ( (int) $f['casos'] > (int) $pico['casos'] ) {
+							$pico = $f;
+						}
+					}
+					// La semana epidemiológica 1 arranca a inicios de enero: el
+					// mes aproximado sirve para situar el pico sin falsa precisión.
+					$mes_aprox = min( 12, max( 1, (int) ceil( (int) $pico['semana'] / 4.35 ) ) );
+					$meses     = array( 1 => 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre' );
+					$cuant     = sprintf(
+						'La transmisión alcanza su punto más alto hacia la semana %s (%s), con %s casos acumulados.',
+						number_format_i18n( (int) $pico['semana'] ),
+						$meses[ $mes_aprox ],
+						number_format_i18n( (int) $pico['casos'] )
+					);
+				}
+				break;
+
+			case 'salud_municipios':
+				$desc = 'Municipios con más casos notificados en la ventana reciente.';
+				if ( $n ) {
+					$top   = $datos[0];
+					$total = 0;
+					foreach ( $datos as $f ) {
+						$total += (int) $f['casos'];
+					}
+					$pct   = $total ? round( (int) $top['casos'] / $total * 100 ) : 0;
+					$cuant = sprintf(
+						'%s encabeza la lista con %s casos (%s%% del total mostrado)%s.',
+						$top['municipio'],
+						number_format_i18n( (int) $top['casos'] ),
+						number_format_i18n( $pct ),
+						! empty( $top['subregion'] ) ? ', subregión ' . $top['subregion'] : ''
+					);
+				}
+				break;
+
 			case 'deficit_municipios':
 				$desc = 'Déficit hídrico por municipio (0–100), derivado en tiempo real de la precipitación de Open-Meteo. Dato REAL.';
 				if ( $n ) {
@@ -888,6 +1009,21 @@ final class MAN_Views {
 	private static function signo( $v ) {
 		$v = (float) $v;
 		return ( $v >= 0 ? '+' : '' ) . number_format_i18n( $v, 1 );
+	}
+
+	/**
+	 * Sección del payload de salud cacheado (SIVIGILA), o array vacío si la
+	 * fuente aún no se ha sincronizado.
+	 *
+	 * @param string $seccion anual|por_evento|municipios|estacional.
+	 * @return array[]
+	 */
+	private static function salud_payload( $seccion ) {
+		$cache = MAN_Cache::get( MAN_Sync_Sivigila::CLAVE );
+		if ( ! is_array( $cache ) || empty( $cache[ $seccion ] ) || ! is_array( $cache[ $seccion ] ) ) {
+			return array();
+		}
+		return $cache[ $seccion ];
 	}
 
 	/**
@@ -994,6 +1130,59 @@ final class MAN_Views {
 					$rows[] = array(
 						'periodo'  => $e['periodo'],
 						'oni_pico' => (float) ( isset( $e['oni_pico'] ) ? $e['oni_pico'] : 0 ),
+					);
+				}
+				return $rows;
+
+			case 'salud_anual':
+				$rows = array();
+				foreach ( self::salud_payload( 'anual' ) as $a ) {
+					// Una fila por grupo: el motor apila por la dimensión 'grupo'.
+					$rows[] = array( 'anio' => (string) $a['anio'], 'grupo' => 'Vectores (ETV)', 'casos' => (int) $a['ETV'] );
+					$rows[] = array( 'anio' => (string) $a['anio'], 'grupo' => 'Agua y alimentos (ETA)', 'casos' => (int) $a['ETA'] );
+				}
+				return $rows;
+
+			case 'salud_eventos':
+				$acc = array();
+				foreach ( self::salud_payload( 'por_evento' ) as $e ) {
+					if ( ! empty( $e['letal'] ) ) {
+						continue; // Las muertes se comunican aparte, no se suman a los casos.
+					}
+					$k = $e['evento'];
+					if ( ! isset( $acc[ $k ] ) ) {
+						$acc[ $k ] = array(
+							'evento' => $k,
+							'grupo'  => ( 'ETA' === $e['grupo'] ) ? 'Agua y alimentos (ETA)' : 'Vectores (ETV)',
+							'casos'  => 0,
+						);
+					}
+					$acc[ $k ]['casos'] += (int) $e['casos'];
+				}
+				$rows = array_values( $acc );
+				usort(
+					$rows,
+					function ( $a, $b ) {
+						return (int) $b['casos'] - (int) $a['casos'];
+					}
+				);
+				return $rows;
+
+			case 'salud_estacional':
+				$rows = array();
+				foreach ( self::salud_payload( 'estacional' ) as $sm ) {
+					$rows[] = array( 'semana' => (int) $sm['semana'], 'grupo' => 'Vectores (ETV)', 'casos' => (int) $sm['ETV'] );
+					$rows[] = array( 'semana' => (int) $sm['semana'], 'grupo' => 'Agua y alimentos (ETA)', 'casos' => (int) $sm['ETA'] );
+				}
+				return $rows;
+
+			case 'salud_municipios':
+				$rows = array();
+				foreach ( array_slice( self::salud_payload( 'municipios' ), 0, 15 ) as $m ) {
+					$rows[] = array(
+						'municipio' => $m['municipio'],
+						'subregion' => isset( $m['subregion'] ) ? $m['subregion'] : '',
+						'casos'     => (int) $m['total'],
 					);
 				}
 				return $rows;

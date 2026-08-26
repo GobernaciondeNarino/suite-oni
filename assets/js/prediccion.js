@@ -46,6 +46,14 @@
       cuerpo.appendChild(C.el('p', 'man-titulo', 'Predicción del fenómeno ENSO hasta ' + mesLargo(d.objetivo_mes)));
     }
 
+    // Transparencia: si el contraste oficial no viene de la fuente viva, se
+    // dice antes de mostrar la gráfica, no en letra pequeña al final.
+    if (d.aviso) {
+      var av = C.el('p', 'man-aviso', C.esc(d.aviso));
+      av.setAttribute('role', 'status');
+      cuerpo.appendChild(av);
+    }
+
     if (ver('chips')) {
       cuerpo.appendChild(chips(d));
     }

@@ -87,6 +87,12 @@ final class MAN_Api_Config {
 						Última sincronización:
 						<strong><?php echo esc_html( ! empty( $cfg['ultima_sync'] ) ? gmdate( 'Y-m-d H:i', (int) $cfg['ultima_sync'] ) . ' UTC' : 'nunca' ); ?></strong>
 						— <?php echo esc_html( isset( $cfg['ultimo_resultado'] ) ? $cfg['ultimo_resultado'] : '—' ); ?>
+						<?php
+						$fallo = isset( $cfg['ultimo_resultado'] ) && 0 === strpos( $cfg['ultimo_resultado'], 'ERROR' );
+						if ( $fallo && ! empty( $cfg['ultimo_detalle'] ) ) :
+							?>
+							<br><span class="description"><?php echo esc_html( $cfg['ultimo_detalle'] ); ?></span>
+						<?php endif; ?>
 					</p>
 
 					<p>
@@ -160,10 +166,27 @@ final class MAN_Api_Config {
 		$r  = MAN_Sync::http_get( $url, $ssl, array( 'timeout' => 12 ) );
 		$ms = (int) round( ( microtime( true ) - $t0 ) * 1000 );
 
-		if ( $r['ok'] ) {
-			wp_send_json_success( array( 'mensaje' => 'OK · HTTP ' . $r['codigo'] . ' · ' . $ms . ' ms' ) );
+		if ( ! $r['ok'] ) {
+			wp_send_json_error( array( 'mensaje' => 'Falla · HTTP ' . $r['codigo'] . ' ' . $r['error'] ) );
 		}
-		wp_send_json_error( array( 'mensaje' => 'Falla · HTTP ' . $r['codigo'] . ' ' . $r['error'] ) );
+
+		// Un HTTP 200 no basta: el pronóstico oficial de NOAA/CPC estuvo meses
+		// devolviendo 200 con una página sin tabla, y esta prueba lo daba por
+		// bueno. Se valida que el cuerpo tenga de verdad la forma esperada.
+		$valido = self::validar_respuesta( $slug, $r['cuerpo'] );
+		if ( ! $valido['ok'] ) {
+			wp_send_json_error(
+				array(
+					'mensaje' => 'Responde (HTTP ' . $r['codigo'] . ') pero sin datos utilizables · ' . $valido['mensaje'],
+				)
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'mensaje' => 'OK · HTTP ' . $r['codigo'] . ' · ' . $ms . ' ms · ' . $valido['mensaje'],
+			)
+		);
 	}
 
 	/**
@@ -177,6 +200,82 @@ final class MAN_Api_Config {
 			wp_send_json_success( array( 'mensaje' => 'Sincronizado · ' . $res['mensaje'] . ' · ' . $res['latencia_ms'] . ' ms' ) );
 		}
 		wp_send_json_error( array( 'mensaje' => 'Error · ' . ( isset( $res['mensaje'] ) ? $res['mensaje'] : '' ) ) );
+	}
+
+	/**
+	 * Comprueba que el cuerpo devuelto por una fuente tiene la forma esperada.
+	 *
+	 * Es la diferencia entre «el servidor responde» y «el servidor entrega los
+	 * datos que necesitamos»: una página de mantenimiento, un aviso de mudanza
+	 * o un JSON de error llegan con HTTP 200.
+	 *
+	 * @param string $slug   Slug de la fuente.
+	 * @param string $cuerpo Cuerpo de la respuesta.
+	 * @return array {ok:bool, mensaje:string}
+	 */
+	private static function validar_respuesta( $slug, $cuerpo ) {
+		$cuerpo = (string) $cuerpo;
+		if ( '' === trim( $cuerpo ) ) {
+			return array( 'ok' => false, 'mensaje' => 'respuesta vacía' );
+		}
+
+		switch ( $slug ) {
+			case 'noaa_oni':
+				$filas = MAN_Enso::parse_oni_ascii( $cuerpo );
+				return count( $filas ) >= 12
+					? array( 'ok' => true, 'mensaje' => count( $filas ) . ' meses de ONI' )
+					: array( 'ok' => false, 'mensaje' => 'el archivo no contiene la serie ONI esperada' );
+
+			case 'iri_enso':
+				$probs = MAN_Enso::parse_iri_probabilities( $cuerpo );
+				return count( $probs ) >= 1
+					? array( 'ok' => true, 'mensaje' => count( $probs ) . ' trimestres oficiales' )
+					: array( 'ok' => false, 'mensaje' => 'la página no trae la tabla de probabilidades (¿cambió la dirección oficial?)' );
+
+			case 'firms':
+				if ( false !== stripos( $cuerpo, 'Invalid MAP_KEY' ) ) {
+					return array( 'ok' => false, 'mensaje' => 'MAP_KEY inválida o no guardada' );
+				}
+				$cab = strtolower( strtok( $cuerpo, "\n" ) );
+				if ( false === strpos( $cab, 'latitude' ) || false === strpos( $cab, 'longitude' ) ) {
+					return array( 'ok' => false, 'mensaje' => 'el CSV no trae columnas latitude/longitude' );
+				}
+				$focos = max( 0, substr_count( trim( $cuerpo ), "\n" ) );
+				return array( 'ok' => true, 'mensaje' => $focos . ' focos en la ventana consultada' );
+
+			case 'ideam':
+				$json = json_decode( $cuerpo, true );
+				return ( is_array( $json ) && ! empty( $json['features'] ) )
+					? array( 'ok' => true, 'mensaje' => count( $json['features'] ) . ' estaciones en la red' )
+					: array( 'ok' => false, 'mensaje' => 'la respuesta no es un GeoJSON con estaciones' );
+
+			case 'sivigila':
+				$json = json_decode( $cuerpo, true );
+				if ( ! is_array( $json ) ) {
+					return array( 'ok' => false, 'mensaje' => 'la respuesta no es JSON' );
+				}
+				if ( isset( $json['error'] ) ) {
+					$m = isset( $json['message'] ) ? $json['message'] : 'consulta rechazada';
+					return array( 'ok' => false, 'mensaje' => 'datos.gov.co: ' . $m );
+				}
+				return array( 'ok' => true, 'mensaje' => 'dataset accesible' );
+
+			case 'ioc':
+				$json = json_decode( $cuerpo, true );
+				return is_array( $json ) && count( $json )
+					? array( 'ok' => true, 'mensaje' => count( $json ) . ' lecturas del mareógrafo' )
+					: array( 'ok' => false, 'mensaje' => 'la estación no devolvió lecturas' );
+
+			case 'open_meteo':
+			case 'deficit':
+				$json = json_decode( $cuerpo, true );
+				return ( is_array( $json ) && ( isset( $json['current'] ) || isset( $json['daily'] ) || isset( $json['hourly'] ) ) )
+					? array( 'ok' => true, 'mensaje' => 'pronóstico disponible' )
+					: array( 'ok' => false, 'mensaje' => 'la respuesta no trae bloques de pronóstico' );
+
+			default:
+				return array( 'ok' => true, 'mensaje' => 'respuesta recibida' );
+		}
 	}
 
 	/**
@@ -220,7 +319,10 @@ final class MAN_Api_Config {
 				$key = ! empty( $cfg['clave'] ) ? MAN_Security::descifrar( $cfg['clave'] ) : '';
 				$ds  = isset( $cfg['dataset_id'] ) ? $cfg['dataset_id'] : 'VIIRS_SNPP_NRT';
 				$base = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) : 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
-				return $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $ds ) . '/' . MAN_Sync_Firms::BBOX . '/1';
+				// Misma ventana que la sincronización real: si la prueba usa otro
+				// rango, puede pasar mientras la sincronización falla.
+				$dias = isset( $cfg['dias'] ) && is_numeric( $cfg['dias'] ) ? max( 1, min( 10, (int) $cfg['dias'] ) ) : 7;
+				return $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $ds ) . '/' . MAN_Sync_Firms::BBOX . '/' . $dias;
 			default:
 				return $url;
 		}

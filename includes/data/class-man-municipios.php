@@ -4,7 +4,7 @@
  *
  * Fuente: Sección 10 de la especificación. Coordenadas del centroide
  * municipal redondeadas a 5 decimales. Usada como lista blanca de seguridad
- * y para resolver coordenadas en Open-Meteo / NASA POWER.
+ * y para resolver coordenadas en Open-Meteo.
  *
  * @package MonitorAmbientalNarino
  */

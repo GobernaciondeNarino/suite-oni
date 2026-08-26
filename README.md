@@ -43,7 +43,7 @@ Al empaquetar, `.distignore` marca lo que no forma parte del plugin instalable
 | `[man_datos]` | Botón de datos abiertos (JSON/CSV/Ver API) | `recurso`, `municipio`, `mes`, `texto` |
 | `[man_historico]` | Episodios ENSO 2015–2024 (barras ONI pico, **interactivo vía el motor D3plus**: tooltip, leyenda, cambiar tipo) | `alto`, `theme` |
 | `[man_mar]` | Oleaje Pacífico (Open-Meteo Marine) + nivel del mar (IOC) | `estacion` |
-| `[man_salud]` | Dengue sensible al clima (SIVIGILA) | `evento`, `anio` |
+| `[man_salud]` | **Enfermedades sensibles al clima** (SIVIGILA/INS): cifras, serie anual, reparto por enfermedad y municipios más afectados | `grupo` (`ETV`/`ETA`) |
 | `[man_hidrico]` | Caudal de ríos (GloFAS) + humedad de suelo | `municipio` |
 | `[man_estado_api]` | Panel público de salud de las APIs | — |
 
@@ -68,12 +68,14 @@ Al empaquetar, `.distignore` marca lo que no forma parte del plugin instalable
 ### Motor de gráficos D3plus (`[man_grafico]`)
 Motor genérico de **3 capas** (ver el archivo [`skill`](skill)): el shortcode emite solo un `<figure>` con `data-*` (cacheable, sin datos en el HTML) → `grafico.js` pide `/wp-json/man/v1/render?view=…&type=…` → `renderer.js` elige la clase D3plus y dibuja. Trae barra de herramientas (Detalle · Compartir · Datos · Imagen PNG · Descarga JSON · **Cambiar tipo en vivo**), modales, temas claro/oscuro y tokens `--man-g-*`.
 
-**Vistas disponibles** (`view`): `oni_serie`, `prob_fase`, `riesgo_subregion`, `riesgo_municipios`, `episodios`.
+**Vistas disponibles** (`view`): `oni_serie`, `prob_fase`, `riesgo_subregion`, `riesgo_municipios`, `episodios`, `salud_anual`, `salud_eventos`, `salud_estacional`, `salud_municipios`.
 **Tipos** (`type`): `bar`, `stacked_bar`, `line`, `area`, `stacked_area`, `pie`, `donut`, `treemap`, `box_whisker` (se restringe a los compatibles con la vista).
 ```
 [man_grafico view="oni_serie" type="line"]
 [man_grafico view="riesgo_subregion" type="treemap" theme="oscuro"]
 [man_grafico view="prob_fase" type="stacked_bar" actions="datos,imagen,cambiar"]
+[man_grafico view="salud_anual" type="stacked_area"]
+[man_grafico view="salud_eventos" type="treemap"]
 ```
 
 ### Componentes composables (enlazados por `grupo`)
@@ -106,6 +108,40 @@ pronóstico oficial **la invalida**, de modo que se rehace con los datos del dí
 El mes objetivo es un **horizonte móvil** de 9 meses desde el último observado
 (9 trimestres solapados, el mismo alcance que publica NOAA/CPC): no hay fechas
 fijas que caduquen. Puede fijarse uno concreto con `hasta="AAAA-MM"`.
+
+### Salud sensible al clima (SIVIGILA/INS)
+`[man_salud]` muestra los eventos de notificación obligatoria de Nariño que
+responden a las condiciones climáticas, agrupados en dos familias:
+
+- **ETV — transmitidas por vectores.** El calor acelera la reproducción del
+  mosquito y acorta el ciclo de incubación; la sequía multiplica los criaderos
+  por el almacenamiento doméstico de agua. Incluye dengue y dengue grave,
+  chikunguña, zika, leishmaniasis cutánea y mucosa, y malaria en todas sus
+  formas (falcíparum, vivax, malariae, mixta y complicada).
+- **ETA — transmitidas por agua y alimentos.** La escasez de agua potable por
+  sequía y la contaminación de fuentes por inundación favorecen su transmisión.
+  Incluye fiebre tifoidea y paratifoidea, y hepatitis A.
+
+La **mortalidad por dengue y por malaria** se contabiliza aparte y nunca se suma
+a la incidencia.
+
+```
+[man_salud]                  # ETV + ETA
+[man_salud grupo="ETV"]      # solo vectores
+[man_salud grupo="ETA"]      # solo agua y alimentos
+```
+
+**Fuente:** dataset `4hyg-wa9d` de datos.gov.co, filtrado por `cod_dpto_o=52`,
+con una fila por evento, año, semana epidemiológica y municipio. La agregación
+se hace en el servidor con SoQL, así que cada sincronización descarga unos pocos
+kilobytes en vez de las ~100.000 filas del departamento. Cobertura **2007–2022**.
+
+> **Cómo leerlo.** Son casos notificados, con el rezago propio de la vigilancia
+> epidemiológica: no son un efecto directo ni inmediato del ENSO. El clima altera
+> la abundancia del vector y la calidad del agua, pero la incidencia depende
+> además del control vectorial, la minería, la movilidad y el acceso a agua
+> potable. En Nariño la carga se concentra en el litoral Pacífico, donde la
+> malaria es endémica.
 
 ### Apariencia minimalista y overrides por atributo
 Por defecto todo es **transparente y sin bordes/sombras/franjas**. Ajusta el aspecto global en **Monitor Ambiental → Apariencia**, o por shortcode:
@@ -172,6 +208,6 @@ Auditoría del sistema y backlog de mejoras:
 
 ## Fuentes y atribución (obligatoria)
 
-NOAA/CPC · IRI · IDEAM (datos.gov.co) · **Open-Meteo (CC BY 4.0)** · NASA POWER · IOC/VLIZ Sea Level · OpenAQ · INS/SIVIGILA · DANE (cartografía).
+NOAA/CPC · IRI · IDEAM (FEWS) · **Open-Meteo (CC BY 4.0, incluye reanálisis ERA5)** · IOC/VLIZ Sea Level · **INS/SIVIGILA (datos.gov.co)** · NASA FIRMS · DANE (cartografía).
 
 > Los escenarios de planeación (semillas JSON) son ilustrativos, no pronósticos oficiales. Verificar contra boletines vigentes de IDEAM y NOAA-CPC.
