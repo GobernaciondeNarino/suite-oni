@@ -20,6 +20,9 @@ final class MAN_Sync_Firms {
 	/** Clave de caché de focos. */
 	const CLAVE = 'focos_calor';
 
+	/** Ventana máxima que admite la API de FIRMS, en días. */
+	const DIAS_MAX = 5;
+
 	/**
 	 * Sincroniza los focos de calor.
 	 *
@@ -36,15 +39,23 @@ final class MAN_Sync_Firms {
 		}
 
 		$sensor = ! empty( $cfg['dataset_id'] ) ? sanitize_text_field( $cfg['dataset_id'] ) : 'VIIRS_SNPP_NRT';
-		// Ventana de detección en días (FIRMS admite 1–10). 7 días captura focos en
-		// más municipios; con 1–2 días, en temporada húmeda suele aparecer uno solo.
-		$dias   = isset( $cfg['dias'] ) && is_numeric( $cfg['dias'] ) ? max( 1, min( 10, (int) $cfg['dias'] ) ) : 7;
+		// Ventana de detección en días. FIRMS acepta SOLO 1–5: con 7 responde
+		// HTTP 400 «Invalid day range. Expects [1..5]», que es lo que dejó esta
+		// fuente sin sincronizar desde la v1.37.1. Se usa el máximo permitido
+		// porque con 1–2 días, en temporada húmeda, suele aparecer un solo
+		// municipio (que es lo que aquel cambio intentaba resolver).
+		$dias   = isset( $cfg['dias'] ) && is_numeric( $cfg['dias'] ) ? max( 1, min( self::DIAS_MAX, (int) $cfg['dias'] ) ) : self::DIAS_MAX;
 		$base   = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) : 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
 		$url    = $base . '/' . rawurlencode( $key ) . '/' . rawurlencode( $sensor ) . '/' . self::BBOX . '/' . $dias;
 
 		$r = MAN_Sync::http_get( $url, $ssl );
 		if ( ! $r['ok'] ) {
-			return array( 'ok' => false, 'registros' => 0, 'mensaje' => 'HTTP ' . $r['codigo'] . ' ' . $r['error'] );
+			// FIRMS explica el motivo en el cuerpo, en texto plano; sin él, un
+			// «HTTP 400» a secas no distingue una clave inválida de un rango
+			// de días fuera de lo admitido.
+			$motivo = trim( wp_strip_all_tags( (string) $r['cuerpo'] ) );
+			$motivo = ( '' !== $motivo && strlen( $motivo ) < 200 ) ? ' — ' . $motivo : '';
+			return array( 'ok' => false, 'registros' => 0, 'mensaje' => 'HTTP ' . $r['codigo'] . ' ' . $r['error'] . $motivo );
 		}
 
 		$puntos   = self::parse_csv_lat_lon( $r['cuerpo'] );

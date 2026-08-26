@@ -141,6 +141,30 @@ chk( 'ETA' === $eventos['320']['grupo'] && 'ETA' === $eventos['330']['grupo'], '
 chk( 'ETV' === $eventos['470']['grupo'] && 'ETV' === $eventos['210']['grupo'], 'SIVIGILA: malaria y dengue clasificados como ETV' );
 chk( ! empty( $eventos['580']['letal'] ) && ! empty( $eventos['540']['letal'] ), 'SIVIGILA: las dos mortalidades marcadas como letal' );
 
+/* ---------- NASA FIRMS: ventana de días y parseo del CSV ---------- */
+require __DIR__ . '/../includes/sync/class-man-sync-firms.php';
+use GobernacionNarino\MonitorAmbiental\MAN_Sync_Firms;
+
+// FIRMS rechaza con HTTP 400 cualquier rango fuera de 1–5. La v1.37.1 lo subió
+// a 7 y dejó la fuente sin sincronizar en cada corrida: este tope lo impide.
+chk( 5 === MAN_Sync_Firms::DIAS_MAX, 'FIRMS: la ventana máxima es 5 días (límite real de la API)' );
+
+// Cabecera real de la API (VIIRS_SNPP_NRT), con dos focos en Nariño.
+$csv_firms = "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight\n"
+	. "1.28941,-77.51234,295.89,0.4,0.37,2026-08-22,642,N,VIIRS,n,2.0NRT,275.57,1.14,N\n"
+	. "1.30122,-77.49871,301.20,0.4,0.37,2026-08-23,700,N,VIIRS,n,2.0NRT,280.11,2.30,D\n";
+$pts = MAN_Sync_Firms::parse_csv_lat_lon( $csv_firms );
+chk( count( $pts ) === 2, 'FIRMS: dos focos parseados del CSV' );
+chk( isset( $pts[0][0], $pts[0][1] ) && abs( $pts[0][0] + 77.51234 ) < 0.0001, 'FIRMS: orden [lon, lat] correcto' );
+
+// Las columnas se localizan por cabecera, no por posición fija.
+$csv_orden = "acq_date,longitude,confidence,latitude\n2026-08-22,-77.5,n,1.28\n";
+$pts2 = MAN_Sync_Firms::parse_csv_lat_lon( $csv_orden );
+chk( count( $pts2 ) === 1 && abs( $pts2[0][0] + 77.5 ) < 0.001 && abs( $pts2[0][1] - 1.28 ) < 0.001, 'FIRMS: columnas resueltas por nombre, no por posición' );
+
+// Un CSV solo con cabecera es «cero focos», no un error de formato.
+chk( array() === MAN_Sync_Firms::parse_csv_lat_lon( "latitude,longitude\n" ), 'FIRMS: CSV sin filas devuelve cero focos' );
+
 /* ---------- Resumen ---------- */
 echo "\n" . ( $fallos === 0 ? "TODO OK" : "$fallos FALLO(S)" ) . "\n";
 exit( $fallos === 0 ? 0 : 1 );
