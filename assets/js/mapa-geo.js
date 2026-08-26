@@ -10,9 +10,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-man-mapa-geo]'), init);
   });
 
-  function colorAlerta(a, base) {
-    return a === 'alta' ? '#C0392B' : (a === 'media' ? '#F1C40F' : base);
-  }
+  function colorAlerta(a, base) { return C.colorAlerta(a, base); }
 
   function init(cont) {
     if (typeof L === 'undefined') { C.error(cont, 'La librería de mapas (Leaflet) no está disponible.'); return; }

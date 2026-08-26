@@ -51,14 +51,32 @@ final class MAN_Sync {
 	}
 
 	/**
-	 * Callback del cron: sincroniza todas las fuentes activas.
+	 * Callback del cron: sincroniza las fuentes activas que ya cumplieron su
+	 * frecuencia configurada.
+	 *
+	 * Antes se sincronizaban todas en cada corrida y el campo «Frecuencia» del
+	 * panel solo servía para pintar el estado, no para decidir. El margen del
+	 * 10 % evita que una fuente se salte un ciclo entero porque el cron de WP
+	 * (que depende de las visitas) arrancó unos minutos antes de tiempo.
 	 */
 	public function ejecutar() {
 		$config = get_option( 'man_api_config', array() );
+		$ahora  = time();
+
 		foreach ( self::FUENTES as $slug => $clase ) {
 			if ( empty( $config[ $slug ] ) || empty( $config[ $slug ]['activa'] ) ) {
 				continue;
 			}
+
+			$frecuencia = isset( $config[ $slug ]['frecuencia'] ) ? (float) $config[ $slug ]['frecuencia'] : 0;
+			$ultima     = isset( $config[ $slug ]['ultima_sync'] ) ? (int) $config[ $slug ]['ultima_sync'] : 0;
+			if ( $frecuencia > 0 && $ultima > 0 ) {
+				$minimo = (int) round( $frecuencia * HOUR_IN_SECONDS * 0.9 );
+				if ( ( $ahora - $ultima ) < $minimo ) {
+					continue;
+				}
+			}
+
 			$this->ejecutar_fuente( $slug );
 		}
 	}

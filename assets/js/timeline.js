@@ -165,11 +165,7 @@
     }
   }
 
-  function mesLargo(mes) {
-    var M = { '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto', '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre' };
-    var p = String(mes).split('-');
-    return (M[p[1]] || p[1]) + ' ' + p[0];
-  }
+  function mesLargo(mes) { return C.mes(mes, 'largo'); }
 
   /* ---- Rampa de color del ONI (diverging azul frío → pálido → rojo cálido) ---- */
   function hex2rgb(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }

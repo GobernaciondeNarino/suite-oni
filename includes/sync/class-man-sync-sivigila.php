@@ -25,7 +25,9 @@ final class MAN_Sync_Sivigila {
 		}
 
 		$base = ! empty( $cfg['url'] ) ? rtrim( $cfg['url'], '/' ) . '/' : 'https://www.datos.gov.co/resource/';
-		$ssl  = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : false;
+		// Verificación TLS activa por defecto: datos.gov.co presenta un
+		// certificado válido; desactivarla solo si el panel lo indica.
+		$ssl  = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : true;
 		$ttl  = isset( $cfg['ttl'] ) ? (int) $cfg['ttl'] * 60 : 43200;
 
 		$url = $base . rawurlencode( $ds ) . '.json?$limit=1000&$order=:id';

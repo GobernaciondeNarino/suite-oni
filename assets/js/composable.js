@@ -129,9 +129,5 @@
   }
   function par(dl, k, val) { dl.appendChild(C.el('dt', null, C.esc(k))); dl.appendChild(C.el('dd', null, C.esc(val))); }
 
-  function mesLargo(mes) {
-    var M = { '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto', '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre' };
-    var p = String(mes).split('-');
-    return (M[p[1]] || p[1]) + ' ' + p[0];
-  }
+  function mesLargo(mes) { return C.mes(mes, 'largo'); }
 })();

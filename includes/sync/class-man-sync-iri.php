@@ -27,9 +27,14 @@ final class MAN_Sync_Iri {
 	 * @return array {ok, registros, mensaje}.
 	 */
 	public static function sincronizar( $cfg ) {
+		// Con barra final: la variante .php es un stub con meta-refresh (HTTP
+		// 200 sin tabla) que wp_remote_get no sigue, porque solo atiende 3xx.
 		$url = ! empty( $cfg['url'] )
 			? $cfg['url']
-			: 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities.php';
+			: 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/';
+		if ( false !== strpos( $url, 'roni/probabilities.php' ) ) {
+			$url = str_replace( 'roni/probabilities.php', 'roni/probabilities/', $url );
+		}
 		$ssl = isset( $cfg['sslverify'] ) ? (bool) $cfg['sslverify'] : true;
 		$ttl = isset( $cfg['ttl'] ) ? (int) $cfg['ttl'] * 60 : 43200;
 
@@ -50,6 +55,8 @@ final class MAN_Sync_Iri {
 			'estado'         => 'ok',
 		);
 		MAN_Cache::set( self::CLAVE, $payload, $ttl, 'enso' );
+		// La predicción adjunta este pronóstico: se invalida para rehacerla.
+		MAN_Cache::delete_por_prefijo( MAN_Rest::CLAVE_PRED );
 
 		return array(
 			'ok'        => true,

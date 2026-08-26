@@ -17,6 +17,8 @@ Plugin de WordPress que comunica a la ciudadanía el estado del fenómeno El Ni�
    **Sincronizar ahora** en NOAA ONI para traer el índice oficial.
 
 Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN.
+Al empaquetar, `.distignore` marca lo que no forma parte del plugin instalable
+(el prototipo `mockup-oni/`, `docs/`, `tests/` y las herramientas de desarrollo).
 
 > **¿Dónde copio los shortcodes?** En **Monitor Ambiental → Elementos** tienes el
 > catálogo completo de componentes con su descripción, atributos y un botón
@@ -37,7 +39,7 @@ Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN
 | `[man_animacion]` | **Animación explicativa (Anime.js)** del mecanismo ENSO: alisios, piscina cálida, termoclina y lluvias; compara Neutral/El Niño/La Niña | `estado`, `autoplay` |
 | `[man_globo]` | Globo 3D cinematográfico (Three.js) | `calidad`, `autorotar` |
 | `[man_timeline]` | Slider de meses ONI que controla el globo | `inicio`, `fin` |
-| `[man_prediccion]` | **Predicción del ONI hasta feb-2027** (línea + banda de incertidumbre + umbrales de fase + probabilidad por trimestre + texto predictivo). Modelo propio del plugin contrastado con el ensamble NOAA/IRI | `hasta`, `modelo`, `probabilidad` |
+| `[man_prediccion]` | **Predicción del ONI** a 9 meses vista desde el último dato observado (línea + banda de incertidumbre + umbrales de fase + probabilidad por trimestre + texto predictivo). Modelo propio del plugin contrastado con el pronóstico oficial NOAA/CPC | `hasta`, `modelo`, `probabilidad` |
 | `[man_datos]` | Botón de datos abiertos (JSON/CSV/Ver API) | `recurso`, `municipio`, `mes`, `texto` |
 | `[man_historico]` | Episodios ENSO 2015–2024 (barras ONI pico, **interactivo vía el motor D3plus**: tooltip, leyenda, cambiar tipo) | `alto`, `theme` |
 | `[man_mar]` | Oleaje Pacífico (Open-Meteo Marine) + nivel del mar (IOC) | `estacion` |
@@ -54,10 +56,11 @@ Sin proceso de build: D3, D3plus, Leaflet, Three.js y Anime.js se cargan por CDN
 [man_mapa variable="riesgo" mes="2026-10"]
 [man_globo calidad="alta"] [man_timeline]
 [man_animacion estado="el_nino"]
-[man_estadisticas tipo="oni" hasta="2027-02"]
+[man_estadisticas tipo="oni"]
 [man_estadisticas tipo="probabilidad"] [man_estadisticas tipo="riesgo"]
-[man_prediccion hasta="2027-02"]
-[man_prediccion hasta="2027-02" modelo="no" probabilidad="si"]
+[man_prediccion]                       # horizonte móvil (9 meses)
+[man_prediccion hasta="2027-06"]       # o un mes objetivo concreto
+[man_prediccion modelo="no" probabilidad="si"]
 [man_datos recurso="municipios" texto="Descarga el riesgo por municipio"]
 [man_datos recurso="prediccion" texto="Descarga la predicción del ONI"]
 ```
@@ -91,9 +94,18 @@ ONI con un modelo de **tendencia lineal amortiguada (Holt) por mínimos cuadrado
 sobre la cola observada, con **reversión a la media** climatológica y **banda de
 incertidumbre creciente** con el horizonte (ampliada en la primavera boreal). La
 **probabilidad de fase** se obtiene integrando una gaussiana sobre los umbrales
-NOAA ±0,5 °C. Todo se contrasta con el **ensamble oficial NOAA-CPC/IRI** y se
+NOAA ±0,5 °C. Todo se contrasta con el **pronóstico oficial de NOAA/CPC** y se
 comunica siempre la incertidumbre (no son certezas). Lógica auditable en
 `includes/analysis/class-man-forecast.php` y `class-man-texto.php`.
+
+**Datos frescos, no semillas (desde 1.38.0).** La línea central es el modelo
+recalculado sobre el **ONI observado más reciente** de NOAA; el escenario de
+planeación sembrado se dibuja aparte como línea de contraste. La predicción se
+materializa en caché con **TTL de 24 h** y cada sincronización del ONI o del
+pronóstico oficial **la invalida**, de modo que se rehace con los datos del día.
+El mes objetivo es un **horizonte móvil** de 9 meses desde el último observado
+(9 trimestres solapados, el mismo alcance que publica NOAA/CPC): no hay fechas
+fijas que caduquen. Puede fijarse uno concreto con `hasta="AAAA-MM"`.
 
 ### Apariencia minimalista y overrides por atributo
 Por defecto todo es **transparente y sin bordes/sombras/franjas**. Ajusta el aspecto global en **Monitor Ambiental → Apariencia**, o por shortcode:
@@ -113,7 +125,8 @@ Pensada para ciudadanía, estudiantes e investigadores. Licencia **CC BY 4.0**.
 GET /wp-json/man/v1/abierto/municipios?mes=2026-10&formato=json
 GET /wp-json/man/v1/abierto/oni?dominio=historico&formato=csv     # observado
 GET /wp-json/man/v1/abierto/oni?dominio=pronostico&formato=json   # proyectado
-GET /wp-json/man/v1/abierto/prediccion?hasta=2027-02&formato=json
+GET /wp-json/man/v1/abierto/prediccion?formato=json                # horizonte móvil
+GET /wp-json/man/v1/abierto/prediccion?hasta=2027-06&formato=json  # mes objetivo fijo
 GET /wp-json/man/v1/abierto/52001?formato=json
 ```
 
@@ -140,7 +153,20 @@ REST interna (para el front): `/wp-json/man/v1/municipio/{divipola}`, `/departam
 
 ## Seguridad
 
-Sanitización (lista blanca de 64 DIVIPOLA + bounding-box de Nariño), escape de salida, nonces, capacidades, rate-limit por IP, claves de API cifradas con `sodium_crypto_secretbox` y `sslverify=false` solo para portales estatales CO.
+Sanitización (lista blanca de 64 DIVIPOLA + bounding-box de Nariño), escape de
+salida, nonces, capacidades, rate-limit por IP con ventana fija, claves de API
+cifradas con `sodium_crypto_secretbox` y verificación TLS activa salvo donde el
+panel la desactive de forma explícita (hoy solo IDEAM/FEWS, cuyo certificado
+presenta la cadena incompleta).
+
+Los endpoints que consultan servidores externos bajo demanda tienen **cupo propio
+y caché de fallos**, para no convertirse en amplificadores de carga contra las
+fuentes estatales. Tras un proxy o CDN, resuelva la IP real del visitante con el
+filtro `man_ip_cliente` (debe devolver una IP ya validada); si no, todos los
+visitantes comparten el mismo cupo.
+
+Auditoría del sistema y backlog de mejoras:
+[`docs/auditoria/`](docs/auditoria/2026-08-26-auditoria-v1.38.0.md).
 
 ---
 

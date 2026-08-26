@@ -103,7 +103,10 @@ final class MAN_Shortcodes {
 		wp_localize_script( 'man-core', 'MAN', array(
 			'rest'      => esc_url_raw( rest_url( 'man/v1' ) ),
 			'pluginUrl' => MAN_URL,
-			'mesActual' => gmdate( 'Y-m' ),
+			'mesActual' => MAN_Security::mes_actual(),
+			// Objetivo por defecto de la predicción: horizonte móvil, para que
+			// el front no tenga que llevar su propia fecha codificada.
+			'objetivo'  => MAN_Rest::objetivo_por_defecto(),
 		) );
 
 		wp_register_script( 'man-municipios', MAN_URL . 'assets/js/municipios.js', array(), MAN_VERSION, true );
@@ -222,7 +225,7 @@ final class MAN_Shortcodes {
 	public function sc_mapa( $atts ) {
 		$atts = $this->fusionar( array(
 			'variable' => 'riesgo',
-			'mes'      => gmdate( 'Y-m' ),
+			'mes'      => MAN_Security::mes_actual(),
 		), $atts, 'man_mapa' );
 
 		wp_enqueue_style( 'man-estilos' );
@@ -270,7 +273,7 @@ final class MAN_Shortcodes {
 			'autorotar' => 'si' === $atts['autorotar'],
 			'textura'   => 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
 			'geojson'   => esc_url_raw( MAN_URL . 'data/narino_municipios.geojson' ),
-			'mesActual' => gmdate( 'Y-m' ),
+			'mesActual' => MAN_Security::mes_actual(),
 		) );
 
 		$id = $this->id();
@@ -407,7 +410,7 @@ final class MAN_Shortcodes {
 		$atts = $this->fusionar( array(
 			'recurso'   => 'municipios',
 			'municipio' => '',
-			'mes'       => gmdate( 'Y-m' ),
+			'mes'       => MAN_Security::mes_actual(),
 			'texto'     => '',
 		), $atts, 'man_datos' );
 
@@ -480,13 +483,13 @@ final class MAN_Shortcodes {
 
 	/**
 	 * [man_prediccion] — Predicción de la trayectoria del ONI hasta el mes
-	 * objetivo (por defecto febrero de 2027): gráfica animada con banda de
+	 * objetivo (horizonte móvil por defecto): gráfica animada con banda de
 	 * incertidumbre, umbrales de fase, probabilidades por trimestre y texto
 	 * predictivo. Componente independiente y maquetable por separado.
 	 */
 	public function sc_prediccion( $atts ) {
 		$atts = $this->fusionar( array(
-			'hasta'        => '2027-02',
+			'hasta'        => MAN_Rest::objetivo_por_defecto(),
 			'modelo'       => 'si',   // muestra la línea del modelo propio del plugin.
 			'probabilidad' => 'si',   // muestra las barras de probabilidad por trimestre.
 			'partes'       => '',     // qué secciones mostrar (vacío = todas).
@@ -497,10 +500,10 @@ final class MAN_Shortcodes {
 
 		$id    = $this->id();
 		$hasta = MAN_Security::sanitizar_mes( $atts['hasta'] );
-		// sanitizar_mes cae al mes actual si el valor es inválido; forzamos un
-		// objetivo futuro razonable por defecto.
-		if ( $hasta <= gmdate( 'Y-m' ) ) {
-			$hasta = '2027-02';
+		// sanitizar_mes cae al mes actual si el valor es inválido; el objetivo
+		// se recoloca en el horizonte móvil (nunca en un mes fijo, que caduca).
+		if ( $hasta <= MAN_Security::mes_actual() ) {
+			$hasta = MAN_Rest::objetivo_por_defecto();
 		}
 		// Secciones a renderizar (para dividir gráfico y textos en shortcodes
 		// distintos): titulo, chips, grafico, probabilidad, texto, metodologia.
@@ -699,7 +702,7 @@ final class MAN_Shortcodes {
 	 * calculadas en el navegador desde /departamento.
 	 */
 	public function sc_mapa_cuantitativo( $atts ) {
-		$atts = $this->fusionar( array( 'mes' => gmdate( 'Y-m' ) ), $atts, 'man_mapa_cuantitativo' );
+		$atts = $this->fusionar( array( 'mes' => MAN_Security::mes_actual() ), $atts, 'man_mapa_cuantitativo' );
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_style( 'leaflet' );
 		wp_enqueue_script( 'man-mapa' );
@@ -863,8 +866,8 @@ final class MAN_Shortcodes {
 	public function sc_estadisticas( $atts ) {
 		$atts = $this->fusionar( array(
 			'tipo'     => 'oni',
-			'hasta'    => '2027-02',
-			'mes'      => gmdate( 'Y-m' ),
+			'hasta'    => MAN_Rest::objetivo_por_defecto(),
+			'mes'      => MAN_Security::mes_actual(),
 			'alto'     => '360px',
 			'theme'    => 'claro',
 			'analisis' => 'ambos',
@@ -951,8 +954,8 @@ final class MAN_Shortcodes {
 			'legend_style' => 'text',
 			'toolbar'      => 'si',
 			'alto'         => '420px',
-			'hasta'        => '2027-02',
-			'mes'          => gmdate( 'Y-m' ),
+			'hasta'        => MAN_Rest::objetivo_por_defecto(),
+			'mes'          => MAN_Security::mes_actual(),
 			'grupo'        => '',
 			'legend_pos'   => 'abajo',
 			'analisis'     => 'no', // por defecto SIN texto en el gráfico; usa [man_descripcion]/[man_analisis_*].
@@ -989,8 +992,8 @@ final class MAN_Shortcodes {
 			'view'   => 'oni_serie',
 			'type'   => '',
 			'modo'   => 'ambos',
-			'hasta'  => '2027-02',
-			'mes'    => gmdate( 'Y-m' ),
+			'hasta'  => MAN_Rest::objetivo_por_defecto(),
+			'mes'    => MAN_Security::mes_actual(),
 			'titulo' => '',
 			'grupo'  => '',
 		), $atts, 'man_analisis' );
@@ -1044,8 +1047,8 @@ final class MAN_Shortcodes {
 		return array(
 			'view'   => 'oni_serie',
 			'type'   => '',
-			'hasta'  => '2027-02',
-			'mes'    => gmdate( 'Y-m' ),
+			'hasta'  => MAN_Rest::objetivo_por_defecto(),
+			'mes'    => MAN_Security::mes_actual(),
 			'titulo' => '',
 			'grupo'  => '',
 		);
@@ -1068,8 +1071,8 @@ final class MAN_Shortcodes {
 		$type   = sanitize_key( $atts['type'] );
 		$grupo  = sanitize_key( $atts['grupo'] );
 		$hasta  = MAN_Security::sanitizar_mes( $atts['hasta'] );
-		if ( $hasta <= gmdate( 'Y-m' ) ) {
-			$hasta = '2027-02';
+		if ( $hasta <= MAN_Security::mes_actual() ) {
+			$hasta = MAN_Rest::objetivo_por_defecto();
 		}
 		$mes    = MAN_Security::sanitizar_mes( $atts['mes'] );
 		$titulo = sanitize_text_field( $atts['titulo'] );
@@ -1175,8 +1178,8 @@ final class MAN_Shortcodes {
 			'legend_style' => 'text',
 			'toolbar'      => 'si',
 			'alto'         => '420px',
-			'hasta'        => '2027-02',
-			'mes'          => gmdate( 'Y-m' ),
+			'hasta'        => MAN_Rest::objetivo_por_defecto(),
+			'mes'          => MAN_Security::mes_actual(),
 			'grupo'        => '',
 			'legend_pos'   => 'abajo',
 			'analisis'     => 'no', // sin texto embebido por defecto (va en shortcodes aparte).
@@ -1192,8 +1195,8 @@ final class MAN_Shortcodes {
 		$tema    = in_array( $o['theme'], array( 'dark', 'oscuro' ), true ) ? 'dark' : 'claro';
 		$alto    = preg_match( '/^\d{1,4}(px|vh|rem|em|%)$/', $o['alto'] ) ? $o['alto'] : '420px';
 		$hasta   = MAN_Security::sanitizar_mes( $o['hasta'] );
-		if ( $hasta <= gmdate( 'Y-m' ) ) {
-			$hasta = '2027-02';
+		if ( $hasta <= MAN_Security::mes_actual() ) {
+			$hasta = MAN_Rest::objetivo_por_defecto();
 		}
 		$mes     = MAN_Security::sanitizar_mes( $o['mes'] );
 		$actions = preg_replace( '/[^a-z,_]/', '', strtolower( (string) $o['actions'] ) );

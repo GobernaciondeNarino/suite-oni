@@ -27,7 +27,7 @@
     var st = {
       view: box.getAttribute('data-view') || 'oni_serie',
       type: box.getAttribute('data-type') || '',
-      hasta: box.getAttribute('data-hasta') || '2027-02',
+      hasta: box.getAttribute('data-hasta') || C.objetivo(),
       mes: box.getAttribute('data-mes') || '',
       modo: box.getAttribute('data-modo') || 'ambos',
       titulo: box.getAttribute('data-titulo') || '',
@@ -95,7 +95,7 @@
     var st = {
       view: fig.getAttribute('data-view') || 'oni_serie',
       type: fig.getAttribute('data-type') || '',
-      hasta: fig.getAttribute('data-hasta') || '2027-02',
+      hasta: fig.getAttribute('data-hasta') || C.objetivo(),
       mes: fig.getAttribute('data-mes') || '',
       legend: fig.getAttribute('data-legend') !== '0',
       legendStyle: fig.getAttribute('data-legend-style') || 'text',
@@ -371,11 +371,7 @@
     var url = location.href.split('#')[0] + '#' + fig.id;
     var ok = function () { var t = btn.querySelector('.man-g__action-txt'); if (t) { var o = t.textContent; t.textContent = 'URL copiada'; btn.classList.add('is-success'); setTimeout(function () { t.textContent = o; btn.classList.remove('is-success'); }, 1600); } };
     if (navigator.share) { navigator.share({ title: document.title, url: url }).catch(function () {}); return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(url).then(ok).catch(function () {}); return; }
-    try {
-      var ta = document.createElement('textarea'); ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); ok();
-    } catch (e) { /* sin portapapeles */ }
+    C.copiar(url).then(ok, function () { /* sin portapapeles */ });
   }
 
   function quitarSkeleton(fig) {

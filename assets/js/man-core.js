@@ -3,7 +3,35 @@
 (function () {
   'use strict';
 
-  var MAN = window.MAN || { rest: '', nonce: '', mesActual: '' };
+  var MAN = window.MAN || { rest: '', nonce: '', mesActual: '', objetivo: '' };
+
+  /** Milisegundos antes de abortar una petición que no responde. */
+  var TIMEOUT = 15000;
+
+  /** fetch con límite de tiempo: sin él, una API colgada deja el skeleton
+      girando indefinidamente y los reintentos apilan peticiones vivas. */
+  function pedir(url, ms) {
+    var limite = ms || TIMEOUT;
+    if (typeof AbortController === 'undefined') {
+      return fetch(url).then(comprobar);
+    }
+    var ctl = new AbortController();
+    var reloj = setTimeout(function () { ctl.abort(); }, limite);
+    return fetch(url, { signal: ctl.signal })
+      .then(function (r) { clearTimeout(reloj); return comprobar(r); })
+      .catch(function (e) {
+        clearTimeout(reloj);
+        if (e && e.name === 'AbortError') {
+          throw new Error('La fuente de datos tardó demasiado en responder.');
+        }
+        throw e;
+      });
+  }
+
+  function comprobar(r) {
+    if (!r.ok) { throw new Error('HTTP ' + r.status); }
+    return r.json();
+  }
 
   /** GET a la REST interna del plugin.
       NOTA: no se envía X-WP-Nonce a propósito — todos los endpoints son
@@ -18,17 +46,87 @@
         .join('&');
       if (q) { url += (url.indexOf('?') >= 0 ? '&' : '?') + q; }
     }
-    return fetch(url).then(function (r) {
-      if (!r.ok) { throw new Error('HTTP ' + r.status); }
-      return r.json();
-    });
+    return pedir(url);
   }
 
   /** GET a una URL pública externa (Open-Meteo). */
   function externo(url) {
-    return fetch(url).then(function (r) {
-      if (!r.ok) { throw new Error('HTTP ' + r.status); }
-      return r.json();
+    return pedir(url);
+  }
+
+  /** Mes objetivo por defecto de la predicción (horizonte móvil del backend).
+      Evita que cada componente lleve su propia fecha codificada. */
+  function objetivo() {
+    return MAN.objetivo || '';
+  }
+
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  /** Nombre del mes en español a partir de 'AAAA-MM'. */
+  function mes(valor, formato) {
+    var p = String(valor || '').split('-');
+    if (p.length < 2) { return String(valor || ''); }
+    var i = parseInt(p[1], 10) - 1;
+    if (isNaN(i) || i < 0 || i > 11) { return String(valor); }
+    var nombre = MESES[i];
+    if (formato === 'corto') { return nombre.slice(0, 3) + ' ' + p[0].slice(2); }
+    return nombre.charAt(0).toUpperCase() + nombre.slice(1) + ' ' + p[0];
+  }
+
+  /** Fase ENSO y su color semántico según el ONI (umbrales NOAA ±0,5 °C).
+      Los colores replican MAN_Enso::color_fase() en PHP. */
+  function fase(oni) {
+    var v = +oni;
+    if (v >= 0.5) { return { nombre: 'El Niño', color: '#c62828' }; }
+    if (v <= -0.5) { return { nombre: 'La Niña', color: '#1565c0' }; }
+    return { nombre: 'Neutral', color: '#2e7d32' };
+  }
+
+  /** Color de la fase (atajo del uso más frecuente). */
+  function faseColor(oni) {
+    return fase(oni).color;
+  }
+
+  /** Color del nivel de alerta hidrológica IDEAM/FEWS.
+      'maxima' corresponde al umbral rojo; 'alta', al naranja. */
+  function colorAlerta(nivel, base) {
+    if (nivel === 'maxima') { return '#7B241C'; }
+    if (nivel === 'alta') { return '#C0392B'; }
+    if (nivel === 'media') { return '#F1C40F'; }
+    return base || '#2ECC71';
+  }
+
+  /** Vacía el cuerpo y los errores previos de un componente antes de repintar. */
+  function limpiar(cont, claseCuerpo) {
+    quitarSkeleton(cont);
+    var sel = ['.man-error'];
+    if (claseCuerpo) { sel.push(claseCuerpo.charAt(0) === '.' ? claseCuerpo : '.' + claseCuerpo); }
+    sel.forEach(function (s) {
+      var nodos = cont.querySelectorAll(s);
+      for (var i = 0; i < nodos.length; i++) { nodos[i].parentNode.removeChild(nodos[i]); }
+    });
+  }
+
+  /** Copia texto al portapapeles, con respaldo para navegadores sin API. */
+  function copiar(texto) {
+    var valor = String(texto == null ? '' : texto);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(valor);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = valor;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        resolve();
+      } catch (e) { reject(e); }
     });
   }
 
@@ -196,10 +294,17 @@
     el: el,
     esc: esc,
     quitarSkeleton: quitarSkeleton,
+    limpiar: limpiar,
     error: error,
     ready: ready,
     lineaSimple: lineaSimple,
     municipio: municipio,
+    mes: mes,
+    fase: fase,
+    faseColor: faseColor,
+    colorAlerta: colorAlerta,
+    copiar: copiar,
+    objetivo: objetivo,
     MAN: MAN
   };
 })();

@@ -17,6 +17,16 @@ final class MAN_Rest {
 
 	const NS = 'man/v1';
 
+	/**
+	 * Horizonte del pronóstico en meses desde el último dato observado.
+	 * Nueve trimestres solapados, el mismo alcance que publica NOAA/CPC.
+	 */
+	const HORIZONTE_MESES = 9;
+
+	/** Clave y TTL de la predicción ya materializada (se renueva a diario). */
+	const CLAVE_PRED = 'prediccion_calculada';
+	const TTL_PRED   = DAY_IN_SECONDS;
+
 	/** @var array|null Semillas cacheadas en memoria por petición. */
 	private static $pred  = null;
 	private static $globo = null;
@@ -345,35 +355,10 @@ final class MAN_Rest {
 			$variable = 'nivel';
 		}
 
-		// Nivel: usa la caché del cron (rápida). Otras variables: fetch + caché propia.
-		if ( 'nivel' === $variable ) {
-			$cache = MAN_Cache::get( 'ideam_alertas' );
-			$est   = ( is_array( $cache ) && ! empty( $cache['registros'] ) ) ? array_values( $cache['registros'] ) : array();
-			$act   = isset( $cache['actualizado'] ) ? $cache['actualizado'] : null;
-			// Si el cron aún no corrió, intenta poblarla en vivo.
-			if ( empty( $est ) ) {
-				$res = MAN_Sync_Ideam::estaciones_narino( 'nivel' );
-				$est = $res['estaciones'];
-			}
-			return rest_ensure_response( array( 'variable' => 'nivel', 'estaciones' => $est, 'actualizado' => $act, 'fuente' => 'IDEAM — FEWS · Nivel de ríos' ) );
-		}
-
-		$clave    = 'fews_red_' . $variable;
-		$cacheada = MAN_Cache::get( $clave );
-		if ( is_array( $cacheada ) && ! empty( $cacheada['estaciones'] ) ) {
-			return rest_ensure_response( $cacheada );
-		}
-		$res    = MAN_Sync_Ideam::estaciones_narino( $variable );
-		$salida = array(
-			'variable'    => $variable,
-			'estaciones'  => $res['estaciones'],
-			'actualizado' => current_time( 'mysql', true ),
-			'fuente'      => isset( $res['fuente'] ) ? $res['fuente'] : 'IDEAM — FEWS',
-		);
-		if ( ! empty( $res['estaciones'] ) ) {
-			MAN_Cache::set( $clave, $salida, 3600, 'ideam' ); // 1 h.
-		}
-		return rest_ensure_response( $salida );
+		// Nivel usa la caché del cron; el resto se trae y cachea bajo demanda.
+		// Toda la lógica vive en red_fews() para que endpoint y mapa compartan
+		// la misma forma de respuesta.
+		return rest_ensure_response( self::red_fews( $variable ) );
 	}
 
 	/**
@@ -495,30 +480,68 @@ final class MAN_Rest {
 	}
 
 	/**
-	 * Estaciones de una red FEWS de Nariño con caché de 1 h (reutiliza la clave
-	 * de la ruta de estaciones). Para la red de nivel usa la caché del cron.
+	 * Estaciones de una red FEWS de Nariño, cacheadas 1 h bajo una única forma.
+	 *
+	 * Es la fuente común de /estaciones y de las capas del mapa: antes cada una
+	 * cacheaba su propio formato bajo la misma clave, así que la respuesta del
+	 * endpoint variaba según quién la hubiera poblado primero.
+	 *
+	 * @param string $variable Clave de red.
+	 * @return array {variable, estaciones, actualizado, fuente}
+	 */
+	public static function estaciones_red( $variable ) {
+		return self::red_fews( $variable );
+	}
+
+	/**
+	 * Implementación interna de la caché de red FEWS. Ver estaciones_red().
+	 *
+	 * @param string $variable Clave de red.
+	 * @return array
+	 */
+	private static function red_fews( $variable ) {
+		if ( 'nivel' === $variable ) {
+			$cache = MAN_Cache::get( 'ideam_alertas' );
+			if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
+				return array(
+					'variable'    => 'nivel',
+					'estaciones'  => array_values( $cache['registros'] ),
+					'actualizado' => isset( $cache['actualizado'] ) ? $cache['actualizado'] : null,
+					'fuente'      => 'IDEAM — FEWS · Nivel de ríos',
+				);
+			}
+		}
+
+		$clave    = 'fews_red_' . $variable;
+		$cacheada = MAN_Cache::get( $clave );
+		if ( is_array( $cacheada ) && isset( $cacheada['estaciones'] ) ) {
+			return $cacheada;
+		}
+
+		$res    = MAN_Sync_Ideam::estaciones_narino( $variable, self::ssl_ideam() );
+		$salida = array(
+			'variable'    => $variable,
+			'estaciones'  => isset( $res['estaciones'] ) ? $res['estaciones'] : array(),
+			'actualizado' => current_time( 'mysql', true ),
+			'fuente'      => isset( $res['fuente'] ) ? $res['fuente'] : 'IDEAM — FEWS',
+		);
+
+		// Se cachea también el resultado vacío (5 min): si no, con la fuente
+		// caída cada visita repetiría la petición saliente.
+		$ttl = empty( $salida['estaciones'] ) ? 300 : 3600;
+		MAN_Cache::set( $clave, $salida, $ttl, 'ideam' );
+		return $salida;
+	}
+
+	/**
+	 * Solo la lista de estaciones de una red (para las capas del mapa).
 	 *
 	 * @param string $variable Clave de red.
 	 * @return array[]
 	 */
 	private static function geo_red( $variable ) {
-		if ( 'nivel' === $variable ) {
-			$cache = MAN_Cache::get( 'ideam_alertas' );
-			if ( is_array( $cache ) && ! empty( $cache['registros'] ) ) {
-				return array_values( $cache['registros'] );
-			}
-		}
-		$clave    = 'fews_red_' . $variable;
-		$cacheada = MAN_Cache::get( $clave );
-		if ( is_array( $cacheada ) && ! empty( $cacheada['estaciones'] ) ) {
-			return $cacheada['estaciones'];
-		}
-		$res = MAN_Sync_Ideam::estaciones_narino( $variable );
-		if ( ! empty( $res['estaciones'] ) ) {
-			MAN_Cache::set( $clave, array( 'variable' => $variable, 'estaciones' => $res['estaciones'] ), 3600, 'ideam' );
-			return $res['estaciones'];
-		}
-		return array();
+		$red = self::red_fews( $variable );
+		return isset( $red['estaciones'] ) ? $red['estaciones'] : array();
 	}
 
 	/** Serie de tiempo de una estación FEWS (proxy servidor; código validado). */
@@ -538,24 +561,60 @@ final class MAN_Rest {
 		$clave    = 'fews_serie_' . $tipo . '_' . $cod;
 		$cacheada = MAN_Cache::get( $clave );
 		if ( is_array( $cacheada ) ) {
+			if ( ! empty( $cacheada['_fallo'] ) ) {
+				return new \WP_Error( 'man_fews', 'No se pudo cargar la serie FEWS.', array( 'status' => 502 ) );
+			}
 			return rest_ensure_response( $cacheada );
+		}
+
+		// Cada código distinto es un fallo de caché que dispara una petición a
+		// un servidor estatal: sin un cupo propio, inventar códigos convierte
+		// este endpoint en un amplificador de carga contra IDEAM.
+		if ( ! MAN_Security::rate_limit( 'fews_serie', 20, 60 ) ) {
+			return new \WP_Error( 'man_rate', 'Demasiadas consultas de series. Intente en un minuto.', array( 'status' => 429 ) );
 		}
 
 		$cod_full = str_pad( $cod, 10, '0', STR_PAD_LEFT );
 		$url      = 'https://fews.ideam.gov.co/visorfews/data/series/json' . $tipo . '/' . $cod_full . '.json';
 		// redirection=0: el proxy no sigue redirecciones (defensa en profundidad anti-SSRF).
-		$r        = MAN_Sync::http_get( $url, false, array( 'timeout' => 15, 'redirection' => 0 ) );
+		$r        = MAN_Sync::http_get( $url, self::ssl_ideam(), array( 'timeout' => 15, 'redirection' => 0 ) );
 		if ( ! $r['ok'] ) {
+			self::cachear_fallo( $clave );
 			return new \WP_Error( 'man_fews', 'No se pudo cargar la serie FEWS.', array( 'status' => 502 ) );
 		}
 		$json = json_decode( $r['cuerpo'], true );
 		if ( ! is_array( $json ) ) {
+			self::cachear_fallo( $clave );
 			return new \WP_Error( 'man_fews', 'Respuesta FEWS inválida (¿código sin serie?).', array( 'status' => 502 ) );
 		}
 
 		$salida = self::parsear_serie_fews( $json );
 		MAN_Cache::set( $clave, $salida, 1800, 'ideam' ); // 30 min.
 		return rest_ensure_response( $salida );
+	}
+
+	/**
+	 * Recuerda brevemente un fallo para no repetir la petición saliente en cada
+	 * visita mientras la fuente esté caída o el código no exista.
+	 *
+	 * @param string $clave Clave de caché del recurso.
+	 */
+	private static function cachear_fallo( $clave ) {
+		MAN_Cache::set( $clave, array( '_fallo' => true ), 300, 'ideam' ); // 5 min.
+	}
+
+	/**
+	 * Verificación TLS configurada para IDEAM.
+	 *
+	 * El panel permite desactivarla por los certificados de portales estatales,
+	 * pero esa decisión debe respetarse igual en cron y en las consultas en
+	 * vivo: antes las rutas REST la desactivaban siempre, ignorando el ajuste.
+	 *
+	 * @return bool
+	 */
+	public static function ssl_ideam() {
+		$config = get_option( 'man_api_config', array() );
+		return ! empty( $config['ideam']['sslverify'] );
 	}
 
 	/**
@@ -712,9 +771,10 @@ final class MAN_Rest {
 		}
 
 		$out = array( 'rows' => $rows, 'desde' => $ini );
-		if ( ! empty( $rows ) ) {
-			MAN_Cache::set( 'historico_apis', $out, 86400, 'historico' ); // 24 h.
-		}
+		// Con resultado vacío se cachea igualmente, pero solo 10 min: si no,
+		// con las fuentes caídas cada visita repetiría dos descargas remotas de
+		// hasta 20 y 30 s dentro de una petición pública.
+		MAN_Cache::set( 'historico_apis', $out, empty( $rows ) ? 600 : 86400, 'historico' );
 		return $out;
 	}
 
@@ -854,13 +914,19 @@ final class MAN_Rest {
 		// Déficit 0..100 → anomalía de lluvia negativa (fracción) para el índice.
 		$anom = ( null !== $deficit_real ) ? round( -1.0 * ( $deficit_real / 100.0 ), 3 ) : 0.0;
 
-		if ( $pred && isset( $pred['indice_riesgo'] ) ) {
-			$riesgo = (float) $pred['indice_riesgo'];
+		// El índice se recalcula con el ONI y el déficit hídrico vigentes. La
+		// semilla municipal (con fecha de corte) solo cubre el caso en que aún
+		// no haya ONI sincronizado, para no dejar el mapa sin valores.
+		$hay_oni_vivo = ( null !== MAN_Cache::get( 'oni' ) );
+		if ( ! $hay_oni_vivo && $pred && isset( $pred['indice_riesgo'] ) ) {
+			$riesgo        = (float) $pred['indice_riesgo'];
+			$riesgo_fuente = 'semilla';
 		} else {
-			$riesgo = MAN_Risk::indice(
+			$riesgo        = MAN_Risk::indice(
 				array( 'oni' => $oni['oni'], 'anom_lluvia' => $anom, 'subregion' => $mun['subregion'], 'litoral' => $litoral ),
 				$pesos
 			);
+			$riesgo_fuente = ( null !== $deficit_real ) ? 'calculado' : 'calculado_parcial';
 		}
 		$nivel = MAN_Risk::nivel( $riesgo );
 
@@ -893,6 +959,7 @@ final class MAN_Rest {
 			'fase'           => $oni['fase'],
 			'intensidad'     => $oni['intensidad'],
 			'riesgo'         => $riesgo,
+			'riesgo_fuente'  => $riesgo_fuente,
 			'nivel'          => $nivel['clave'],
 			'nivel_etiqueta' => $nivel['etiqueta'],
 			'color'          => $nivel['color'],
@@ -914,14 +981,23 @@ final class MAN_Rest {
 		$pesos = get_option( 'man_pesos_riesgo', array() );
 		$out   = array();
 
+		// Igual que en el detalle municipal: manda el cálculo con datos vivos y
+		// la semilla solo cubre el arranque sin ONI sincronizado.
+		$hay_oni_vivo  = ( null !== MAN_Cache::get( 'oni' ) );
+		$deficit_cache = MAN_Cache::get( 'deficit_municipios' );
+
 		foreach ( MAN_Municipios::todos() as $mun ) {
 			$litoral = MAN_Municipios::es_litoral( $mun['subregion'] );
 			$pred    = self::pred_municipio( $mun['divipola'], $mes );
-			if ( $pred && isset( $pred['indice_riesgo'] ) ) {
+			$def     = ( is_array( $deficit_cache ) && isset( $deficit_cache['por_muni'][ $mun['divipola'] ]['deficit'] ) )
+				? (int) $deficit_cache['por_muni'][ $mun['divipola'] ]['deficit'] : null;
+			$anom    = ( null !== $def ) ? round( -1.0 * ( $def / 100.0 ), 3 ) : 0.0;
+
+			if ( ! $hay_oni_vivo && $pred && isset( $pred['indice_riesgo'] ) ) {
 				$riesgo = (float) $pred['indice_riesgo'];
 			} else {
 				$riesgo = MAN_Risk::indice(
-					array( 'oni' => $oni['oni'], 'anom_lluvia' => 0, 'subregion' => $mun['subregion'], 'litoral' => $litoral ),
+					array( 'oni' => $oni['oni'], 'anom_lluvia' => $anom, 'subregion' => $mun['subregion'], 'litoral' => $litoral ),
 					$pesos
 				);
 			}
@@ -970,12 +1046,28 @@ final class MAN_Rest {
 		}
 
 		// 2) Overlay: valores observados de NOAA (autoritativos) sobre la ventana.
+		// Los meses observados posteriores a la ventana de la semilla se añaden
+		// en lugar de descartarse: si no, la serie se congelaría al agotarse la
+		// ventana sembrada y la línea de tiempo dejaría de avanzar.
 		$c           = MAN_Cache::get( 'oni' );
 		$actualizado = ( $c && isset( $c['actualizado'] ) ) ? $c['actualizado'] : null;
+		$inicio_vent = empty( $serie ) ? '' : min( array_keys( $serie ) );
 		if ( $c && ! empty( $c['serie'] ) ) {
 			foreach ( $c['serie'] as $s ) {
-				if ( empty( $s['mes'] ) || ! isset( $serie[ $s['mes'] ] ) ) {
-					continue; // solo dentro de la ventana de la semilla
+				if ( empty( $s['mes'] ) ) {
+					continue;
+				}
+				if ( ! isset( $serie[ $s['mes'] ] ) ) {
+					// Nunca se extiende hacia atrás: la ventana de inicio la
+					// fija la semilla (el front pagina sobre ella).
+					if ( '' === $inicio_vent || $s['mes'] < $inicio_vent ) {
+						continue;
+					}
+					$serie[ $s['mes'] ] = array(
+						'mes'     => $s['mes'],
+						'prob'    => null,
+						'resumen' => '',
+					);
 				}
 				$serie[ $s['mes'] ]['oni']        = (float) $s['oni'];
 				$serie[ $s['mes'] ]['fase']       = MAN_Enso::clasificar_fase( $s['oni'] );
@@ -1168,18 +1260,45 @@ final class MAN_Rest {
 	}
 
 	/**
-	 * Predicción de la trayectoria del ONI hasta el mes objetivo (p. ej. feb-2027).
+	 * Predicción de la trayectoria del ONI hasta el mes objetivo.
 	 *
-	 * Une el ONI observado, el ensamble oficial NOAA-CPC/IRI (semilla, con su
-	 * banda) y la proyección propia del plugin (tendencia amortiguada con
-	 * reversión a la media), y deriva probabilidades de fase por trimestre.
+	 * Central: proyección propia del plugin (tendencia amortiguada con
+	 * reversión a la media) recalculada sobre el ONI observado más reciente de
+	 * NOAA. Se adjunta el pronóstico oficial NOAA-CPC/IRI vivo y, como línea de
+	 * contraste, el escenario de planeación sembrado.
 	 *
-	 * @param string $hasta Mes objetivo AAAA-MM.
+	 * El resultado se materializa en caché con TTL diario; cada sincronización
+	 * del ONI la invalida, de modo que se recalcula con los datos del día.
+	 *
+	 * @param string $hasta  Mes objetivo AAAA-MM.
+	 * @param string $fuente 'ambos' | 'modelo' | 'oficial'.
 	 * @return array
 	 */
 	public static function construir_prediccion( $hasta, $fuente = 'ambos' ) {
-		$hasta     = self::sanitizar_objetivo( $hasta );
-		$fuente    = self::sanitizar_fuente( $fuente );
+		$hasta  = self::sanitizar_objetivo( $hasta );
+		$fuente = self::sanitizar_fuente( $fuente );
+
+		$clave_cache = self::CLAVE_PRED . '_' . $hasta . '_' . $fuente;
+		$cacheada    = MAN_Cache::get( $clave_cache );
+		if ( is_array( $cacheada ) && ! empty( $cacheada['serie'] ) ) {
+			return $cacheada;
+		}
+
+		$calculada = self::calcular_prediccion( $hasta, $fuente );
+		if ( ! empty( $calculada['serie'] ) ) {
+			MAN_Cache::set( $clave_cache, $calculada, self::TTL_PRED, 'enso' );
+		}
+		return $calculada;
+	}
+
+	/**
+	 * Cálculo de la predicción (sin caché). Ver construir_prediccion().
+	 *
+	 * @param string $hasta  Mes objetivo AAAA-MM ya saneado.
+	 * @param string $fuente Fuente ya saneada.
+	 * @return array
+	 */
+	private static function calcular_prediccion( $hasta, $fuente ) {
 		$oni       = self::construir_oni();
 		$serie_oni = isset( $oni['serie'] ) ? $oni['serie'] : array();
 
@@ -1217,7 +1336,9 @@ final class MAN_Rest {
 			);
 		}
 
-		// Banda y central del ensamble oficial desde la semilla datos_globo.
+		// Escenario de planeación sembrado (datos_globo): se conserva como línea
+		// de contraste, NO como central — la central sale del modelo propio
+		// recalculado sobre el ONI observado más reciente de NOAA.
 		$banda_seed  = array();
 		$ens_central = array();
 		$globo       = self::datos_globo();
@@ -1239,7 +1360,10 @@ final class MAN_Rest {
 		$ult_obs     = end( $observado );
 		$ult_obs_mes = $ult_obs['mes'];
 		if ( $hasta <= $ult_obs_mes ) {
-			$hasta = '2027-02';
+			// Horizonte relativo al último observado (9 trimestres solapados,
+			// el mismo alcance que publica NOAA/CPC). Un mes fijo dejaría la
+			// predicción vacía en cuanto el observado lo alcanzara.
+			$hasta = MAN_Forecast::sumar_meses( $ult_obs_mes, self::HORIZONTE_MESES );
 		}
 
 		// 2) Proyección propia del plugin (algoritmo de regresión/pronóstico).
@@ -1254,13 +1378,14 @@ final class MAN_Rest {
 		$central_map = array();
 		foreach ( $observado as $p ) {
 			$serie[]                 = array(
-				'mes'        => $p['mes'],
-				'oni'        => round( $p['oni'], 2 ),
-				'banda_min'  => null,
-				'banda_max'  => null,
-				'modelo_oni' => null,
-				'tipo'       => 'observado',
-				'fase'       => MAN_Enso::clasificar_fase( $p['oni'] ),
+				'mes'           => $p['mes'],
+				'oni'           => round( $p['oni'], 2 ),
+				'banda_min'     => null,
+				'banda_max'     => null,
+				'modelo_oni'    => null,
+				'escenario_oni' => null,
+				'tipo'          => 'observado',
+				'fase'          => MAN_Enso::clasificar_fase( $p['oni'] ),
 			);
 			$central_map[ $p['mes'] ] = (float) $p['oni'];
 		}
@@ -1271,31 +1396,37 @@ final class MAN_Rest {
 			$mes = MAN_Forecast::sumar_meses( $mes, 1 );
 			$guarda++;
 
-			$mod     = isset( $modelo_por_mes[ $mes ] ) ? $modelo_por_mes[ $mes ] : null;
-			$central = isset( $ens_central[ $mes ] ) ? $ens_central[ $mes ] : ( $mod ? $mod['oni'] : null );
+			$mod = isset( $modelo_por_mes[ $mes ] ) ? $modelo_por_mes[ $mes ] : null;
+			// El escenario sembrado solo actúa como central si el modelo no
+			// pudo proyectar ese mes; en marcha normal manda el dato vivo.
+			$escenario = isset( $ens_central[ $mes ] ) ? $ens_central[ $mes ] : null;
+			$central   = $mod ? $mod['oni'] : $escenario;
 			if ( null === $central ) {
 				continue;
 			}
 
-			if ( isset( $banda_seed[ $mes ] ) ) {
-				$bmin = $banda_seed[ $mes ]['min'];
-				$bmax = $banda_seed[ $mes ]['max'];
-			} elseif ( $mod ) {
+			if ( $mod ) {
 				$bmin = $mod['banda_min'];
 				$bmax = $mod['banda_max'];
+			} elseif ( isset( $banda_seed[ $mes ] ) ) {
+				$bmin = $banda_seed[ $mes ]['min'];
+				$bmax = $banda_seed[ $mes ]['max'];
 			} else {
 				$bmin = null;
 				$bmax = null;
 			}
 
 			$serie[]               = array(
-				'mes'        => $mes,
-				'oni'        => round( $central, 2 ),
-				'banda_min'  => ( null !== $bmin ) ? round( $bmin, 2 ) : null,
-				'banda_max'  => ( null !== $bmax ) ? round( $bmax, 2 ) : null,
-				'modelo_oni' => $mod ? round( $mod['oni'], 2 ) : null,
-				'tipo'       => 'proyectado',
-				'fase'       => MAN_Enso::clasificar_fase( $central ),
+				'mes'           => $mes,
+				'oni'           => round( $central, 2 ),
+				'banda_min'     => ( null !== $bmin ) ? round( $bmin, 2 ) : null,
+				'banda_max'     => ( null !== $bmax ) ? round( $bmax, 2 ) : null,
+				// La central ya es el modelo, así que la línea de contraste
+				// pasa a ser el escenario sembrado de planeación.
+				'modelo_oni'    => null,
+				'escenario_oni' => ( null !== $escenario ) ? round( $escenario, 2 ) : null,
+				'tipo'          => 'proyectado',
+				'fase'          => MAN_Enso::clasificar_fase( $central ),
 			);
 			$central_map[ $mes ] = (float) $central;
 		}
@@ -1479,20 +1610,29 @@ final class MAN_Rest {
 	}
 
 	/**
-	 * Sanitiza el mes objetivo de la predicción (por defecto febrero de 2027).
+	 * Sanitiza el mes objetivo de la predicción.
+	 *
+	 * Sin valor explícito, el objetivo es relativo al mes en curso (horizonte
+	 * móvil); nunca una fecha fija, que caducaría al alcanzarla el observado.
 	 *
 	 * @param mixed $valor Valor recibido.
 	 * @return string AAAA-MM.
 	 */
 	private static function sanitizar_objetivo( $valor ) {
 		$v = trim( (string) $valor );
-		if ( '' === $v ) {
-			return '2027-02';
-		}
 		if ( preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', $v ) ) {
 			return $v;
 		}
-		return '2027-02';
+		return self::objetivo_por_defecto();
+	}
+
+	/**
+	 * Mes objetivo por defecto: horizonte móvil desde el mes en curso.
+	 *
+	 * @return string AAAA-MM.
+	 */
+	public static function objetivo_por_defecto() {
+		return MAN_Forecast::sumar_meses( MAN_Security::mes_actual(), self::HORIZONTE_MESES );
 	}
 
 	/**
@@ -1614,14 +1754,32 @@ final class MAN_Rest {
 		if ( ! $cache || empty( $cache['registros'] ) ) {
 			return null;
 		}
-		$clave = strtoupper( remove_accents( $nombre ) );
+		// Comparación contra el campo «municipio», no contra el registro entero
+		// serializado: buscando el nombre como subcadena, el municipio de
+		// Nariño (52480) casaba con TODAS las filas, porque todas llevan
+		// depart="Nariño", y se le atribuía la primera alerta de la lista.
+		$clave = self::normalizar_municipio( $nombre );
+		if ( '' === $clave ) {
+			return null;
+		}
 		foreach ( $cache['registros'] as $row ) {
-			$blob = strtoupper( remove_accents( wp_json_encode( $row ) ) );
-			if ( false !== strpos( $blob, $clave ) ) {
+			if ( isset( $row['municipio'] ) && self::normalizar_municipio( $row['municipio'] ) === $clave ) {
 				return $row;
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Normaliza un nombre de municipio para comparar (sin tildes, sin dobles
+	 * espacios, en mayúsculas).
+	 *
+	 * @param string $nombre Nombre.
+	 * @return string
+	 */
+	private static function normalizar_municipio( $nombre ) {
+		$n = strtoupper( remove_accents( (string) $nombre ) );
+		return trim( preg_replace( '/\s+/', ' ', $n ) );
 	}
 
 	/**

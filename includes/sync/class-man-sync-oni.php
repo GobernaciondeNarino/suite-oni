@@ -72,6 +72,10 @@ final class MAN_Sync_Oni {
 
 		MAN_Cache::set( 'oni', $payload, $ttl, 'enso' );
 
+		// La predicción se calcula a partir de esta serie: invalidarla obliga a
+		// rehacerla con el ONI recién sincronizado en la primera visita.
+		MAN_Cache::delete_por_prefijo( MAN_Rest::CLAVE_PRED );
+
 		return array(
 			'ok'        => true,
 			'registros' => count( $recientes ),

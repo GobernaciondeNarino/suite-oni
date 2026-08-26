@@ -122,6 +122,40 @@ final class MAN_Cache {
 	}
 
 	/**
+	 * Elimina todas las claves que empiecen por un prefijo.
+	 *
+	 * Se usa para invalidar cálculos derivados (p. ej. la predicción ya
+	 * materializada, que se guarda con una clave por objetivo y fuente) cuando
+	 * llega un dato nuevo del que dependen.
+	 *
+	 * @param string $prefijo Prefijo de clave lógica.
+	 * @return int Número de filas eliminadas.
+	 */
+	public static function delete_por_prefijo( $prefijo ) {
+		$prefijo = self::normalizar( $prefijo );
+		if ( '' === $prefijo ) {
+			return 0;
+		}
+
+		global $wpdb;
+		$tabla = $wpdb->prefix . 'man_cache';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL
+		$claves = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT clave FROM {$tabla} WHERE clave LIKE %s",
+				$wpdb->esc_like( $prefijo ) . '%'
+			)
+		);
+
+		$n = 0;
+		foreach ( (array) $claves as $clave ) {
+			self::delete( $clave );
+			$n++;
+		}
+		return $n;
+	}
+
+	/**
 	 * Carga una semilla JSON de la carpeta data/ (último fallback).
 	 *
 	 * @param string $archivo Nombre de archivo dentro de data/.

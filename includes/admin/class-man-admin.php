@@ -15,6 +15,9 @@ final class MAN_Admin {
 	/** @var MAN_Api_Config */
 	private $config;
 
+	/** @var string[] Hooks exactos de las páginas del plugin (para encolar). */
+	private $hooks = array();
+
 	public function __construct() {
 		$this->config = new MAN_Api_Config();
 		add_action( 'admin_menu', array( $this, 'menu' ) );
@@ -26,7 +29,8 @@ final class MAN_Admin {
 	 * Registra el menú y submenús.
 	 */
 	public function menu() {
-		add_menu_page(
+		$this->hooks   = array();
+		$this->hooks[] = add_menu_page(
 			'Monitor Ambiental',
 			'Monitor Ambiental',
 			'manage_options',
@@ -35,20 +39,25 @@ final class MAN_Admin {
 			'dashicons-chart-area',
 			58
 		);
-		add_submenu_page( 'man-salud', 'Salud de APIs', 'Salud de APIs', 'manage_options', 'man-salud', array( $this, 'pagina_salud' ) );
-		add_submenu_page( 'man-salud', 'Elementos y shortcodes', 'Elementos', 'manage_options', 'man-elementos', array( $this, 'pagina_elementos' ) );
-		add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
-		add_submenu_page( 'man-salud', 'APIs y datos', 'APIs y datos', 'manage_options', 'man-apis-datos', array( $this, 'pagina_apis_datos' ) );
-		add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Salud de APIs', 'Salud de APIs', 'manage_options', 'man-salud', array( $this, 'pagina_salud' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Elementos y shortcodes', 'Elementos', 'manage_options', 'man-elementos', array( $this, 'pagina_elementos' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'APIs y datos', 'APIs y datos', 'manage_options', 'man-apis-datos', array( $this, 'pagina_apis_datos' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
+		$this->hooks   = array_filter( $this->hooks );
 	}
 
 	/**
 	 * Encola assets del admin solo en las páginas del plugin.
 	 *
+	 * Se comparan los hooks exactos que devolvió add_submenu_page(): buscar la
+	 * subcadena «man-» encolaba también en páginas ajenas cuyo hook la
+	 * contuviera (p. ej. un plugin llamado «woman-…»).
+	 *
 	 * @param string $hook Hook de la página actual.
 	 */
 	public function assets( $hook ) {
-		if ( false === strpos( $hook, 'man-' ) ) {
+		if ( ! in_array( $hook, (array) $this->hooks, true ) ) {
 			return;
 		}
 		wp_enqueue_script( 'man-admin', MAN_URL . 'assets/js/admin.js', array(), MAN_VERSION, true );
@@ -320,12 +329,12 @@ final class MAN_Admin {
 						'titulo' => 'Predicción ENSO (gráfico y piezas)',
 						'desc'   => 'Trayectoria del ONI con banda de incertidumbre. Úsala completa con [man_prediccion], o por piezas separadas para maquetar a tu gusto (gráfico, cifras, análisis, probabilidad y ficha técnica).',
 						'piezas' => array(
-							'Todo en uno'    => '[man_prediccion hasta="2027-02"]',
-							'Solo gráfico'   => '[man_prediccion_grafico hasta="2027-02"]',
-							'Cifras clave'   => '[man_prediccion_descripcion hasta="2027-02"]',
-							'Análisis'       => '[man_prediccion_analisis hasta="2027-02"]',
-							'Probabilidad'   => '[man_prediccion_probabilidad hasta="2027-02"]',
-							'Ficha técnica'  => '[man_prediccion_ficha hasta="2027-02"]',
+							'Todo en uno'    => '[man_prediccion]',
+							'Solo gráfico'   => '[man_prediccion_grafico]',
+							'Cifras clave'   => '[man_prediccion_descripcion]',
+							'Análisis'       => '[man_prediccion_analisis]',
+							'Probabilidad'   => '[man_prediccion_probabilidad]',
+							'Ficha técnica'  => '[man_prediccion_ficha]',
 						),
 					),
 					$c(
@@ -514,14 +523,14 @@ final class MAN_Admin {
 					'titulo'  => 'Predicción ENSO',
 					'desc'    => 'Trayectoria del ONI hasta el mes objetivo (feb-2027) con banda de incertidumbre, umbrales de fase, probabilidad por trimestre y texto predictivo. Reveal animado. Divisible con "partes".',
 					'attrs'   => array( '<code>hasta</code> — mes objetivo AAAA-MM', '<code>modelo</code> — si/no (línea del modelo propio)', '<code>probabilidad</code> — si/no (barras por trimestre)', '<code>partes</code> — titulo, chips, grafico, probabilidad, texto, metodologia' ),
-					'ejemplo' => '[man_prediccion hasta="2027-02"]',
+					'ejemplo' => '[man_prediccion]',
 				),
 				array(
 					'tag'     => 'man_estadisticas',
 					'titulo'  => 'Estadísticas (D3plus)',
 					'desc'    => 'Gráficos prediseñados con tooltip y leyenda: ONI observado+proyectado, probabilidad de fase por trimestre o riesgo medio por subregión.',
 					'attrs'   => array( '<code>tipo</code> — oni | probabilidad | riesgo', '<code>hasta</code> — mes objetivo (oni/probabilidad)', '<code>mes</code> — mes del riesgo', '<code>alto</code> — ej. 360px' ),
-					'ejemplo' => '[man_estadisticas tipo="oni" hasta="2027-02"]',
+					'ejemplo' => '[man_estadisticas tipo="oni"]',
 				),
 				array(
 					'tag'     => 'man_estado',

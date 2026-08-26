@@ -181,49 +181,239 @@ final class MAN_Enso {
 	}
 
 	/**
+	 * Trigramas ENSO en orden, con el mes central de cada trimestre solapado.
+	 * DJF centra en enero (1) … NDJ centra en diciembre (12).
+	 *
+	 * @var array<string,int>
+	 */
+	const TRIMESTRES = array(
+		'DJF' => 1,
+		'JFM' => 2,
+		'FMA' => 3,
+		'MAM' => 4,
+		'AMJ' => 5,
+		'MJJ' => 6,
+		'JJA' => 7,
+		'JAS' => 8,
+		'ASO' => 9,
+		'SON' => 10,
+		'OND' => 11,
+		'NDJ' => 12,
+	);
+
+	/**
 	 * Parsea las probabilidades ENSO oficiales (NOAA/CPC, consenso CPC/IRI).
 	 *
-	 * Tolera tres formas de la misma tabla: CSV, tabla de texto plano y HTML.
-	 * Cada fila válida es «trimestre (3 letras + año)» seguido de tres
-	 * porcentajes en el orden El Niño, Neutral, La Niña.
+	 * Tolera CSV, texto plano y el HTML de la página oficial. La tabla real de
+	 * NOAA/CPC publica el trimestre SIN año («JAS Jul Aug Sep | 0 | 0 | 100») y
+	 * en el orden de columnas La Niña · Neutral · El Niño, por lo que:
+	 *
+	 * - el orden de las tres columnas se deduce de la fila de cabecera y solo
+	 *   se asume el orden oficial cuando no hay cabecera reconocible;
+	 * - el año de cada trimestre se infiere del mes de emisión («Issued August
+	 *   2026») o, en su defecto, del mes en curso, avanzando un mes por fila.
 	 *
 	 * @param string $texto Cuerpo (CSV, texto o HTML).
+	 * @param string $ahora Mes de referencia 'Y-m' (por defecto, el actual UTC).
 	 * @return array[] Filas {season, el_nino, neutral, la_nina} en % (0..100).
 	 */
-	public static function parse_iri_probabilities( $texto ) {
+	public static function parse_iri_probabilities( $texto, $ahora = '' ) {
 		$texto = (string) $texto;
 
 		// Inserta saltos de línea en límites de fila/celda para no fundir la
 		// tabla en una sola línea, y elimina el resto del marcado.
-		$texto = preg_replace( '/<\s*(tr|table|thead|tbody|br|p|div|li)[^>]*>/i', "\n", $texto );
-		$texto = preg_replace( '/<\s*td[^>]*>/i', ' ', $texto );
-		$texto = wp_strip_all_tags( $texto );
-		$texto = html_entity_decode( $texto, ENT_QUOTES, 'UTF-8' );
+		$plano = preg_replace( '/<\s*(tr|table|thead|tbody|br|p|div|li)[^>]*>/i', "\n", $texto );
+		$plano = preg_replace( '/<\s*t[dh][^>]*>/i', ' | ', $plano );
+		$plano = wp_strip_all_tags( $plano );
+		$plano = html_entity_decode( $plano, ENT_QUOTES, 'UTF-8' );
 
-		$filas  = array();
-		$lineas = preg_split( '/\r\n|\r|\n/', $texto );
+		// Orden de columnas: manda la cabecera si es reconocible; si no, se usa
+		// el orden propio de cada formato (ver orden_por_defecto()).
+		$orden_cab  = self::orden_columnas( $plano );
+		$referencia = self::mes_emision( $plano, $ahora );
+
+		$filas    = array();
+		$anterior = null;
+		$lineas   = preg_split( '/\r\n|\r|\n/', $plano );
 		foreach ( $lineas as $linea ) {
 			$linea = trim( preg_replace( '/\s+/', ' ', $linea ) );
 			if ( '' === $linea ) {
 				continue;
 			}
-			// season = 3 letras + año (4 díg.); luego 3 enteros 0..100.
-			if ( preg_match( '/\b([A-Za-z]{3})\s*(\d{4})\D+(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})\b/', $linea, $m ) ) {
-				$en = (float) $m[3];
-				$ne = (float) $m[4];
-				$ln = (float) $m[5];
-				// Descarta líneas espurias cuya suma no se acerca a 100.
-				if ( ( $en + $ne + $ln ) < 80 || ( $en + $ne + $ln ) > 120 ) {
-					continue;
-				}
-				$filas[] = array(
-					'season'  => strtoupper( $m[1] ) . ' ' . $m[2],
-					'el_nino' => $en,
-					'neutral' => $ne,
-					'la_nina' => $ln,
-				);
+
+			$season = null;
+			$nums   = null;
+			$con_anio = false;
+
+			// Formato con año explícito (archivos históricos del IRI).
+			if ( preg_match( '/\b([A-Za-z]{3})\s*(\d{4})\D+(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})\b/', $linea, $m )
+				&& isset( self::TRIMESTRES[ strtoupper( $m[1] ) ] ) ) {
+				$season   = strtoupper( $m[1] ) . ' ' . $m[2];
+				$nums     = array( (float) $m[3], (float) $m[4], (float) $m[5] );
+				$con_anio = true;
+			} elseif ( preg_match( '/\b([A-Za-z]{3})\b(?:[^0-9]*?)(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})\b/', $linea, $m )
+				&& isset( self::TRIMESTRES[ strtoupper( $m[1] ) ] ) ) {
+				// Formato oficial vigente: trigrama sin año; se infiere el año.
+				$trigrama = strtoupper( $m[1] );
+				$anio     = self::anio_de_trimestre( $trigrama, $referencia, $anterior );
+				$anterior = array( 'trigrama' => $trigrama, 'anio' => $anio );
+				$season   = $trigrama . ' ' . $anio;
+				$nums     = array( (float) $m[2], (float) $m[3], (float) $m[4] );
 			}
+
+			if ( null === $season ) {
+				continue;
+			}
+
+			$orden = ( null !== $orden_cab ) ? $orden_cab : self::orden_por_defecto( $con_anio );
+			$en    = $nums[ $orden['el_nino'] ];
+			$ne    = $nums[ $orden['neutral'] ];
+			$ln    = $nums[ $orden['la_nina'] ];
+
+			// Descarta líneas espurias cuya suma no se acerca a 100.
+			$suma = $en + $ne + $ln;
+			if ( $suma < 80 || $suma > 120 ) {
+				continue;
+			}
+
+			$filas[] = array(
+				'season'  => $season,
+				'el_nino' => $en,
+				'neutral' => $ne,
+				'la_nina' => $ln,
+			);
 		}
 		return $filas;
+	}
+
+	/**
+	 * Deduce el orden de las tres columnas de probabilidad desde la cabecera.
+	 *
+	 * Solo se consideran filas de cabecera reales (cortas y sin prosa): la
+	 * página oficial incluye un párrafo descriptivo que nombra las tres fases
+	 * en otro orden y que, de tomarse por cabecera, invertiría los datos.
+	 *
+	 * @param string $plano Texto ya sin marcado.
+	 * @return array<string,int>|null Índices 0..2 de cada fase, o null si no
+	 *                                hay cabecera reconocible.
+	 */
+	private static function orden_columnas( $plano ) {
+		$lineas = preg_split( '/\r\n|\r|\n/', $plano );
+		foreach ( $lineas as $linea ) {
+			$l = strtolower( self::sin_tildes( trim( preg_replace( '/\s+/', ' ', $linea ) ) ) );
+			if ( false === strpos( $l, 'nino' ) || false === strpos( $l, 'nina' ) || false === strpos( $l, 'neutral' ) ) {
+				continue;
+			}
+			// Prosa, no cabecera: demasiadas palabras o puntuación de frase.
+			if ( str_word_count( $l ) > 12 || preg_match( '/[(),.;]/', $l ) ) {
+				continue;
+			}
+			// El separador entre artículo y nombre es opcional: la cabecera
+			// puede venir como «El Niño», «ElNino» o «el_nino».
+			$pos = array();
+			foreach ( array( 'el_nino' => '/el[\s_-]*nino/', 'la_nina' => '/la[\s_-]*nina/', 'neutral' => '/neutral/' ) as $fase => $re ) {
+				if ( ! preg_match( $re, $l, $m, PREG_OFFSET_CAPTURE ) ) {
+					continue 2;
+				}
+				$pos[ $fase ] = $m[0][1];
+			}
+			asort( $pos );
+			$orden = array();
+			$i     = 0;
+			foreach ( $pos as $fase => $unused ) {
+				$orden[ $fase ] = $i++;
+			}
+			return $orden;
+		}
+		return null;
+	}
+
+	/**
+	 * Orden de columnas asumido cuando no hay cabecera reconocible.
+	 *
+	 * Los archivos históricos del IRI (trigrama con año) publicaban El Niño
+	 * primero; la página vigente de NOAA/CPC (trigrama sin año) publica
+	 * La Niña primero.
+	 *
+	 * @param bool $con_anio Si la fila trae el año explícito.
+	 * @return array<string,int>
+	 */
+	private static function orden_por_defecto( $con_anio ) {
+		return $con_anio
+			? array( 'el_nino' => 0, 'neutral' => 1, 'la_nina' => 2 )
+			: array( 'la_nina' => 0, 'neutral' => 1, 'el_nino' => 2 );
+	}
+
+	/**
+	 * Quita tildes sin depender de que WordPress esté cargado (los tests CLI
+	 * ejercitan el parser de forma aislada).
+	 *
+	 * @param string $texto Texto.
+	 * @return string
+	 */
+	private static function sin_tildes( $texto ) {
+		if ( function_exists( 'remove_accents' ) ) {
+			return remove_accents( $texto );
+		}
+		return strtr(
+			$texto,
+			array(
+				'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n', 'ü' => 'u',
+				'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N', 'Ü' => 'U',
+			)
+		);
+	}
+
+	/**
+	 * Mes de referencia para inferir años: «Issued August 2026» o el mes actual.
+	 *
+	 * @param string $plano Texto ya sin marcado.
+	 * @param string $ahora Mes 'Y-m' de respaldo.
+	 * @return array {anio:int, mes:int}
+	 */
+	private static function mes_emision( $plano, $ahora = '' ) {
+		if ( preg_match( '/Issued\s+([A-Za-z]+)\s+(\d{4})/i', $plano, $m ) ) {
+			$ts = strtotime( $m[1] . ' 1, ' . $m[2] . ' UTC' );
+			if ( $ts ) {
+				return array( 'anio' => (int) gmdate( 'Y', $ts ), 'mes' => (int) gmdate( 'n', $ts ) );
+			}
+		}
+		$ref = preg_match( '/^\d{4}-\d{2}$/', (string) $ahora ) ? $ahora : gmdate( 'Y-m' );
+		$p   = explode( '-', $ref );
+		return array( 'anio' => (int) $p[0], 'mes' => (int) $p[1] );
+	}
+
+	/**
+	 * Año que corresponde a un trigrama sin año.
+	 *
+	 * La primera fila se ancla al trimestre más cercano al mes de emisión; las
+	 * siguientes avanzan un mes, incrementando el año al cruzar diciembre.
+	 *
+	 * @param string     $trigrama Trigrama ENSO (p. ej. 'JAS').
+	 * @param array      $ref      Mes de emisión {anio, mes}.
+	 * @param array|null $anterior Fila previa {trigrama, anio}, si la hay.
+	 * @return int
+	 */
+	private static function anio_de_trimestre( $trigrama, $ref, $anterior ) {
+		$centro = self::TRIMESTRES[ $trigrama ];
+
+		if ( is_array( $anterior ) && isset( self::TRIMESTRES[ $anterior['trigrama'] ] ) ) {
+			// Secuencia continua: el centro avanza un mes por fila.
+			$centro_prev = self::TRIMESTRES[ $anterior['trigrama'] ];
+			return ( $centro < $centro_prev ) ? (int) $anterior['anio'] + 1 : (int) $anterior['anio'];
+		}
+
+		// Primera fila: año cuyo mes central queda más cerca de la emisión.
+		$objetivo = (int) $ref['anio'] * 12 + (int) $ref['mes'];
+		$mejor    = (int) $ref['anio'];
+		$dist     = PHP_INT_MAX;
+		foreach ( array( (int) $ref['anio'] - 1, (int) $ref['anio'], (int) $ref['anio'] + 1 ) as $anio ) {
+			$d = abs( ( $anio * 12 + $centro ) - $objetivo );
+			if ( $d < $dist ) {
+				$dist  = $d;
+				$mejor = $anio;
+			}
+		}
+		return $mejor;
 	}
 }
