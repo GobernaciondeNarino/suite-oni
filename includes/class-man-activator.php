@@ -176,6 +176,13 @@ final class MAN_Activator {
 				$config['sivigila']['nombre']     = 'SIVIGILA / INS vía datos.gov.co (enfermedades sensibles al clima)';
 				$cambio                           = true;
 			}
+			// FIRMS: si el operador ya guardó su MAP_KEY, la fuente debe quedar
+			// activa. Venía desactivada por defecto porque sin clave no sirve,
+			// pero esa condición deja de aplicar en cuanto la clave existe.
+			if ( ! empty( $config['firms']['clave'] ) && empty( $config['firms']['activa'] ) ) {
+				$config['firms']['activa'] = true;
+				$cambio                    = true;
+			}
 			if ( $cambio ) {
 				update_option( 'man_api_config', $config );
 				MAN_Sync::auditar( 'migracion', 'plugin', 'ok', 0, 'Config migrada en la actualización a ' . MAN_VERSION );

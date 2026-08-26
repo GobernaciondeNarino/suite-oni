@@ -100,6 +100,22 @@ final class MAN_Sync {
 		// sin que la clave se almacene ni viaje en texto plano.
 		if ( ! empty( $cfg['clave'] ) ) {
 			$cfg['clave_plana'] = MAN_Security::descifrar( $cfg['clave'] );
+
+			// Una clave guardada que no se puede descifrar significa que las
+			// sales de wp-config.php cambiaron: el conector recibiría una clave
+			// vacía y fallaría con un error del proveedor, sin pista del motivo
+			// real. Se corta aquí y se dice exactamente qué pasó y cómo se
+			// arregla (volver a escribir la clave en el panel).
+			if ( '' === $cfg['clave_plana'] ) {
+				$msg = 'La clave guardada no se pudo descifrar: las sales de seguridad de wp-config.php cambiaron desde que se guardó. Vuelva a escribirla en Monitor Ambiental → Fuentes.';
+				self::auditar( 'sync', $slug, 'error', 0, $msg );
+
+				$config[ $slug ]['ultima_sync']      = time();
+				$config[ $slug ]['ultimo_resultado'] = 'ERROR · clave ilegible';
+				update_option( 'man_api_config', $config );
+
+				return array( 'ok' => false, 'registros' => 0, 'mensaje' => $msg, 'latencia_ms' => 0 );
+			}
 		}
 
 		$t0  = microtime( true );
@@ -113,6 +129,9 @@ final class MAN_Sync {
 
 		$config[ $slug ]['ultima_sync']      = time();
 		$config[ $slug ]['ultimo_resultado'] = ( $res['ok'] ? 'OK' : 'ERROR' ) . ' · ' . (int) $res['registros'] . ' reg · ' . $ms . ' ms';
+		// El motivo se guarda aparte: sin él, un «ERROR · 0 reg» no dice si
+		// falló la red, la clave o el formato de la respuesta.
+		$config[ $slug ]['ultimo_detalle'] = substr( (string) $res['mensaje'], 0, 300 );
 		update_option( 'man_api_config', $config );
 
 		self::auditar( 'sync', $slug, $res['ok'] ? 'ok' : 'error', (int) $res['registros'], $res['mensaje'] );

@@ -428,6 +428,20 @@
   .man-salud__barra { grid-template-columns: minmax(5.5em, 8em) 1fr auto; font-size: .82em; }
 }
 
+/* Aviso de procedencia: se muestra SOLO cuando el dato no viene de la fuente
+   viva. Discreto pero inconfundible; no compite con el contenido. */
+.man-aviso {
+  margin: 0;
+  padding: .55em .75em;
+  border-left: 3px solid #ef6c00;
+  background: color-mix(in srgb, #ef6c00 8%, transparent);
+  font-size: .88em;
+  line-height: 1.45;
+}
+@supports not (background: color-mix(in srgb, red 8%, transparent)) {
+  .man-aviso { background: rgba(239, 108, 0, .08); }
+}
+
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
 @media (prefers-reduced-motion: reduce) {
   .man-btn { transition: none; }

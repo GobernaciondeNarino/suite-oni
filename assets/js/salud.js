@@ -36,6 +36,12 @@
       return;
     }
 
+    if (d.aviso) {
+      var av = C.el('p', 'man-aviso', C.esc(d.aviso));
+      av.setAttribute('role', 'status');
+      cuerpo.appendChild(av);
+    }
+
     var cob = d.cobertura || {};
     if (cob.desde && cob.hasta) {
       cuerpo.appendChild(C.el('p', 'man-mute-line',

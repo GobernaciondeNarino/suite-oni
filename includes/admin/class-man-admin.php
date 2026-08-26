@@ -26,6 +26,31 @@ final class MAN_Admin {
 	}
 
 	/**
+	 * Qué está sirviendo realmente una fuente: en vivo, respaldo o sin datos.
+	 *
+	 * @param array  $proc Procedencia de MAN_Rest::procedencia().
+	 * @param string $slug Slug de la fuente configurada.
+	 * @return string
+	 */
+	private function origen_dato( $proc, $slug ) {
+		$mapa = array(
+			'noaa_oni' => 'oni',
+			'iri_enso' => 'pronostico_oficial',
+			'ideam'    => 'alertas_ideam',
+			'ioc'      => 'nivel_mar',
+			'sivigila' => 'salud',
+			'firms'    => 'focos_calor',
+			'deficit'  => 'deficit_hidrico',
+		);
+		if ( ! isset( $mapa[ $slug ], $proc[ $mapa[ $slug ] ] ) ) {
+			return '—';
+		}
+		$leyenda = array( 'vivo' => 'En vivo', 'respaldo' => 'Respaldo', 'ausente' => 'Sin datos' );
+		$estado  = $proc[ $mapa[ $slug ] ]['estado'];
+		return isset( $leyenda[ $estado ] ) ? $leyenda[ $estado ] : '—';
+	}
+
+	/**
 	 * Registra el menú y submenús.
 	 */
 	public function menu() {
@@ -81,20 +106,61 @@ final class MAN_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$apis = MAN_Rest::construir_estado_apis();
+		$apis  = MAN_Rest::construir_estado_apis();
+		$proc  = MAN_Rest::procedencia();
+
+		// Qué se está publicando de verdad. Una fuente puede figurar como «ok»
+		// (sincronizó sin error de red) y estar sirviendo respaldo porque el
+		// conector no pudo interpretar la respuesta: ese desfase es justo lo
+		// que pasó inadvertido con el pronóstico oficial de NOAA/CPC.
+		$respaldo = array();
+		$ausente  = array();
+		foreach ( $proc as $info ) {
+			if ( 'respaldo' === $info['estado'] ) {
+				$respaldo[] = $info['etiqueta'];
+			} elseif ( 'ausente' === $info['estado'] ) {
+				$ausente[] = $info['etiqueta'];
+			}
+		}
 		?>
 		<div class="wrap">
 			<h1>Monitor Ambiental — Salud de las APIs</h1>
 			<?php $this->aviso(); ?>
+
+			<?php if ( $respaldo ) : ?>
+				<div class="notice notice-warning">
+					<p><strong>La web está publicando datos de respaldo.</strong>
+						<?php echo esc_html( implode( ', ', $respaldo ) ); ?>
+						<?php echo count( $respaldo ) === 1 ? 'no responde' : 'no responden'; ?>,
+						así que esos componentes muestran la última copia guardada o un escenario
+						sembrado. Revise la fuente y pulse <em>Sincronizar ahora</em>; si el fallo
+						persiste, compruebe que la URL configurada siga siendo la vigente.</p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( $ausente ) : ?>
+				<div class="notice notice-info">
+					<p><strong>Sin datos todavía:</strong> <?php echo esc_html( implode( ', ', $ausente ) ); ?>.
+						Los componentes que dependen de estas fuentes no mostrarán información hasta
+						la primera sincronización.</p>
+				</div>
+			<?php endif; ?>
+
 			<table class="widefat striped man-tabla-salud">
-				<thead><tr><th>Fuente</th><th>Estado</th><th>Última sincronización</th><th>Resultado</th></tr></thead>
+				<thead><tr><th>Fuente</th><th>Estado</th><th>Datos que sirve</th><th>Última sincronización</th><th>Resultado</th></tr></thead>
 				<tbody>
 				<?php foreach ( $apis as $a ) : ?>
 					<tr>
 						<td><?php echo esc_html( $a['fuente'] ); ?></td>
 						<td><span class="man-dot" style="background:<?php echo esc_attr( $this->color_estado( $a['estado'] ) ); ?>"></span><?php echo esc_html( ucfirst( $a['estado'] ) ); ?></td>
+						<td><?php echo esc_html( $this->origen_dato( $proc, $a['slug'] ) ); ?></td>
 						<td><?php echo esc_html( $a['ultima'] ); ?></td>
-						<td><?php echo esc_html( $a['resultado'] ); ?></td>
+						<td>
+							<?php echo esc_html( $a['resultado'] ); ?>
+							<?php if ( ! empty( $a['detalle'] ) && 0 !== strpos( $a['resultado'], 'OK' ) ) : ?>
+								<br><span class="description"><?php echo esc_html( $a['detalle'] ); ?></span>
+							<?php endif; ?>
+						</td>
 					</tr>
 				<?php endforeach; ?>
 				</tbody>

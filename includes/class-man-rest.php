@@ -31,6 +31,9 @@ final class MAN_Rest {
 	private static $pred  = null;
 	private static $globo = null;
 
+	/** @var array|null Procedencia de los datos, resuelta una vez por petición. */
+	private static $procedencia = null;
+
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'registrar_rutas' ) );
 	}
@@ -233,7 +236,12 @@ final class MAN_Rest {
 	}
 
 	public function ruta_estado_apis() {
-		return rest_ensure_response( self::construir_estado_apis() );
+		return rest_ensure_response(
+			array(
+				'fuentes'     => self::construir_estado_apis(),
+				'procedencia' => self::procedencia(),
+			)
+		);
 	}
 
 	public function ruta_historico() {
@@ -911,8 +919,16 @@ final class MAN_Rest {
 		$focos_cache   = MAN_Cache::get( 'focos_calor' );
 		$deficit_real  = ( is_array( $deficit_cache ) && isset( $deficit_cache['por_muni'][ $cod ]['deficit'] ) )
 			? (int) $deficit_cache['por_muni'][ $cod ]['deficit'] : null;
-		$focos_real    = ( is_array( $focos_cache ) && isset( $focos_cache['por_muni'][ $cod ] ) )
-			? (int) $focos_cache['por_muni'][ $cod ] : null;
+		// Si FIRMS sincronizó, la ausencia de un municipio en el conteo significa
+		// CERO focos detectados, que es un dato real y verificado, no la falta
+		// de dato: etiquetarlo como «modelado» le decía a la ciudadanía que no
+		// se había medido cuando sí se midió.
+		$focos_vivos = ( is_array( $focos_cache ) && isset( $focos_cache['por_muni'] ) && is_array( $focos_cache['por_muni'] ) );
+		if ( $focos_vivos ) {
+			$focos_real = isset( $focos_cache['por_muni'][ $cod ] ) ? (int) $focos_cache['por_muni'][ $cod ] : 0;
+		} else {
+			$focos_real = null;
+		}
 		// Déficit 0..100 → anomalía de lluvia negativa (fracción) para el índice.
 		$anom = ( null !== $deficit_real ) ? round( -1.0 * ( $deficit_real / 100.0 ), 3 ) : 0.0;
 
@@ -949,7 +965,8 @@ final class MAN_Rest {
 			'deficit'        => $deficit_real,
 			'deficit_fuente' => ( null !== $deficit_real ) ? 'real' : 'modelado',
 			'focos'          => $focos_real,
-			'focos_fuente'   => ( null !== $focos_real ) ? 'real' : 'modelado',
+			'focos_fuente'   => $focos_vivos ? 'real' : 'modelado',
+			'focos_ventana'  => $focos_vivos && isset( $focos_cache['dias'] ) ? (int) $focos_cache['dias'] : null,
 			'divipola'       => $mun['divipola'],
 			'nombre'         => $mun['nombre'],
 			'lat'            => $mun['lat'],
@@ -1162,6 +1179,85 @@ final class MAN_Rest {
 	 *
 	 * @return array[]
 	 */
+	/**
+	 * Procedencia real de los datos que alimentan los componentes públicos.
+	 *
+	 * Distingue tres situaciones que antes eran indistinguibles desde fuera:
+	 *   vivo     → el conector sincronizó y el payload viene de la fuente.
+	 *   respaldo → hay datos, pero son la última caché o una semilla local
+	 *              (el conector marcó «mantenimiento» o la fuente falló).
+	 *   ausente  → no hay datos de ningún tipo.
+	 *
+	 * Es la pieza que faltaba cuando el pronóstico oficial de NOAA/CPC estuvo
+	 * caído: la página seguía publicando escenarios sembrados sin que nada lo
+	 * advirtiera, ni a la ciudadanía ni al operador.
+	 *
+	 * @return array<string,array{estado:string,etiqueta:string,actualizado:?string,fuente:string}>
+	 */
+	public static function procedencia() {
+		if ( null !== self::$procedencia ) {
+			return self::$procedencia;
+		}
+		$fuentes = array(
+			'oni'               => array( 'clave' => 'oni', 'etiqueta' => 'Índice ONI (NOAA/CPC)' ),
+			'pronostico_oficial' => array( 'clave' => MAN_Sync_Iri::CLAVE, 'etiqueta' => 'Pronóstico oficial ENSO (NOAA/CPC)' ),
+			'alertas_ideam'     => array( 'clave' => 'ideam_alertas', 'etiqueta' => 'Alertas hidrológicas (IDEAM/FEWS)' ),
+			'nivel_mar'         => array( 'clave' => 'mar_nivel', 'etiqueta' => 'Nivel del mar (IOC, Tumaco)' ),
+			'salud'             => array( 'clave' => MAN_Sync_Sivigila::CLAVE, 'etiqueta' => 'Eventos de salud (INS/SIVIGILA)' ),
+			'focos_calor'       => array( 'clave' => MAN_Sync_Firms::CLAVE, 'etiqueta' => 'Focos de calor (NASA FIRMS)' ),
+			'deficit_hidrico'   => array( 'clave' => 'deficit_municipios', 'etiqueta' => 'Déficit hídrico (Open-Meteo)' ),
+		);
+
+		$out = array();
+		foreach ( $fuentes as $id => $meta ) {
+			$dato = MAN_Cache::get( $meta['clave'] );
+
+			if ( ! is_array( $dato ) || empty( $dato ) ) {
+				// Puede existir una caché vencida que aún se sirve como respaldo.
+				$durable = MAN_Cache::get_durable( $meta['clave'] );
+				$estado  = ( is_array( $durable ) && ! empty( $durable ) ) ? 'respaldo' : 'ausente';
+				$dato    = is_array( $durable ) ? $durable : array();
+			} elseif ( isset( $dato['estado'] ) && 'ok' !== $dato['estado'] ) {
+				$estado = 'respaldo';
+			} else {
+				$estado = 'vivo';
+			}
+
+			$out[ $id ] = array(
+				'estado'      => $estado,
+				'etiqueta'    => $meta['etiqueta'],
+				'actualizado' => isset( $dato['actualizado'] ) ? $dato['actualizado'] : null,
+				'fuente'      => isset( $dato['fuente'] ) ? $dato['fuente'] : '',
+			);
+		}
+
+		self::$procedencia = $out;
+		return $out;
+	}
+
+	/**
+	 * Aviso legible para el público cuando un dato no procede de la fuente viva.
+	 *
+	 * Devuelve cadena vacía si el dato es real: los componentes solo muestran
+	 * la advertencia cuando hay algo que advertir.
+	 *
+	 * @param string $id Identificador de procedencia().
+	 * @return string
+	 */
+	public static function aviso_procedencia( $id ) {
+		$p = self::procedencia();
+		if ( ! isset( $p[ $id ] ) ) {
+			return '';
+		}
+		if ( 'respaldo' === $p[ $id ]['estado'] ) {
+			return 'Mostrando datos de respaldo: ' . $p[ $id ]['etiqueta'] . ' no responde en este momento, así que la información puede no estar al día.';
+		}
+		if ( 'ausente' === $p[ $id ]['estado'] ) {
+			return 'Sin datos de ' . $p[ $id ]['etiqueta'] . ' por ahora.';
+		}
+		return '';
+	}
+
 	public static function construir_estado_apis() {
 		$config = get_option( 'man_api_config', array() );
 		$out    = array();
@@ -1196,6 +1292,7 @@ final class MAN_Rest {
 				'estado'    => $estado,
 				'ultima'    => $ultima ? gmdate( 'Y-m-d H:i', $ultima ) . ' UTC' : '—',
 				'resultado' => $result,
+				'detalle'   => isset( $cfg['ultimo_detalle'] ) ? (string) $cfg['ultimo_detalle'] : '',
 			);
 		}
 		return $out;
@@ -1487,7 +1584,8 @@ final class MAN_Rest {
 		foreach ( array_slice( $observado, -6 ) as $p ) {
 			$cola[] = $p['oni'];
 		}
-		$reg = MAN_Forecast::regresion_lineal( $cola );
+		$reg  = MAN_Forecast::regresion_lineal( $cola );
+		$proc = self::procedencia();
 
 		$texto = MAN_Texto::prediccion(
 			array(
@@ -1501,6 +1599,14 @@ final class MAN_Rest {
 			'objetivo_mes'      => $hasta,
 			'fuente_solicitada' => $fuente,
 			'oficial'           => $oficial,
+			// Aviso para el público cuando el pronóstico oficial no procede de
+			// la fuente viva: el modelo propio sigue siendo válido, pero el
+			// contraste con NOAA/CPC no está actualizado y hay que decirlo.
+			'aviso'             => ( 'modelo' !== $fuente ) ? self::aviso_procedencia( 'pronostico_oficial' ) : '',
+			'procedencia'       => array(
+				'oni'                => $proc['oni']['estado'],
+				'pronostico_oficial' => $proc['pronostico_oficial']['estado'],
+			),
 			'actual'          => $actual,
 			'objetivo'        => $objetivo,
 			'pico'            => $pico,
@@ -1726,6 +1832,7 @@ final class MAN_Rest {
 			'actualizado'   => isset( $cache['actualizado'] ) ? $cache['actualizado'] : null,
 			'fuente'        => 'INS / SIVIGILA vía datos.gov.co',
 			// Advertencia deliberada: los casos no son un efecto directo del ENSO.
+			'aviso'         => self::aviso_procedencia( 'salud' ),
 			'nota_ensayo'   => 'Son casos notificados, con el rezago propio de la vigilancia epidemiológica. El clima influye en la transmisión, pero la incidencia depende además del control vectorial, la minería, la movilidad y el acceso a agua potable.',
 		);
 	}

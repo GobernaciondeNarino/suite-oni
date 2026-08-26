@@ -28,7 +28,9 @@ se calcula con el ONI observado más reciente y se renueva a diario**.
 | Calidad y duplicación | 20 | 11 | 9 |
 | **Total** | **45** | **31** | **14** |
 
-> **Actualización 1.39.0.** Se cerraron además **A-3** (dataset de SIVIGILA identificado y fuente activa) y **A-7** (atribución de climatología corregida): quedan **12 pendientes**.
+> **Actualización 1.39.0.** Se cerraron **A-3** (dataset de SIVIGILA identificado y fuente activa) y **A-7** (atribución de climatología corregida).
+>
+> **Actualización 1.40.0.** Se cerraron **A-1** (procedencia de datos visible para la ciudadanía y el operador) y **A-2** (aviso de clave ilegible), y se corrigieron dos fallos detectados al revisar NASA FIRMS: «Probar conexión» daba por buena cualquier respuesta HTTP 200 —el mismo mecanismo que ocultó el fallo de NOAA— y un conteo real de cero focos se etiquetaba como «modelado». Quedan **10 pendientes**, todas de prioridad B y C.
 
 Vulnerabilidades **críticas: 0**. Se verificó explícitamente que no hay SQL sin
 `prepare`, `unserialize`, handlers de administración sin nonce ni capacidad, ni
@@ -162,8 +164,8 @@ Prioridad: **A** (alta, siguiente versión) · **B** (media) · **C** (deuda té
 
 | # | Mejora | Dónde | Por qué importa |
 |---|---|---|---|
-| A-1 | Alertar al operador cuando una fuente cae a semilla en vez de marcarlo solo como «mantenimiento» | `class-man-sync-iri.php`, panel de Salud | Es exactamente el fallo que pasó inadvertido: la web mostró datos de junio durante meses sin que nadie lo notara |
-| A-2 | Avisar cuando `descifrar()` falla con un paquete no vacío (rotación de sales en `wp-config.php`) | `class-man-security.php:168-180` | La clave de FIRMS deja de funcionar en silencio, con errores HTTP 400 sin pista |
+| ~~A-1~~ | ~~Alertar cuando una fuente cae a semilla~~ — **resuelto en 1.40.0**: `MAN_Rest::procedencia()` distingue vivo/respaldo/ausente, con aviso en el panel, en el componente público y columna «Datos que sirve» | `class-man-rest.php`, `class-man-admin.php` | — |
+| ~~A-2~~ | ~~Avisar cuando `descifrar()` falla~~ — **resuelto en 1.40.0**: la sincronización se detiene con un mensaje que nombra la causa y la solución | `class-man-sync.php` | — |
 | ~~A-3~~ | ~~Fijar el `dataset_id` vigente de SIVIGILA~~ — **resuelto en 1.39.0**: dataset `4hyg-wa9d`, 15 eventos ETV/ETA, fuente activa | `class-man-sync-sivigila.php` | — |
 | A-4 | Regenerar por cron la semilla municipal `predicciones_elnino_narino_2026.json` (corte jun-2026) | `data/`, nuevo conector | Sigue siendo el respaldo cuando no hay ONI sincronizado: conviene que no envejezca |
 | A-5 | Botón «borrar clave de API» en el panel | `class-man-api-config.php:127-130` | Hoy una clave guardada no se puede eliminar desde la interfaz |
