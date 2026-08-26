@@ -1254,21 +1254,28 @@ final class MAN_Shortcodes {
 	}
 
 	/**
-	 * [man_salud] — Casos de dengue (SIVIGILA) sensibles al clima.
+	 * [man_salud] — Enfermedades sensibles al clima en Nariño (SIVIGILA/INS):
+	 * transmitidas por vectores (ETV) y por agua y alimentos (ETA).
 	 */
 	public function sc_salud( $atts ) {
-		$atts = $this->fusionar( array( 'evento' => 'dengue', 'anio' => gmdate( 'Y' ) ), $atts, 'man_salud' );
+		// grupo: ETV (vectores) | ETA (agua y alimentos) | vacío = ambos.
+		$atts = $this->fusionar( array( 'grupo' => '' ), $atts, 'man_salud' );
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_script( 'man-salud' );
+
+		$grupo = strtoupper( sanitize_key( $atts['grupo'] ) );
+		if ( ! in_array( $grupo, array( 'ETV', 'ETA' ), true ) ) {
+			$grupo = '';
+		}
+
 		$id = $this->id();
 		ob_start();
 		?>
 		<div id="<?php echo esc_attr( $id ); ?>" class="man man-salud"
 			style="<?php echo esc_attr( MAN_Estilos::estilo_inline( $atts ) ); ?>"
-			data-man-salud data-evento="<?php echo esc_attr( sanitize_key( $atts['evento'] ) ); ?>"
-			data-anio="<?php echo esc_attr( (int) $atts['anio'] ); ?>">
+			data-man-salud data-grupo="<?php echo esc_attr( $grupo ); ?>">
 			<?php echo $this->skeleton( 'Cargando datos de salud…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
-			<?php echo $this->pie_fuentes( 'INS / SIVIGILA' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php echo $this->pie_fuentes( 'INS / SIVIGILA vía datos.gov.co (CC BY 4.0)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</div>
 		<?php
 		return ob_get_clean();

@@ -23,6 +23,13 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 	}
 }
 
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d ); }
+}
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $s ) { return trim( strip_tags( (string) $s ) ); }
+}
+
 require __DIR__ . '/../includes/analysis/class-man-enso.php';
 require __DIR__ . '/../includes/data/class-man-municipios.php';
 require __DIR__ . '/../includes/sync/class-man-sync-deficit.php';
@@ -37,6 +44,14 @@ function chk( $cond, $msg ) {
 	if ( $cond ) {
 		echo "  ok  $msg\n";
 	} else {
+		echo "FAIL  $msg\n";
+		$fallos++;
+	}
+}
+
+function chk_silencioso( $cond, $msg ) {
+	global $fallos;
+	if ( ! $cond ) {
 		echo "FAIL  $msg\n";
 		$fallos++;
 	}
@@ -97,6 +112,34 @@ chk( MAN_Sync_Deficit::indice_deficit( 0, 100 ) === 100, 'Déficit: sequía tota
 chk( MAN_Sync_Deficit::indice_deficit( 100, 100 ) === 0, 'Déficit: normal = 0' );
 chk( MAN_Sync_Deficit::indice_deficit( 50, 100 ) === 50, 'Déficit: mitad = 50' );
 chk( MAN_Sync_Deficit::indice_deficit( 200, 100 ) === 0, 'Déficit: exceso recorta a 0' );
+
+/* ---------- SIVIGILA: catálogo de eventos sensibles al clima ---------- */
+require __DIR__ . '/../includes/sync/class-man-sync-sivigila.php';
+$eventos = \GobernacionNarino\MonitorAmbiental\MAN_Sync_Sivigila::eventos();
+
+chk( count( $eventos ) === 15, 'SIVIGILA: 15 eventos catalogados' );
+
+// Los códigos son la clave de la consulta: si cambian, el filtro deja de traer datos.
+$esperados = array( '210', '220', '580', '217', '895', '420', '430', '470', '490', '480', '460', '495', '540', '320', '330' );
+$faltan    = array_diff( $esperados, array_keys( $eventos ) );
+chk( empty( $faltan ), 'SIVIGILA: están los 15 códigos verificados contra datos.gov.co' );
+
+$etv = 0;
+$eta = 0;
+$letales = 0;
+foreach ( $eventos as $cod => $e ) {
+	chk_silencioso( isset( $e['grupo'], $e['corto'], $e['nombre'] ), 'evento ' . $cod . ' completo' );
+	if ( 'ETV' === $e['grupo'] ) { $etv++; } elseif ( 'ETA' === $e['grupo'] ) { $eta++; }
+	if ( ! empty( $e['letal'] ) ) { $letales++; }
+}
+chk( 13 === $etv, 'SIVIGILA: 13 eventos ETV (vectores)' );
+chk( 2 === $eta, 'SIVIGILA: 2 eventos ETA (agua y alimentos)' );
+chk( 2 === $letales, 'SIVIGILA: 2 eventos de mortalidad, separados de la incidencia' );
+
+// Las ETA son las dos de transmisión hídrica; el resto es vectorial.
+chk( 'ETA' === $eventos['320']['grupo'] && 'ETA' === $eventos['330']['grupo'], 'SIVIGILA: fiebre tifoidea y hepatitis A clasificadas como ETA' );
+chk( 'ETV' === $eventos['470']['grupo'] && 'ETV' === $eventos['210']['grupo'], 'SIVIGILA: malaria y dengue clasificados como ETV' );
+chk( ! empty( $eventos['580']['letal'] ) && ! empty( $eventos['540']['letal'] ), 'SIVIGILA: las dos mortalidades marcadas como letal' );
 
 /* ---------- Resumen ---------- */
 echo "\n" . ( $fallos === 0 ? "TODO OK" : "$fallos FALLO(S)" ) . "\n";

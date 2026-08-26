@@ -454,7 +454,14 @@ final class MAN_Admin {
 					$c(
 						'Salud y clima (dengue)',
 						'Casos de dengue (SIVIGILA) sensibles al clima. Con su descripción y análisis.',
-						array_merge( array( 'Salud y clima' => '[man_salud evento="dengue"]' ), $info( 'salud' ) )
+						array_merge(
+							array(
+								'Todo (ETV + ETA)'     => '[man_salud]',
+								'Solo vectores'        => '[man_salud grupo="ETV"]',
+								'Solo agua y alimentos' => '[man_salud grupo="ETA"]',
+							),
+							$info( 'salud' )
+						)
 					),
 				),
 			),
@@ -625,9 +632,9 @@ final class MAN_Admin {
 				array(
 					'tag'     => 'man_salud',
 					'titulo'  => 'Salud y clima',
-					'desc'    => 'Casos de dengue (SIVIGILA) sensibles al clima.',
-					'attrs'   => array( '<code>evento</code> — dengue', '<code>anio</code> — año' ),
-					'ejemplo' => '[man_salud evento="dengue"]',
+					'desc'    => 'Enfermedades sensibles al clima en Nariño (SIVIGILA/INS): serie anual, reparto por enfermedad y municipios más afectados.',
+					'attrs'   => array( '<code>grupo</code> — ETV (vectores) · ETA (agua y alimentos) · vacío = ambos' ),
+					'ejemplo' => '[man_salud]',
 				),
 			),
 			'Datos abiertos'        => array(
@@ -773,7 +780,7 @@ final class MAN_Admin {
 			<?php endforeach; ?>
 
 			<p class="man-api-pie">Atribución obligatoria de fuentes: NOAA/CPC, IRI (Columbia), IDEAM (vía datos.gov.co),
-				Open-Meteo (CC BY 4.0), NASA POWER, IOC/VLIZ Sea Level, INS/SIVIGILA y DANE (cartografía). Los datos abiertos
+				Open-Meteo (CC BY 4.0), IOC/VLIZ Sea Level, INS/SIVIGILA y DANE (cartografía). Los datos abiertos
 				del plugin se publican bajo CC BY 4.0.</p>
 		</div>
 
@@ -878,7 +885,7 @@ final class MAN_Admin {
 			),
 			'clima'     => array(
 				'titulo' => 'Clima y pronóstico',
-				'intro'  => 'El pronóstico puntual por municipio lo entrega Open-Meteo directamente al navegador (sin clave, con CORS, bajo licencia CC BY 4.0). El clima histórico y la climatología de referencia provienen de NASA POWER y de los reanálisis de Open-Meteo.',
+				'intro'  => 'El pronóstico puntual por municipio lo entrega Open-Meteo directamente al navegador (sin clave, con CORS, bajo licencia CC BY 4.0). El clima histórico y la climatología de referencia provienen del reanálisis ERA5 servido por Open-Meteo Archive.',
 				'filas'  => array(
 					array(
 						'dato'       => 'Pronóstico diario y horario 7–16 días (temperatura, precipitación, viento, humedad)',
@@ -917,12 +924,12 @@ final class MAN_Admin {
 						'shortcodes' => array( '[man_hidrico]' ),
 					),
 					array(
-						'dato'       => 'Clima histórico y climatología de referencia (1991–2020) para cálculo de anomalías',
-						'fuente'     => 'NASA POWER (perfiles agroclimáticos) · Open-Meteo Historical (ERA5)',
-						'endpoint'   => 'power.larc.nasa.gov/api/temporal/daily/point',
-						'capa'       => 'mixto',
-						'licencia'   => 'NASA POWER: uso libre con atribución · ERA5: CC BY 4.0',
-						'config'     => 'nasa_power',
+						'dato'       => 'Clima histórico y climatología de referencia para cálculo de anomalías',
+						'fuente'     => 'Open-Meteo Archive (reanálisis ERA5)',
+						'endpoint'   => 'archive-api.open-meteo.com/v1/archive',
+						'capa'       => 'servidor',
+						'licencia'   => 'ERA5 vía Open-Meteo: CC BY 4.0',
+						'config'     => 'open_meteo',
 						'shortcodes' => array( '[man_historico]', '[man_grafico]' ),
 					),
 				),
@@ -1019,9 +1026,9 @@ final class MAN_Admin {
 				'intro'  => 'Los casos de eventos de vigilancia sensibles al clima (dengue, EDA, IRA) provienen del INS/SIVIGILA a través de datos.gov.co (SoQL, cron). Se usan siempre agregados por municipio y semana epidemiológica; el plugin no maneja datos personales.',
 				'filas'  => array(
 					array(
-						'dato'       => 'Casos de dengue, dengue grave, EDA e IRA por departamento y semana epidemiológica',
+						'dato'       => 'Casos de 15 enfermedades sensibles al clima (dengue, malaria, leishmaniasis, chikunguña, zika, fiebre tifoidea, hepatitis A) por municipio y semana epidemiológica, 2007–2022',
 						'fuente'     => 'INS / SIVIGILA vía datos.gov.co (Socrata/SODA, SoQL)',
-						'endpoint'   => 'datos.gov.co/resource/{dataset-dengue}.json',
+						'endpoint'   => 'datos.gov.co/resource/4hyg-wa9d.json?cod_dpto_o=52',
 						'capa'       => 'cron',
 						'licencia'   => 'Datos abiertos de Colombia',
 						'config'     => 'sivigila',
@@ -1030,12 +1037,12 @@ final class MAN_Admin {
 				),
 				'combinados' => array(
 					array(
-						'titulo'     => 'Correlación salud–clima = SIVIGILA (casos) + Open-Meteo/NASA POWER (temperatura y lluvia)',
+						'titulo'     => 'Vigilancia salud–clima = SIVIGILA (casos notificados) + contexto ENSO',
 						'formula'    => '',
-						'detalle'    => 'El componente de salud relaciona los casos de dengue (favorecido por El Niño) con las variables climáticas del mismo periodo para evidenciar la sensibilidad climática del vector.',
+						'detalle'    => 'El componente agrupa los eventos en ETV (transmitidas por vectores: el calor acelera la reproducción del mosquito y la sequía multiplica los criaderos domésticos) y ETA (por agua y alimentos: la sequía reduce el agua potable y las inundaciones contaminan las fuentes). Se presentan junto al contexto climático, NO como efecto directo del fenómeno: son casos notificados con rezago, y su incidencia depende también del control vectorial, la minería, la movilidad y el acceso a agua potable.',
 						'fuentes'    => array(
-							'INS/SIVIGILA (casos agregados, cron)',
-							'Open-Meteo / NASA POWER (temperatura y precipitación)',
+							'INS/SIVIGILA (casos agregados por municipio y semana, cron diario)',
+							'NOAA/CPC (fase ENSO del mismo periodo, como contexto)',
 						),
 						'shortcodes' => array( '[man_salud]' ),
 					),
@@ -1047,10 +1054,10 @@ final class MAN_Admin {
 				'filas'  => array(
 					array(
 						'dato'       => 'Anomalías por municipio (temperatura y lluvia respecto a lo normal)',
-						'fuente'     => 'Pronóstico Open-Meteo − climatología 1991–2020 (NASA POWER / ERA5)',
+						'fuente'     => 'Pronóstico Open-Meteo − climatología de referencia (reanálisis ERA5)',
 						'endpoint'   => '',
 						'capa'       => 'mixto',
-						'licencia'   => 'Open-Meteo CC BY 4.0 · NASA POWER atribución',
+						'licencia'   => 'Open-Meteo CC BY 4.0',
 						'config'     => '',
 						'shortcodes' => array( '[man_mapa]', '[man_estado]', '[man_grafico]' ),
 					),

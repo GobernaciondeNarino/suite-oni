@@ -167,6 +167,7 @@ final class MAN_Rest {
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_salud' ),
 			'permission_callback' => $publico,
+			'args'                => array( 'grupo' => array( 'sanitize_callback' => 'sanitize_key' ) ),
 		) );
 
 		// --- Datos abiertos (JSON / CSV) ---
@@ -343,8 +344,9 @@ final class MAN_Rest {
 		return rest_ensure_response( self::construir_mar( $estacion ) );
 	}
 
-	public function ruta_salud() {
-		return rest_ensure_response( self::construir_salud() );
+	public function ruta_salud( $req = null ) {
+		$grupo = $req ? strtoupper( (string) $req->get_param( 'grupo' ) ) : '';
+		return rest_ensure_response( self::construir_salud( $grupo ) );
 	}
 
 	/** Estaciones hidrológicas FEWS de Nariño por variable (nivel/precipitación/caudal/temperatura). */
@@ -869,7 +871,7 @@ final class MAN_Rest {
 			array(
 				'titulo'        => $titulo,
 				'licencia'      => 'CC BY 4.0',
-				'atribucion'    => 'Gobernación de Nariño · Secretaría TIC. Fuentes: Open-Meteo (CC BY 4.0), NOAA/CPC, IDEAM, NASA POWER, IOC.',
+				'atribucion'    => 'Gobernación de Nariño · Secretaría TIC. Fuentes: Open-Meteo (CC BY 4.0), NOAA/CPC, IDEAM, IOC, INS/SIVIGILA.',
 				'generado'      => current_time( 'mysql', true ),
 				'total'         => is_array( $filas ) ? count( $filas ) : 0,
 				'datos'         => $filas,
@@ -1658,14 +1660,73 @@ final class MAN_Rest {
 	 *
 	 * @return array
 	 */
-	public static function construir_salud() {
-		$dengue     = MAN_Cache::get( 'sivigila_dengue' );
-		$disponible = $dengue && ! empty( $dengue['registros'] );
+	public static function construir_salud( $grupo = 'todos' ) {
+		$cache      = MAN_Cache::get( MAN_Sync_Sivigila::CLAVE );
+		$disponible = is_array( $cache ) && ! empty( $cache['anual'] );
+
+		if ( ! $disponible ) {
+			return array(
+				'disponible' => false,
+				'grupo'      => $grupo,
+				'anual'      => array(),
+				'eventos'    => array(),
+				'municipios' => array(),
+				'estacional' => array(),
+				'totales'    => array( 'ETV' => 0, 'ETA' => 0, 'muertes_dengue' => 0, 'muertes_malaria' => 0 ),
+				'fuente'     => 'INS / SIVIGILA vía datos.gov.co',
+				'mensaje'    => 'La fuente SIVIGILA aún no se ha sincronizado. Actívela en Monitor Ambiental → Fuentes.',
+			);
+		}
+
+		$grupo = in_array( $grupo, array( 'ETV', 'ETA' ), true ) ? $grupo : 'todos';
+
+		// Totales del histórico completo (las muertes van aparte de la incidencia).
+		$tot = array( 'ETV' => 0, 'ETA' => 0, 'muertes_dengue' => 0, 'muertes_malaria' => 0 );
+		foreach ( $cache['anual'] as $a ) {
+			$tot['ETV']             += (int) $a['ETV'];
+			$tot['ETA']             += (int) $a['ETA'];
+			$tot['muertes_dengue']  += (int) $a['muertes_dengue'];
+			$tot['muertes_malaria'] += (int) $a['muertes_malaria'];
+		}
+
+		// Acumulado por enfermedad, filtrado por grupo si se pidió.
+		$eventos = array();
+		foreach ( ( isset( $cache['por_evento'] ) ? $cache['por_evento'] : array() ) as $e ) {
+			if ( 'todos' !== $grupo && $e['grupo'] !== $grupo ) {
+				continue;
+			}
+			$k = $e['evento'];
+			if ( ! isset( $eventos[ $k ] ) ) {
+				$eventos[ $k ] = array(
+					'evento' => $k,
+					'grupo'  => $e['grupo'],
+					'letal'  => ! empty( $e['letal'] ),
+					'casos'  => 0,
+				);
+			}
+			$eventos[ $k ]['casos'] += (int) $e['casos'];
+		}
+		$eventos = array_values( $eventos );
+		usort(
+			$eventos,
+			function ( $a, $b ) {
+				return (int) $b['casos'] - (int) $a['casos'];
+			}
+		);
+
 		return array(
-			'disponible' => (bool) $disponible,
-			'total'      => $disponible ? count( $dengue['registros'] ) : 0,
-			'dengue'     => $dengue ? $dengue : null,
-			'fuente'     => 'INS / SIVIGILA',
+			'disponible'    => true,
+			'grupo'         => $grupo,
+			'anual'         => $cache['anual'],
+			'eventos'       => $eventos,
+			'municipios'    => array_slice( isset( $cache['municipios'] ) ? $cache['municipios'] : array(), 0, 20 ),
+			'estacional'    => isset( $cache['estacional'] ) ? $cache['estacional'] : array(),
+			'totales'       => $tot,
+			'cobertura'     => isset( $cache['cobertura'] ) ? $cache['cobertura'] : array(),
+			'actualizado'   => isset( $cache['actualizado'] ) ? $cache['actualizado'] : null,
+			'fuente'        => 'INS / SIVIGILA vía datos.gov.co',
+			// Advertencia deliberada: los casos no son un efecto directo del ENSO.
+			'nota_ensayo'   => 'Son casos notificados, con el rezago propio de la vigilancia epidemiológica. El clima influye en la transmisión, pero la incidencia depende además del control vectorial, la minería, la movilidad y el acceso a agua potable.',
 		);
 	}
 
