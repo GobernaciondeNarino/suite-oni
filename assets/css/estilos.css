@@ -442,6 +442,106 @@
   .man-aviso { background: rgba(239, 108, 0, .08); }
 }
 
+/* ---------------------------------------------------------------------------
+   [man_asistente] — asistente de IA (texto y voz)
+   Dentro del globo es un panel flotante plegable; suelto en una página, un
+   bloque normal que respeta el minimalismo del plugin.
+--------------------------------------------------------------------------- */
+.man-asistente__panel { display: flex; flex-direction: column; gap: .7em; }
+
+.man-asistente__hilo {
+  display: flex; flex-direction: column; gap: .5em;
+  max-height: 16em; overflow-y: auto; overscroll-behavior: contain;
+}
+.man-asistente__msg {
+  margin: 0; padding: .5em .7em; border-radius: 10px;
+  font-size: .92em; line-height: 1.5; max-width: 90%;
+}
+.man-asistente__msg--yo {
+  align-self: flex-end;
+  background: var(--man-acento-tecnico, #003087); color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.man-asistente__msg--bot {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--man-mute, #6b7280) 12%, transparent);
+  border-bottom-left-radius: 3px;
+}
+@supports not (background: color-mix(in srgb, red 12%, transparent)) {
+  .man-asistente__msg--bot { background: rgba(107, 114, 128, .12); }
+}
+.man-asistente__msg.is-provisional { opacity: .65; font-style: italic; }
+
+.man-asistente__escuchar {
+  background: none; border: 0; cursor: pointer; padding: 0 0 0 .4em;
+  font-size: 1em; line-height: 1; opacity: .7;
+}
+.man-asistente__escuchar:hover:not(:disabled) { opacity: 1; }
+.man-asistente__escuchar:disabled { opacity: .35; cursor: default; }
+
+.man-asistente__form { display: flex; gap: .4em; align-items: center; }
+.man-asistente__input {
+  flex: 1 1 auto; min-width: 0;
+  padding: .5em .7em; font: inherit; font-size: .92em;
+  border: 1px solid var(--man-borde-color, #e5e7eb); border-radius: 8px;
+  background: var(--man-fondo, #fff); color: inherit;
+}
+.man-asistente__input:focus-visible {
+  outline: 2px solid var(--man-acento-tecnico, #003087); outline-offset: 1px;
+}
+
+.man-asistente__mic {
+  flex: none; width: 2.2em; height: 2.2em; border-radius: 50%;
+  border: 1px solid var(--man-borde-color, #e5e7eb);
+  background: var(--man-fondo, #fff); cursor: pointer; font-size: .95em;
+}
+.man-asistente__mic.is-escuchando {
+  background: #c62828; border-color: #c62828;
+  animation: man-asistente-pulso 1.2s ease-in-out infinite;
+}
+@keyframes man-asistente-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, .5); }
+  50% { box-shadow: 0 0 0 .4em rgba(198, 40, 40, 0); }
+}
+
+.man-asistente__aviso {
+  margin: 0; font-size: .74em; line-height: 1.45;
+  color: var(--man-mute, #6b7280);
+}
+
+/* --- Montado dentro del globo: flotante y plegable --- */
+.man-asistente--globo { position: absolute; right: 12px; bottom: 12px; z-index: 5; max-width: min(23em, calc(100% - 24px)); }
+.man-asistente__toggle {
+  display: inline-flex; align-items: center; gap: .4em;
+  padding: .45em .8em; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .25);
+  background: rgba(10, 20, 35, .72); color: #fff;
+  font: inherit; font-size: .85em; backdrop-filter: blur(4px);
+}
+.man-asistente__toggle:hover { background: rgba(10, 20, 35, .9); }
+.man-asistente--globo .man-asistente__panel {
+  margin-top: .5em; padding: .8em;
+  background: rgba(10, 20, 35, .88); color: #fff;
+  border-radius: 12px; backdrop-filter: blur(6px);
+}
+.man-asistente--globo .man-asistente__input {
+  background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .22); color: #fff;
+}
+.man-asistente--globo .man-asistente__input::placeholder { color: rgba(255, 255, 255, .6); }
+.man-asistente--globo .man-asistente__mic {
+  background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .22); color: #fff;
+}
+.man-asistente--globo .man-asistente__msg--bot { background: rgba(255, 255, 255, .12); }
+.man-asistente--globo .man-asistente__aviso { color: rgba(255, 255, 255, .62); }
+
+@media (max-width: 600px) {
+  .man-asistente--globo { left: 12px; right: 12px; max-width: none; }
+  .man-asistente__hilo { max-height: 11em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .man-asistente__mic.is-escuchando { animation: none; }
+}
+
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
 @media (prefers-reduced-motion: reduce) {
   .man-btn { transition: none; }

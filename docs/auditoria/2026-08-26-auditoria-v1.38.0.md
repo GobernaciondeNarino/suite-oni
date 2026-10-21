@@ -30,6 +30,8 @@ se calcula con el ONI observado más reciente y se renueva a diario**.
 
 > **Actualización 1.39.0.** Se cerraron **A-3** (dataset de SIVIGILA identificado y fuente activa) y **A-7** (atribución de climatología corregida).
 >
+> **Actualización 1.41.0.** Se añade el módulo de IA (asistente ciudadano por voz y texto). Las claves de los proveedores y de ElevenLabs se guardan cifradas y no llegan al navegador; el endpoint público tiene cupo por IP, tope diario de gasto y caché de respuestas. Pendiente de la lista: nada nuevo — el módulo nace apagado y oculto, y sus textos advierten que no es un canal oficial de alertas.
+>
 > **Actualización 1.40.1.** Al verificar la MAP_KEY del operador se descubrió que **NASA FIRMS llevaba sin sincronizar desde la v1.37.1**: aquel cambio subió la ventana de focos de 2 a 7 días para cubrir más municipios, pero la API solo admite de 1 a 5 y respondía `HTTP 400 Invalid day range` en cada corrida. Con la ventana en 5 días la fuente entrega 82 focos repartidos en 12 municipios. El fallo pasó inadvertido porque «Probar conexión» consultaba 1 día (rango válido) mientras la sincronización pedía 7.
 >
 > **Actualización 1.40.0.** Se cerraron **A-1** (procedencia de datos visible para la ciudadanía y el operador) y **A-2** (aviso de clave ilegible), y se corrigieron dos fallos detectados al revisar NASA FIRMS: «Probar conexión» daba por buena cualquier respuesta HTTP 200 —el mismo mecanismo que ocultó el fallo de NOAA— y un conteo real de cero focos se etiquetaba como «modelado». Quedan **10 pendientes**, todas de prioridad B y C.

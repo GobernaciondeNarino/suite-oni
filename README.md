@@ -46,6 +46,7 @@ Al empaquetar, `.distignore` marca lo que no forma parte del plugin instalable
 | `[man_salud]` | **Enfermedades sensibles al clima** (SIVIGILA/INS): cifras, serie anual, reparto por enfermedad y municipios más afectados | `grupo` (`ETV`/`ETA`) |
 | `[man_hidrico]` | Caudal de ríos (GloFAS) + humedad de suelo | `municipio` |
 | `[man_estado_api]` | Panel público de salud de las APIs | — |
+| `[man_asistente]` | **Asistente de IA**: responde preguntas de la ciudadanía sobre los datos del sitio, por texto o por voz | `municipio`, `voz`, `titulo` |
 
 `municipio` admite código DIVIPOLA (`52001`) o nombre, o `departamento` para el agregado.
 
@@ -142,6 +143,46 @@ kilobytes en vez de las ~100.000 filas del departamento. Cobertura **2007–2022
 > además del control vectorial, la minería, la movilidad y el acceso a agua
 > potable. En Nariño la carga se concentra en el litoral Pacífico, donde la
 > malaria es endémica.
+
+### Asistente de IA (módulo opcional)
+Un asistente que responde preguntas de la ciudadanía **solo con los datos que
+este plugin publica** (ONI, predicción, riesgo por municipio, alertas del IDEAM,
+salud y focos de calor). No consulta la base de datos ni navega por internet: el
+servidor le entrega un resumen del estado vigente y el modelo redacta sobre eso.
+
+Se configura en **Monitor Ambiental → Asistente IA**:
+
+- **Proveedor**: Claude (Anthropic), ChatGPT (OpenAI) o Gemini (Google). Se
+  configura el que se quiera y solo trabaja el seleccionado.
+- **Voz**: ElevenLabs, con su **clave y su ID de voz**. Si se activa, cada
+  respuesta trae un botón para escucharla.
+- **Dos interruptores independientes**: *Activar* (el asistente responde) y
+  *Visible en el sitio* (se pinta en el front). Permite dejarlo configurado y
+  probado pero oculto hasta decidir publicarlo.
+- **Topes de uso**: consultas por visitante y hora, y tope diario global.
+
+```
+[man_asistente]                      # panel completo
+[man_asistente municipio="52835"]    # enfocado en un municipio
+[man_asistente voz="no"]             # solo texto
+[man_globo asistente="no"]           # globo sin el asistente encima
+```
+
+**Interacción por voz.** Hablarle usa el micrófono del navegador (Chrome, Edge y
+Android; en Firefox e iOS el botón no aparece y queda el texto), así que el audio
+del visitante **no sale de su equipo** ni consume API. La respuesta hablada sí la
+sintetiza ElevenLabs desde el servidor, y se guarda en caché por texto: una misma
+respuesta no se vuelve a pagar.
+
+**Seguridad y costo.** Las claves se guardan cifradas con `sodium_crypto_secretbox`
+y nunca llegan al navegador: el front habla con la REST del plugin
+(`/wp-json/man/v1/ai/consulta` y `/ai/voz`), que actúa de intermediaria. Como el
+endpoint es público y cada consulta cuesta dinero, hay cupo por IP, tope diario y
+caché de respuestas repetidas. El prompt del sistema trata los datos como
+información, no como instrucciones, y limita al asistente a su dominio.
+
+> El asistente **no es un canal oficial de alertas**. Los textos del componente
+> lo advierten y remiten al IDEAM, la UNGRD y la línea 123.
 
 ### Apariencia minimalista y overrides por atributo
 Por defecto todo es **transparente y sin bordes/sombras/franjas**. Ajusta el aspecto global en **Monitor Ambiental → Apariencia**, o por shortcode:
