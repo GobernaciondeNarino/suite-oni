@@ -77,6 +77,7 @@ final class MAN_Shortcodes {
 		add_shortcode( 'man_salud', array( $this, 'sc_salud' ) );
 		add_shortcode( 'man_hidrico', array( $this, 'sc_hidrico' ) );
 		add_shortcode( 'man_estado_api', array( $this, 'sc_estado_api' ) );
+		add_shortcode( 'man_asistente', array( $this, 'sc_asistente' ) );
 		add_shortcode( 'man_estaciones', array( $this, 'sc_estaciones' ) );
 		add_shortcode( 'man_mapa_fews', array( $this, 'sc_mapa_fews' ) );
 		add_shortcode( 'man_mapa_geo', array( $this, 'sc_mapa_geo' ) );
@@ -136,6 +137,7 @@ final class MAN_Shortcodes {
 		wp_register_script( 'man-salud', MAN_URL . 'assets/js/salud.js', array( 'man-core' ), MAN_VERSION, true );
 		wp_register_script( 'man-hidrico', MAN_URL . 'assets/js/hidrico.js', array( 'man-core', 'man-municipios', 'd3plus' ), MAN_VERSION, true );
 		wp_register_script( 'man-estado-api', MAN_URL . 'assets/js/estado-api.js', array( 'man-core' ), MAN_VERSION, true );
+		wp_register_script( 'man-asistente', MAN_URL . 'assets/js/asistente.js', array( 'man-core' ), MAN_VERSION, true );
 		// Globo: módulo ES (importmap de Three.js impreso aparte).
 		wp_register_script( 'man-globo', MAN_URL . 'assets/js/globo.js', array(), MAN_VERSION, true );
 	}
@@ -263,6 +265,7 @@ final class MAN_Shortcodes {
 		$atts = $this->fusionar( array(
 			'calidad'   => 'auto',
 			'autorotar' => 'si',
+			'asistente' => 'si', // el asistente aparece si además está activo y visible
 		), $atts, 'man_globo' );
 
 		wp_enqueue_style( 'man-estilos' );
@@ -288,6 +291,15 @@ final class MAN_Shortcodes {
 			data-calidad="<?php echo esc_attr( sanitize_key( $atts['calidad'] ) ); ?>">
 			<div class="man-globo__lienzo" role="img"
 				aria-label="Globo terráqueo 3D con la anomalía del Pacífico ecuatorial y el foco de Nariño"></div>
+
+			<?php
+			// El asistente se monta dentro del globo solo si el módulo está
+			// activo Y visible: así se puede dejar configurado pero oculto.
+			$con_asistente = 'no' !== $atts['asistente'] && MAN_AI::visible();
+			if ( $con_asistente ) :
+				?>
+				<?php echo $this->sc_asistente( array( 'contexto' => 'globo' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+			<?php endif; ?>
 
 			<div class="man-globo__controles" role="toolbar" aria-label="Vista y capas del globo">
 				<button type="button" class="man-globo__btn" data-camara="default" title="Vista global">🌐 Global</button>
@@ -1297,6 +1309,90 @@ final class MAN_Shortcodes {
 			data-man-hidrico data-municipio="<?php echo esc_attr( $div ); ?>">
 			<?php echo $this->skeleton( 'Cargando recursos hídricos…' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php echo $this->pie_fuentes( 'Open-Meteo Flood/Forecast (CC BY 4.0)' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [man_asistente] — asistente de IA sobre los datos del monitor.
+	 *
+	 * No pinta nada si el módulo está apagado u oculto, de modo que se puede
+	 * dejar colocado en la página mientras se prueba la configuración. La
+	 * interacción es por texto y, si el navegador lo permite, por voz: el
+	 * micrófono lo pone el navegador y la lectura en voz alta la hace
+	 * ElevenLabs desde el servidor.
+	 */
+	public function sc_asistente( $atts ) {
+		$atts = $this->fusionar( array(
+			'municipio' => '',
+			'voz'       => 'si',
+			'contexto'  => 'pagina', // 'globo' cuando se monta dentro del globo
+			'titulo'    => 'Pregunte sobre el clima en Nariño',
+		), $atts, 'man_asistente' );
+
+		if ( ! MAN_AI::visible() ) {
+			return '';
+		}
+
+		wp_enqueue_style( 'man-estilos' );
+		wp_enqueue_script( 'man-asistente' );
+
+		$estado    = MAN_AI::estado();
+		$municipio = MAN_Security::sanitizar_divipola( $atts['municipio'] );
+		$con_voz   = 'no' !== $atts['voz'] && ! empty( $estado['voz'] );
+		$en_globo  = 'globo' === $atts['contexto'];
+		$id        = $this->id();
+
+		ob_start();
+		?>
+		<div id="<?php echo esc_attr( $id ); ?>"
+			class="man man-asistente<?php echo $en_globo ? ' man-asistente--globo' : ''; ?>"
+			style="<?php echo esc_attr( $en_globo ? '' : MAN_Estilos::estilo_inline( $atts ) ); ?>"
+			data-man-asistente
+			data-municipio="<?php echo esc_attr( 'departamento' === $municipio ? '' : $municipio ); ?>"
+			data-voz="<?php echo $con_voz ? '1' : '0'; ?>"
+			data-contexto="<?php echo esc_attr( $en_globo ? 'globo' : 'pagina' ); ?>">
+
+			<?php if ( $en_globo ) : ?>
+				<button type="button" class="man-asistente__toggle" aria-expanded="false"
+					aria-controls="<?php echo esc_attr( $id ); ?>-panel"
+					title="Preguntar al asistente">
+					<span aria-hidden="true">💬</span>
+					<span class="man-asistente__toggle-txt">Preguntar</span>
+				</button>
+			<?php endif; ?>
+
+			<div class="man-asistente__panel" id="<?php echo esc_attr( $id ); ?>-panel" <?php echo $en_globo ? 'hidden' : ''; ?>>
+				<p class="man-titulo"><?php echo esc_html( sanitize_text_field( $atts['titulo'] ) ); ?></p>
+
+				<div class="man-asistente__hilo" role="log" aria-live="polite" aria-atomic="false">
+					<?php if ( ! empty( $estado['saludo'] ) ) : ?>
+						<p class="man-asistente__msg man-asistente__msg--bot"><?php echo esc_html( $estado['saludo'] ); ?></p>
+					<?php endif; ?>
+				</div>
+
+				<form class="man-asistente__form" novalidate>
+					<label class="screen-reader-text" for="<?php echo esc_attr( $id ); ?>-txt">Su pregunta</label>
+					<input type="text" id="<?php echo esc_attr( $id ); ?>-txt" class="man-asistente__input"
+						maxlength="500" autocomplete="off"
+						placeholder="¿Cómo está el fenómeno El Niño?" />
+
+					<?php if ( $con_voz ) : ?>
+						<button type="button" class="man-asistente__mic" title="Hablar" aria-label="Hablar al asistente" hidden>
+							<span aria-hidden="true">🎤</span>
+						</button>
+					<?php endif; ?>
+
+					<button type="submit" class="man-btn man-asistente__enviar">Preguntar</button>
+				</form>
+
+				<p class="man-asistente__aviso">
+					Respuestas generadas por inteligencia artificial a partir de los datos de este
+					sitio. Pueden contener errores: verifique siempre con los boletines del IDEAM.
+					No es un canal de emergencias — para eso, la línea 123.
+				</p>
+			</div>
 		</div>
 		<?php
 		return ob_get_clean();

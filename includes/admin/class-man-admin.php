@@ -15,14 +15,25 @@ final class MAN_Admin {
 	/** @var MAN_Api_Config */
 	private $config;
 
+	/** @var MAN_AI_Config */
+	private $ai;
+
 	/** @var string[] Hooks exactos de las páginas del plugin (para encolar). */
 	private $hooks = array();
 
 	public function __construct() {
 		$this->config = new MAN_Api_Config();
+		$this->ai     = new MAN_AI_Config();
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_action( 'admin_post_man_guardar_estilo', array( $this, 'guardar_estilo' ) );
+	}
+
+	/**
+	 * Página del asistente de IA.
+	 */
+	public function pagina_ai() {
+		$this->ai->render();
 	}
 
 	/**
@@ -69,6 +80,7 @@ final class MAN_Admin {
 		$this->hooks[] = add_submenu_page( 'man-salud', 'Fuentes de datos', 'Fuentes', 'manage_options', 'man-fuentes', array( $this, 'pagina_fuentes' ) );
 		$this->hooks[] = add_submenu_page( 'man-salud', 'APIs y datos', 'APIs y datos', 'manage_options', 'man-apis-datos', array( $this, 'pagina_apis_datos' ) );
 		$this->hooks[] = add_submenu_page( 'man-salud', 'Apariencia', 'Apariencia', 'manage_options', 'man-apariencia', array( $this, 'pagina_apariencia' ) );
+		$this->hooks[] = add_submenu_page( 'man-salud', 'Asistente de IA', 'Asistente IA', 'manage_options', 'man-ai', array( $this, 'pagina_ai' ) );
 		$this->hooks   = array_filter( $this->hooks );
 	}
 

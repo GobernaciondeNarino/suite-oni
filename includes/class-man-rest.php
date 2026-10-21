@@ -166,6 +166,30 @@ final class MAN_Rest {
 			'args'                => array( 'set' => array( 'sanitize_callback' => 'sanitize_key' ) ),
 		) );
 
+		// --- Asistente de IA ---
+		register_rest_route( self::NS, '/ai/estado', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'ruta_ai_estado' ),
+			'permission_callback' => $publico,
+		) );
+
+		register_rest_route( self::NS, '/ai/consulta', array(
+			'methods'             => 'POST',
+			'callback'            => array( $this, 'ruta_ai_consulta' ),
+			'permission_callback' => $publico,
+			'args'                => array(
+				'pregunta'  => array( 'required' => true ),
+				'municipio' => array( 'sanitize_callback' => 'sanitize_text_field' ),
+			),
+		) );
+
+		register_rest_route( self::NS, '/ai/voz', array(
+			'methods'             => 'POST',
+			'callback'            => array( $this, 'ruta_ai_voz' ),
+			'permission_callback' => $publico,
+			'args'                => array( 'texto' => array( 'required' => true ) ),
+		) );
+
 		register_rest_route( self::NS, '/salud', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'ruta_salud' ),
@@ -350,6 +374,32 @@ final class MAN_Rest {
 	public function ruta_mar( $req ) {
 		$estacion = sanitize_text_field( (string) $req->get_param( 'estacion' ) );
 		return rest_ensure_response( self::construir_mar( $estacion ) );
+	}
+
+	/** Capacidades del asistente: el front decide con esto si se pinta. */
+	public function ruta_ai_estado() {
+		return rest_ensure_response( MAN_AI::estado() );
+	}
+
+	/** Consulta del ciudadano al asistente. */
+	public function ruta_ai_consulta( $req ) {
+		$pregunta  = (string) $req->get_param( 'pregunta' );
+		$municipio = (string) $req->get_param( 'municipio' );
+
+		$res = MAN_AI::preguntar( $pregunta, $municipio );
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		return rest_ensure_response( $res );
+	}
+
+	/** Lectura en voz alta de una respuesta del asistente. */
+	public function ruta_ai_voz( $req ) {
+		$res = MAN_AI_Voz::sintetizar( (string) $req->get_param( 'texto' ) );
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		return rest_ensure_response( $res );
 	}
 
 	public function ruta_salud( $req = null ) {

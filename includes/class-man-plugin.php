@@ -83,10 +83,16 @@ final class MAN_Plugin {
 		require_once $base . 'sync/class-man-sync.php';
 
 		// Presentación.
+		// Módulo de IA (asistente ciudadano por voz y texto).
+		require_once $base . 'ai/class-man-ai.php';
+		require_once $base . 'ai/class-man-ai-contexto.php';
+		require_once $base . 'ai/class-man-ai-voz.php';
+
 		require_once $base . 'shortcodes/class-man-shortcodes.php';
 
 		// Administración (solo se usa en el panel, pero se requiere siempre
 		// para que las acciones AJAX/cron registradas existan).
+		require_once $base . 'admin/class-man-ai-config.php';
 		require_once $base . 'admin/class-man-api-config.php';
 		require_once $base . 'admin/class-man-admin.php';
 

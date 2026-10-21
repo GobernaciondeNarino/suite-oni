@@ -10,14 +10,16 @@
 
   /** fetch con límite de tiempo: sin él, una API colgada deja el skeleton
       girando indefinidamente y los reintentos apilan peticiones vivas. */
-  function pedir(url, ms) {
+  function pedir(url, ms, init) {
     var limite = ms || TIMEOUT;
+    var opciones = init || {};
     if (typeof AbortController === 'undefined') {
-      return fetch(url).then(comprobar);
+      return fetch(url, opciones).then(comprobar);
     }
     var ctl = new AbortController();
     var reloj = setTimeout(function () { ctl.abort(); }, limite);
-    return fetch(url, { signal: ctl.signal })
+    opciones.signal = ctl.signal;
+    return fetch(url, opciones)
       .then(function (r) { clearTimeout(reloj); return comprobar(r); })
       .catch(function (e) {
         clearTimeout(reloj);
@@ -28,16 +30,26 @@
       });
   }
 
+  /** La REST de WordPress explica el fallo en {code, message}: ese texto está
+      escrito para el visitante (cupo agotado, servicio caído), así que se
+      conserva en lugar de sustituirlo por un «HTTP 429» sin sentido. */
   function comprobar(r) {
-    if (!r.ok) { throw new Error('HTTP ' + r.status); }
-    return r.json();
+    if (r.ok) { return r.json(); }
+    return r.json()
+      .catch(function () { return null; })
+      .then(function (d) {
+        var msg = (d && d.message) ? d.message : 'HTTP ' + r.status;
+        var err = new Error(msg);
+        err.estado = r.status;
+        throw err;
+      });
   }
 
   /** GET a la REST interna del plugin.
       NOTA: no se envía X-WP-Nonce a propósito — todos los endpoints son
       públicos de solo lectura y un nonce caducado servido por la caché de
       página provocaría 403 (rest_cookie_invalid_nonce) en visitantes. */
-  function rest(path, params) {
+  function rest(path, params, opts) {
     var url = MAN.rest + path;
     if (params) {
       var q = Object.keys(params)
@@ -46,7 +58,15 @@
         .join('&');
       if (q) { url += (url.indexOf('?') >= 0 ? '&' : '?') + q; }
     }
-    return pedir(url);
+
+    // Por defecto GET; con opts.metodo se envía un cuerpo JSON.
+    var o = opts || {};
+    if (!o.metodo || o.metodo === 'GET') { return pedir(url); }
+    return pedir(url, o.timeout, {
+      method: o.metodo,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(o.cuerpo || {})
+    });
   }
 
   /** GET a una URL pública externa (Open-Meteo). */
