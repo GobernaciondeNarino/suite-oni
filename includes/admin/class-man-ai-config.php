@@ -29,6 +29,12 @@ final class MAN_AI_Config {
 			return;
 		}
 
+		// Vaciado del registro (enlace con nonce desde la propia página).
+		if ( isset( $_GET['man_ai_limpiar'] ) && check_admin_referer( 'man_ai_limpiar' ) ) {
+			MAN_AI::limpiar_diagnostico();
+			echo '<div class="notice notice-success is-dismissible"><p>Registro de diagnóstico vaciado.</p></div>';
+		}
+
 		$cfg         = MAN_AI::config();
 		$proveedores = MAN_AI::proveedores();
 		$consumo     = MAN_AI::consumo_hoy();
@@ -202,6 +208,76 @@ final class MAN_AI_Config {
 				<?php submit_button( 'Guardar configuración del asistente' ); ?>
 			</form>
 
+			<h2>Diagnóstico</h2>
+			<p class="description">
+				Comprobación de toda la cadena, en orden. Si el asistente falla, el primer
+				renglón en rojo dice qué arreglar.
+			</p>
+
+			<?php $revision = MAN_AI::revisar_configuracion(); ?>
+			<table class="widefat striped" style="max-width:62em">
+				<thead><tr><th style="width:14em">Comprobación</th><th>Resultado</th></tr></thead>
+				<tbody>
+				<?php foreach ( $revision as $fila ) : ?>
+					<tr>
+						<td><strong><?php echo esc_html( $fila['paso'] ); ?></strong></td>
+						<td>
+							<span class="man-dot" style="background:<?php echo esc_attr( self::color_estado( $fila['estado'] ) ); ?>"></span>
+							<?php echo esc_html( $fila['mensaje'] ); ?>
+							<?php if ( ! empty( $fila['pista'] ) ) : ?>
+								<br><span class="description"><?php echo esc_html( $fila['pista'] ); ?></span>
+							<?php endif; ?>
+						</td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<h3>Registro de errores</h3>
+			<?php $log = MAN_AI::diagnostico(); ?>
+			<?php if ( empty( $log ) ) : ?>
+				<p class="description">Sin eventos registrados. Aquí aparecerá el detalle exacto de cada
+					fallo del proveedor: el código HTTP y el motivo que devuelve, que es lo que no se
+					puede ver desde el sitio público.</p>
+			<?php else : ?>
+				<table class="widefat striped" style="max-width:62em">
+					<thead><tr><th style="width:12em">Cuándo</th><th style="width:8em">Paso</th><th>Detalle</th></tr></thead>
+					<tbody>
+					<?php foreach ( $log as $ev ) : ?>
+						<tr>
+							<td><?php echo esc_html( $ev['ts'] ); ?> UTC</td>
+							<td>
+								<span class="man-dot" style="background:<?php echo esc_attr( 'ok' === $ev['nivel'] ? '#2e7d32' : '#c62828' ); ?>"></span>
+								<?php echo esc_html( $ev['paso'] ); ?>
+							</td>
+							<td>
+								<?php echo esc_html( $ev['mensaje'] ); ?>
+								<?php if ( ! empty( $ev['extra']['pista'] ) ) : ?>
+									<br><span class="description"><strong>Qué hacer:</strong> <?php echo esc_html( $ev['extra']['pista'] ); ?></span>
+								<?php endif; ?>
+								<?php if ( ! empty( $ev['extra']['cuerpo'] ) ) : ?>
+									<details style="margin-top:4px">
+										<summary class="description" style="cursor:pointer">Respuesta cruda del proveedor</summary>
+										<pre style="white-space:pre-wrap;word-break:break-word;background:#f6f7f7;padding:8px;margin:4px 0 0;font-size:11px"><?php echo esc_html( $ev['extra']['cuerpo'] ); ?></pre>
+									</details>
+								<?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p>
+					<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'page' => 'man-ai', 'man_ai_limpiar' => '1' ), admin_url( 'admin.php' ) ), 'man_ai_limpiar' ) ); ?>">Vaciar registro</a>
+				</p>
+			<?php endif; ?>
+
+			<p class="description" style="max-width:62em">
+				En el sitio público, el detalle de cada fallo también se escribe en la
+				<strong>consola del navegador</strong> (F12 → Consola). Si está con sesión de
+				administrador verá ahí el motivo exacto del proveedor; si no, solo el mensaje
+				general.
+			</p>
+
 			<h2>Cómo publicarlo</h2>
 			<p>El asistente aparece junto al globo cuando está activo y visible. También puede colocarlo aparte:</p>
 			<p><code>[man_asistente]</code> — panel completo de preguntas y respuestas.<br />
@@ -210,6 +286,23 @@ final class MAN_AI_Config {
 			<p>En el globo puede desactivarlo con <code>[man_globo asistente="no"]</code>.</p>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Color del semáforo de una comprobación.
+	 *
+	 * @param string $estado ok|aviso|error.
+	 * @return string
+	 */
+	private static function color_estado( $estado ) {
+		switch ( $estado ) {
+			case 'ok':
+				return '#2e7d32';
+			case 'aviso':
+				return '#f9a825';
+			default:
+				return '#c62828';
+		}
 	}
 
 	/**

@@ -72,14 +72,21 @@
       })
         .then(function (d) {
           pensando.parentNode.removeChild(pensando);
+
+          // El endpoint responde 200 siempre; el fallo viene marcado en ok.
+          if (d && d.ok === false) {
+            reportar('consulta', d, { pregunta: texto, municipio: estado.municipio });
+            mensaje(hilo, d.mensaje || 'No se pudo consultar al asistente.', 'bot');
+            return;
+          }
+
           var respuesta = (d && d.respuesta) ? d.respuesta : 'No recibí respuesta.';
           var nodo = mensaje(hilo, respuesta, 'bot');
           if (estado.voz) { añadirEscucha(nodo, respuesta, estado); }
         })
         .catch(function (err) {
           pensando.parentNode.removeChild(pensando);
-          // El backend manda mensajes pensados para el visitante (cupo
-          // agotado, servicio caído): se muestran tal cual si existen.
+          reportar('consulta', { mensaje: err && err.message, estado: err && err.estado }, { pregunta: texto });
           mensaje(hilo, (err && err.message) ? err.message : 'No se pudo consultar al asistente. Intente de nuevo.', 'bot');
         })
         .then(function () {
@@ -88,6 +95,39 @@
           hilo.scrollTop = hilo.scrollHeight;
         });
     }
+  }
+
+  /* ---------- Diagnóstico en consola ----------
+     Escribe el detalle del fallo donde un técnico pueda verlo sin entrar al
+     servidor. El mensaje para el visitante sigue siendo el de la burbuja. */
+  function reportar(paso, datos, contexto) {
+    if (!window.console) { return; }
+    var d = datos || {};
+    var titulo = '[Monitor Ambiental · asistente] Fallo en «' + paso + '»' +
+      (d.codigo ? ' — ' + d.codigo : '');
+
+    var grupo = console.groupCollapsed ? 'groupCollapsed' : 'log';
+    try {
+      console[grupo](titulo);
+      console.error('Mensaje mostrado al visitante:', d.mensaje || '(sin mensaje)');
+
+      if (d.diagnostico) {
+        // Solo llega si quien mira es administrador del sitio.
+        console.error('Detalle del proveedor:', d.diagnostico.detalle || '(sin detalle)');
+        if (d.diagnostico.codigo_proveedor) {
+          console.error('Código HTTP del proveedor:', d.diagnostico.codigo_proveedor);
+        }
+        console.info(d.diagnostico.nota);
+      } else {
+        console.info('Inicie sesión como administrador para ver el detalle técnico aquí, ' +
+          'o consulte Monitor Ambiental → Asistente IA → Registro de diagnóstico.');
+      }
+
+      if (d.estado) { console.error('Estado HTTP de la petición:', d.estado); }
+      if (contexto && Object.keys(contexto).length) { console.debug('Contexto:', contexto); }
+      console.debug('Respuesta completa:', d);
+    } catch (e) { /* una consola limitada no debe romper la interfaz */ }
+    if (console.groupEnd) { console.groupEnd(); }
   }
 
   /* ---------- Mensajes ---------- */
@@ -113,15 +153,17 @@
 
       C.rest('/ai/voz', null, { metodo: 'POST', timeout: 45000, cuerpo: { texto: texto } })
         .then(function (d) {
+          if (d && d.ok === false) { reportar('voz', d, {}); throw new Error(d.mensaje || 'Sin audio'); }
           if (!d || !d.audio) { throw new Error('Sin audio'); }
           var audio = new Audio('data:' + (d.tipo || 'audio/mpeg') + ';base64,' + d.audio);
           estado.audio = audio;
           audio.addEventListener('ended', function () { btn.disabled = false; });
           return audio.play();
         })
-        .catch(function () {
+        .catch(function (err) {
           btn.disabled = false;
-          btn.title = 'No se pudo reproducir el audio';
+          btn.title = (err && err.message) ? err.message : 'No se pudo reproducir el audio';
+          reportar('voz', { mensaje: err && err.message }, {});
         });
     });
 

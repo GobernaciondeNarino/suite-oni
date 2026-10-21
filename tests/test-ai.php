@@ -23,6 +23,10 @@ namespace {
 	function sanitize_text_field( $s ) { return trim( strip_tags( (string) $s ) ); }
 	function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d ); }
 	function wp_json_encode( $v ) { return json_encode( $v, JSON_UNESCAPED_UNICODE ); }
+	function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+	function wp_remote_get( $url, $args = array() ) { return isset( $GLOBALS['__get'] ) ? $GLOBALS['__get'] : array( 'code' => 200, 'body' => '' ); }
+	function delete_option( $k ) { unset( $GLOBALS['__opt'][ $k ] ); return true; }
+	function current_time( $t, $g = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
 	function get_option( $k, $d = false ) { return isset( $GLOBALS['__opt'][ $k ] ) ? $GLOBALS['__opt'][ $k ] : $d; }
 	function update_option( $k, $v ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
 	function wp_parse_args( $a, $d ) { return array_merge( $d, is_array( $a ) ? $a : array() ); }
@@ -170,6 +174,67 @@ namespace {
 
 	$cfg['visible'] = true; $cfg['claude_clave'] = ''; $cfg['proveedor'] = 'claude'; update_option( MAN_AI::OPCION, $cfg );
 	chk( ! MAN_AI::activo(), 'sin clave del proveedor activo, el módulo no se considera activo' );
+
+	echo "\n--- 9. Diagnóstico: el motivo real queda registrado ---\n";
+	$GLOBALS['__opt'][ MAN_AI::OPCION_DIAG ] = array();
+	$cfg = get_option( MAN_AI::OPCION );
+	$cfg['activo'] = true; $cfg['visible'] = true; $cfg['proveedor'] = 'claude';
+	$cfg['claude_clave'] = MAN_Security::cifrar( 'sk-ant-invalida' );
+	update_option( MAN_AI::OPCION, $cfg );
+	$GLOBALS['__c'] = array();
+
+	// Clave rechazada: el caso más común y el que antes se veía como «HTTP 502».
+	$GLOBALS['__resp'] = array( 'code' => 401, 'body' => json_encode( array(
+		'type' => 'error',
+		'error' => array( 'type' => 'authentication_error', 'message' => 'invalid x-api-key' ),
+	) ) );
+	$r = MAN_AI::preguntar( 'pregunta con clave invalida' );
+
+	chk( is_wp_error( $r ), 'devuelve error' );
+	chk( false === strpos( $r->get_error_message(), 'invalid x-api-key' ), 'el mensaje PÚBLICO no filtra el detalle del proveedor' );
+	$datos = $r->get_error_data();
+	chk( isset( $datos['detalle'] ) && false !== strpos( $datos['detalle'], 'invalid x-api-key' ), 'el detalle real viaja aparte, para administradores' );
+	chk( isset( $datos['codigo_proveedor'] ) && 401 === $datos['codigo_proveedor'], 'conserva el código HTTP del proveedor' );
+
+	$log = MAN_AI::diagnostico();
+	chk( ! empty( $log ), 'el fallo queda en el registro de diagnóstico' );
+	chk( isset( $log[0]['mensaje'] ) && false !== strpos( $log[0]['mensaje'], 'invalid x-api-key' ), 'el registro guarda el motivo del proveedor' );
+	chk( isset( $log[0]['extra']['cuerpo'] ) && false !== strpos( $log[0]['extra']['cuerpo'], 'authentication_error' ), 'guarda la respuesta cruda' );
+	chk( isset( $log[0]['extra']['pista'] ) && '' !== $log[0]['extra']['pista'], 'incluye una pista accionable: ' . $log[0]['extra']['pista'] );
+	$serializado = json_encode( $log );
+	chk( false === strpos( $serializado, 'sk-ant-invalida' ), 'la clave NUNCA entra al registro' );
+
+	echo "\n--- 10. Sin salida a internet (hosting que bloquea) ---\n";
+	$GLOBALS['__opt'][ MAN_AI::OPCION_DIAG ] = array();
+	$GLOBALS['__c'] = array();
+	$GLOBALS['__resp'] = new \WP_Error( 'http_request_failed', 'cURL error 7: Failed to connect' );
+	$r = MAN_AI::preguntar( 'otra pregunta distinta' );
+	chk( is_wp_error( $r ) && 'man_ai_red' === $r->code, 'se distingue de un fallo del proveedor' );
+	$log = MAN_AI::diagnostico();
+	chk( ! empty( $log ) && 'red' === $log[0]['paso'], 'registrado como fallo de red' );
+	chk( false !== strpos( $log[0]['extra']['pista'], 'cortafuegos' ), 'la pista apunta al bloqueo de salida del hosting' );
+
+	echo "\n--- 11. Revisión de la configuración ---\n";
+	$filas = MAN_AI::revisar_configuracion();
+	chk( ! empty( $filas ), 'devuelve comprobaciones: ' . count( $filas ) );
+	$pasos = array();
+	foreach ( $filas as $f ) { $pasos[] = $f['paso']; }
+	chk( in_array( 'Clave del proveedor', $pasos, true ), 'comprueba la clave' );
+	chk( in_array( 'Modelo', $pasos, true ), 'comprueba el modelo' );
+	chk( in_array( 'Salida a internet', $pasos, true ), 'comprueba la salida a internet' );
+
+	// Clave guardada pero ilegible: el fallo silencioso que ya corregimos antes.
+	$cfg = get_option( MAN_AI::OPCION );
+	$cfg['claude_clave'] = 'esto-no-es-un-paquete-cifrado-valido';
+	update_option( MAN_AI::OPCION, $cfg );
+	$filas = MAN_AI::revisar_configuracion();
+	$encontrado = false;
+	foreach ( $filas as $f ) {
+		if ( 'Clave del proveedor' === $f['paso'] && 'error' === $f['estado'] && false !== strpos( $f['mensaje'], 'descifrar' ) ) {
+			$encontrado = true;
+		}
+	}
+	chk( $encontrado, 'detecta una clave guardada que ya no se puede descifrar' );
 
 	echo "\n" . ( $fallos ? "$fallos FALLO(S)\n" : "TODO OK\n" );
 	exit( $fallos ? 1 : 0 );

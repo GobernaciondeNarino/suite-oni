@@ -181,6 +181,16 @@ endpoint es público y cada consulta cuesta dinero, hay cupo por IP, tope diario
 caché de respuestas repetidas. El prompt del sistema trata los datos como
 información, no como instrucciones, y limita al asistente a su dominio.
 
+**Si algo falla.** *Monitor Ambiental → Asistente IA* trae dos bloques al final:
+**Diagnóstico**, que recorre toda la cadena en orden (interruptores, clave,
+modelo, salida a internet del servidor, cifrado, voz y cupos) y señala el primer
+punto roto con qué hacer para arreglarlo; y **Registro de errores**, con el
+código HTTP y el motivo exacto que devolvió el proveedor, incluida su respuesta
+cruda. En el sitio público el detalle también se escribe en la **consola del
+navegador** (F12 → Consola); con sesión de administrador aparece el motivo
+técnico, y sin ella solo el mensaje general. Las claves nunca entran ni al
+registro ni a la consola.
+
 > El asistente **no es un canal oficial de alertas**. Los textos del componente
 > lo advierten y remiten al IDEAM, la UNGRD y la línea 123.
 
