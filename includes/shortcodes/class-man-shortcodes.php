@@ -1315,20 +1315,49 @@ final class MAN_Shortcodes {
 	}
 
 	/**
+	 * Iconos del asistente, en SVG inline.
+	 *
+	 * Se dibujan con `currentColor` y `stroke`, así heredan el color del botón
+	 * que los contiene y no dependen de ninguna fuente de iconos externa.
+	 *
+	 * @param string $nombre micro|enviar|detener|cerrar|altavoz|chat.
+	 * @return string SVG listo para incrustar.
+	 */
+	private function icono( $nombre ) {
+		$base = '<svg class="man-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">%s</svg>';
+
+		$trazos = array(
+			// Micrófono: cápsula + arco de soporte + pie.
+			'micro'   => '<rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/>',
+			// Enviar: flecha hacia arriba.
+			'enviar'  => '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',
+			// Detener: cuadrado relleno.
+			'detener' => '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
+			// Cerrar: aspa.
+			'cerrar'  => '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+			// Altavoz con ondas.
+			'altavoz' => '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+			// Bocadillo de conversación, para el lanzador.
+			'chat'    => '<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z"/>',
+		);
+
+		return sprintf( $base, isset( $trazos[ $nombre ] ) ? $trazos[ $nombre ] : '' );
+	}
+
+	/**
 	 * [man_asistente] — asistente de IA sobre los datos del monitor.
 	 *
-	 * No pinta nada si el módulo está apagado u oculto, de modo que se puede
-	 * dejar colocado en la página mientras se prueba la configuración. La
-	 * interacción es por texto y, si el navegador lo permite, por voz: el
-	 * micrófono lo pone el navegador y la lectura en voz alta la hace
-	 * ElevenLabs desde el servidor.
+	 * Un botón «Asistente» abre una ventana con el saludo del anfitrión, las
+	 * preguntas sugeridas y la barra de entrada (micrófono, texto, enviar,
+	 * detener y cerrar). No pinta nada si el módulo está apagado u oculto, de
+	 * modo que el shortcode puede quedarse colocado mientras se configura.
 	 */
 	public function sc_asistente( $atts ) {
 		$atts = $this->fusionar( array(
 			'municipio' => '',
 			'voz'       => 'si',
 			'contexto'  => 'pagina', // 'globo' cuando se monta dentro del globo
-			'titulo'    => 'Pregunte sobre el clima en Nariño',
+			'etiqueta'  => 'Asistente',
 		), $atts, 'man_asistente' );
 
 		if ( ! MAN_AI::visible() ) {
@@ -1338,11 +1367,23 @@ final class MAN_Shortcodes {
 		wp_enqueue_style( 'man-estilos' );
 		wp_enqueue_script( 'man-asistente' );
 
-		$estado    = MAN_AI::estado();
-		$municipio = MAN_Security::sanitizar_divipola( $atts['municipio'] );
-		$con_voz   = 'no' !== $atts['voz'] && ! empty( $estado['voz'] );
-		$en_globo  = 'globo' === $atts['contexto'];
-		$id        = $this->id();
+		// El front necesita el catálogo de códigos para nombrar en consola los
+		// fallos que ocurren en el propio navegador.
+		wp_localize_script(
+			'man-asistente',
+			'MANAI',
+			array(
+				'codigos' => MAN_AI_Codigos::para_front(),
+				'admin'   => current_user_can( 'manage_options' ),
+			)
+		);
+
+		$estado      = MAN_AI::estado();
+		$municipio   = MAN_Security::sanitizar_divipola( $atts['municipio'] );
+		$con_voz     = 'no' !== $atts['voz'] && ! empty( $estado['voz'] );
+		$en_globo    = 'globo' === $atts['contexto'];
+		$sugerencias = $estado['sugerencias'];
+		$id          = $this->id();
 
 		ob_start();
 		?>
@@ -1351,40 +1392,67 @@ final class MAN_Shortcodes {
 			style="<?php echo esc_attr( $en_globo ? '' : MAN_Estilos::estilo_inline( $atts ) ); ?>"
 			data-man-asistente
 			data-municipio="<?php echo esc_attr( 'departamento' === $municipio ? '' : $municipio ); ?>"
-			data-voz="<?php echo $con_voz ? '1' : '0'; ?>"
-			data-contexto="<?php echo esc_attr( $en_globo ? 'globo' : 'pagina' ); ?>">
+			data-voz="<?php echo $con_voz ? '1' : '0'; ?>">
 
-			<?php if ( $en_globo ) : ?>
-				<button type="button" class="man-asistente__toggle" aria-expanded="false"
-					aria-controls="<?php echo esc_attr( $id ); ?>-panel"
-					title="Preguntar al asistente">
-					<span aria-hidden="true">💬</span>
-					<span class="man-asistente__toggle-txt">Preguntar</span>
-				</button>
-			<?php endif; ?>
+			<button type="button" class="man-asistente__lanzador"
+				aria-expanded="false" aria-controls="<?php echo esc_attr( $id ); ?>-ventana">
+				<?php echo $this->icono( 'chat' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				<span><?php echo esc_html( sanitize_text_field( $atts['etiqueta'] ) ); ?></span>
+			</button>
 
-			<div class="man-asistente__panel" id="<?php echo esc_attr( $id ); ?>-panel" <?php echo $en_globo ? 'hidden' : ''; ?>>
-				<p class="man-titulo"><?php echo esc_html( sanitize_text_field( $atts['titulo'] ) ); ?></p>
+			<div class="man-asistente__ventana" id="<?php echo esc_attr( $id ); ?>-ventana"
+				role="dialog" aria-modal="false"
+				aria-label="Asistente del Monitor Ambiental" hidden>
 
 				<div class="man-asistente__hilo" role="log" aria-live="polite" aria-atomic="false">
-					<?php if ( ! empty( $estado['saludo'] ) ) : ?>
-						<p class="man-asistente__msg man-asistente__msg--bot"><?php echo esc_html( $estado['saludo'] ); ?></p>
-					<?php endif; ?>
+					<p class="man-asistente__anfitrion"><?php echo esc_html( $estado['anfitrion'] ); ?></p>
+					<div class="man-asistente__msg man-asistente__msg--bot">
+						<p><?php echo esc_html( $estado['saludo'] ); ?></p>
+					</div>
 				</div>
 
-				<form class="man-asistente__form" novalidate>
-					<label class="screen-reader-text" for="<?php echo esc_attr( $id ); ?>-txt">Su pregunta</label>
-					<input type="text" id="<?php echo esc_attr( $id ); ?>-txt" class="man-asistente__input"
-						maxlength="500" autocomplete="off"
-						placeholder="¿Cómo está el fenómeno El Niño?" />
+				<?php if ( $sugerencias ) : ?>
+					<div class="man-asistente__sugerencias">
+						<span class="man-asistente__sug-rotulo">Puedes preguntar:</span>
+						<div class="man-asistente__sug-lista" role="list">
+							<?php foreach ( $sugerencias as $sug ) : ?>
+								<button type="button" class="man-asistente__sug" role="listitem"
+									data-pregunta="<?php echo esc_attr( $sug ); ?>"><?php echo esc_html( $sug ); ?></button>
+							<?php endforeach; ?>
+						</div>
+					</div>
+				<?php endif; ?>
 
+				<form class="man-asistente__barra" novalidate>
 					<?php if ( $con_voz ) : ?>
-						<button type="button" class="man-asistente__mic" title="Hablar" aria-label="Hablar al asistente" hidden>
-							<span aria-hidden="true">🎤</span>
+						<button type="button" class="man-asistente__btn man-asistente__btn--mic"
+							aria-label="Preguntar por voz" title="Preguntar por voz" hidden>
+							<?php echo $this->icono( 'micro' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 						</button>
 					<?php endif; ?>
 
-					<button type="submit" class="man-btn man-asistente__enviar">Preguntar</button>
+					<?php // El botón de enviar va dentro del campo, como parte de la píldora. ?>
+					<div class="man-asistente__campo">
+						<label class="screen-reader-text" for="<?php echo esc_attr( $id ); ?>-txt">Escriba su pregunta</label>
+						<input type="text" id="<?php echo esc_attr( $id ); ?>-txt"
+							class="man-asistente__input" maxlength="500" autocomplete="off"
+							placeholder="Escribe tu pregunta…" />
+						<button type="submit" class="man-asistente__btn man-asistente__btn--enviar"
+							aria-label="Enviar pregunta" title="Enviar">
+							<?php echo $this->icono( 'enviar' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+						</button>
+					</div>
+
+					<?php // Siempre visible: corta la consulta en curso o el audio. Inactivo si no hay nada que detener. ?>
+					<button type="button" class="man-asistente__btn man-asistente__btn--detener"
+						aria-label="Detener" title="Detener la respuesta" disabled>
+						<?php echo $this->icono( 'detener' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					</button>
+
+					<button type="button" class="man-asistente__btn man-asistente__btn--cerrar"
+						aria-label="Cerrar el asistente" title="Cerrar">
+						<?php echo $this->icono( 'cerrar' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					</button>
 				</form>
 
 				<p class="man-asistente__aviso">
@@ -1393,6 +1461,12 @@ final class MAN_Shortcodes {
 					No es un canal de emergencias — para eso, la línea 123.
 				</p>
 			</div>
+
+			<template class="man-asistente__plantilla-audio">
+				<button type="button" class="man-asistente__escuchar" aria-label="Escuchar la respuesta" title="Escuchar">
+					<?php echo $this->icono( 'altavoz' ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+				</button>
+			</template>
 		</div>
 		<?php
 		return ob_get_clean();

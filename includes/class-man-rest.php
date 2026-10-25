@@ -386,20 +386,55 @@ final class MAN_Rest {
 		$pregunta  = (string) $req->get_param( 'pregunta' );
 		$municipio = (string) $req->get_param( 'municipio' );
 
-		$res = MAN_AI::preguntar( $pregunta, $municipio );
-		if ( is_wp_error( $res ) ) {
-			return $res;
-		}
-		return rest_ensure_response( $res );
+		return self::respuesta_ai( MAN_AI::preguntar( $pregunta, $municipio ) );
 	}
 
 	/** Lectura en voz alta de una respuesta del asistente. */
 	public function ruta_ai_voz( $req ) {
-		$res = MAN_AI_Voz::sintetizar( (string) $req->get_param( 'texto' ) );
-		if ( is_wp_error( $res ) ) {
-			return $res;
+		return self::respuesta_ai( MAN_AI_Voz::sintetizar( (string) $req->get_param( 'texto' ) ) );
+	}
+
+	/**
+	 * Empaqueta la respuesta del asistente SIEMPRE con HTTP 200.
+	 *
+	 * Un WP_Error con status 5xx hace que WordPress responda 502/503, y muchos
+	 * servidores (nginx tras Plesk, CDNs) sustituyen el cuerpo de un 5xx por su
+	 * propia página de error: el visitante acababa viendo «HTTP 502» sin el
+	 * motivo, que era justo lo que había que leer. Con 200 el cuerpo llega
+	 * intacto y el front decide qué mostrar.
+	 *
+	 * El detalle técnico solo viaja si quien pregunta puede administrar el
+	 * sitio; al visitante se le da el mensaje llano.
+	 *
+	 * @param array|\WP_Error $res Resultado del módulo.
+	 * @return \WP_REST_Response
+	 */
+	private static function respuesta_ai( $res ) {
+		if ( ! is_wp_error( $res ) ) {
+			$res['ok'] = true;
+			return rest_ensure_response( $res );
 		}
-		return rest_ensure_response( $res );
+
+		$datos  = $res->get_error_data();
+		$codigo = $res->get_error_code();
+
+		$salida = array(
+			'ok'      => false,
+			'codigo'  => $codigo,
+			'mensaje' => $res->get_error_message(),
+		);
+
+		if ( current_user_can( 'manage_options' ) ) {
+			$salida['diagnostico'] = array(
+				'codigo_interno'   => isset( $datos['codigo_interno'] ) ? $datos['codigo_interno'] : '',
+				'detalle'          => isset( $datos['detalle'] ) ? $datos['detalle'] : '',
+				'pista'            => isset( $datos['pista'] ) ? $datos['pista'] : '',
+				'codigo_proveedor' => isset( $datos['codigo_proveedor'] ) ? $datos['codigo_proveedor'] : null,
+				'nota'             => 'Visible solo para administradores. El registro completo está en Monitor Ambiental → Asistente IA.',
+			);
+		}
+
+		return rest_ensure_response( $salida );
 	}
 
 	public function ruta_salud( $req = null ) {

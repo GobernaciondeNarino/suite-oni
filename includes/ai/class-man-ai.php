@@ -31,6 +31,12 @@ final class MAN_AI {
 	/** Clave del contador diario de consultas. */
 	const CLAVE_CONTADOR = 'ai_consumo_dia';
 
+	/** Opción con los últimos eventos de diagnóstico (sin claves). */
+	const OPCION_DIAG = 'man_ai_diagnostico';
+
+	/** Cuántos eventos se conservan. */
+	const MAX_DIAG = 15;
+
 	/** Límites de entrada y salida. */
 	const MAX_PREGUNTA   = 500;
 	const MAX_RESPUESTA  = 600;
@@ -110,7 +116,10 @@ final class MAN_AI {
 			// Defensas.
 			'limite_ip_hora'  => 10,
 			'limite_dia'      => 500,
+			// Presentación del asistente.
+			'anfitrion'       => 'Tu anfitrión',
 			'saludo'          => '',
+			'sugerencias'     => '',
 		);
 	}
 
@@ -144,12 +153,62 @@ final class MAN_AI {
 	public static function estado() {
 		$c = self::config();
 		return array(
-			'activo'  => self::activo(),
-			'visible' => self::visible(),
-			'voz'     => self::voz_disponible(),
-			'saludo'  => trim( (string) $c['saludo'] ),
-			'limite'  => (int) $c['limite_ip_hora'],
+			'activo'      => self::activo(),
+			'visible'     => self::visible(),
+			'voz'         => self::voz_disponible(),
+			'anfitrion'   => self::anfitrion(),
+			'saludo'      => self::saludo(),
+			'sugerencias' => self::sugerencias(),
+			'limite'      => (int) $c['limite_ip_hora'],
 		);
+	}
+
+	/** Nombre con el que se presenta el asistente. */
+	public static function anfitrion() {
+		$c = self::config();
+		$n = trim( (string) $c['anfitrion'] );
+		return '' !== $n ? $n : 'Tu anfitrión';
+	}
+
+	/** Saludo inicial, con uno por defecto si no se configuró. */
+	public static function saludo() {
+		$c = self::config();
+		$s = trim( (string) $c['saludo'] );
+		if ( '' !== $s ) {
+			return $s;
+		}
+		return '¡Hola! Le doy la bienvenida. Puedo contarle cómo está el fenómeno El Niño y las condiciones ambientales en Nariño. ¿Qué le gustaría saber?';
+	}
+
+	/**
+	 * Preguntas sugeridas que se ofrecen como atajos.
+	 *
+	 * Se guardan una por línea; si no hay ninguna, se usan las de ejemplo, que
+	 * son las que el sistema puede responder con los datos que publica.
+	 *
+	 * @return string[]
+	 */
+	public static function sugerencias() {
+		$c     = self::config();
+		$crudo = trim( (string) $c['sugerencias'] );
+
+		if ( '' === $crudo ) {
+			return array(
+				'¿Cómo está el fenómeno El Niño ahora?',
+				'¿Qué se espera para los próximos meses?',
+				'¿Qué municipios tienen más riesgo?',
+				'¿Qué significa el índice ONI?',
+			);
+		}
+
+		$out = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', $crudo ) as $linea ) {
+			$linea = trim( $linea );
+			if ( '' !== $linea ) {
+				$out[] = mb_substr( $linea, 0, 120 );
+			}
+		}
+		return array_slice( $out, 0, 8 );
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -165,12 +224,12 @@ final class MAN_AI {
 	 */
 	public static function preguntar( $pregunta, $municipio = '' ) {
 		if ( ! self::activo() ) {
-			return new \WP_Error( 'man_ai_inactivo', 'El asistente no está disponible en este momento.', array( 'status' => 503 ) );
+			return self::error( '001', 'El asistente no está disponible en este momento.' );
 		}
 
 		$pregunta = trim( wp_strip_all_tags( (string) $pregunta ) );
 		if ( '' === $pregunta ) {
-			return new \WP_Error( 'man_ai_vacia', 'Escriba una pregunta.', array( 'status' => 400 ) );
+			return self::error( '403', 'Escriba una pregunta.' );
 		}
 		if ( mb_strlen( $pregunta ) > self::MAX_PREGUNTA ) {
 			$pregunta = mb_substr( $pregunta, 0, self::MAX_PREGUNTA );
@@ -189,20 +248,15 @@ final class MAN_AI {
 		// 2) Cupo por IP.
 		$por_hora = max( 1, (int) $cfg['limite_ip_hora'] );
 		if ( ! MAN_Security::rate_limit( 'ai_consulta', $por_hora, HOUR_IN_SECONDS ) ) {
-			return new \WP_Error(
-				'man_ai_cupo',
-				'Ha alcanzado el límite de consultas por hora. Intente más tarde; mientras tanto puede explorar los datos del sitio.',
-				array( 'status' => 429 )
+			return self::error(
+				'401',
+				'Ha alcanzado el límite de consultas por hora. Intente más tarde; mientras tanto puede explorar los datos del sitio.'
 			);
 		}
 
 		// 3) Tope diario global: protege el presupuesto de la entidad.
 		if ( ! self::consumir_cupo_diario( (int) $cfg['limite_dia'] ) ) {
-			return new \WP_Error(
-				'man_ai_tope',
-				'El asistente alcanzó su límite de consultas del día. Vuelva mañana.',
-				array( 'status' => 429 )
-			);
+			return self::error( '402', 'El asistente alcanzó su límite de consultas del día. Vuelva mañana.' );
 		}
 
 		$sistema = MAN_AI_Contexto::sistema( $municipio );
@@ -235,6 +289,224 @@ final class MAN_AI {
 		MAN_Sync::auditar( 'ai', $cfg['proveedor'], 'ok', 1, mb_substr( $pregunta, 0, 120 ) );
 
 		return $salida;
+	}
+
+	/* ----------------------------------------------------------------- */
+	/* Diagnóstico                                                       */
+	/* ----------------------------------------------------------------- */
+
+	/**
+	 * Construye el error con su código interno adjunto.
+	 *
+	 * El visitante ve un mensaje llano; el código y el detalle viajan en los
+	 * datos y solo se muestran a quien administra el sitio.
+	 *
+	 * @param string $num      Número del catálogo (ver MAN_AI_Codigos).
+	 * @param string $publico  Mensaje para el visitante.
+	 * @param string $detalle  Motivo técnico.
+	 * @param array  $extra    Datos adicionales para el registro.
+	 * @return \WP_Error
+	 */
+	private static function error( $num, $publico, $detalle = '', $extra = array() ) {
+		$ficha = MAN_AI_Codigos::ficha( $num );
+
+		self::diag(
+			$ficha['tipo'],
+			'error',
+			$ficha['codigo'] . ' · ' . $ficha['que'] . ( '' !== $detalle ? ' — ' . $detalle : '' ),
+			array_merge( array( 'codigo_interno' => $ficha['codigo'], 'pista' => $ficha['haz'] ), $extra )
+		);
+
+		$datos = array(
+			'codigo_interno' => $ficha['codigo'],
+			'tipo'           => $ficha['tipo'],
+			'detalle'        => '' !== $detalle ? $detalle : $ficha['que'],
+			'pista'          => $ficha['haz'],
+		);
+		// El código HTTP del proveedor debe llegar también a la respuesta (no
+		// solo al registro): es lo que distingue un 401 de un 429 en consola.
+		if ( isset( $extra['codigo_proveedor'] ) ) {
+			$datos['codigo_proveedor'] = (int) $extra['codigo_proveedor'];
+		}
+
+		return new \WP_Error( 'man_ai_' . $num, $publico, $datos );
+	}
+
+	/**
+	 * Registra un evento para el panel de diagnóstico.
+	 *
+	 * Guarda lo que hace falta para entender un fallo sin tener acceso al
+	 * servidor: paso, proveedor, código HTTP y el cuerpo que devolvió el
+	 * proveedor, recortado. Nunca guarda la clave.
+	 *
+	 * @param string $paso    Etapa donde ocurrió.
+	 * @param string $nivel   ok|error.
+	 * @param string $mensaje Resumen legible.
+	 * @param array  $extra   Datos adicionales (url, codigo, cuerpo…).
+	 */
+	public static function diag( $paso, $nivel, $mensaje, $extra = array() ) {
+		$log = get_option( self::OPCION_DIAG, array() );
+		if ( ! is_array( $log ) ) {
+			$log = array();
+		}
+
+		// La clave jamás entra al registro, venga de donde venga.
+		foreach ( array( 'clave', 'api_key', 'key', 'authorization', 'x-api-key' ) as $prohibido ) {
+			unset( $extra[ $prohibido ] );
+		}
+		if ( isset( $extra['cuerpo'] ) ) {
+			$extra['cuerpo'] = mb_substr( (string) $extra['cuerpo'], 0, 600 );
+		}
+
+		array_unshift(
+			$log,
+			array(
+				'ts'      => current_time( 'mysql', true ),
+				'paso'    => (string) $paso,
+				'nivel'   => ( 'ok' === $nivel ) ? 'ok' : 'error',
+				'mensaje' => mb_substr( (string) $mensaje, 0, 400 ),
+				'extra'   => $extra,
+			)
+		);
+		update_option( self::OPCION_DIAG, array_slice( $log, 0, self::MAX_DIAG ), false );
+	}
+
+	/** Eventos de diagnóstico guardados, del más reciente al más antiguo. */
+	public static function diagnostico() {
+		$log = get_option( self::OPCION_DIAG, array() );
+		return is_array( $log ) ? $log : array();
+	}
+
+	/** Vacía el registro de diagnóstico. */
+	public static function limpiar_diagnostico() {
+		delete_option( self::OPCION_DIAG );
+	}
+
+	/**
+	 * Comprobación paso a paso de la configuración.
+	 *
+	 * Recorre toda la cadena en orden y se detiene donde falla, de modo que el
+	 * operador sepa QUÉ arreglar y no solo que «no funciona». No gasta una
+	 * consulta al proveedor: eso lo hace el botón «Probar».
+	 *
+	 * @return array[] Filas {paso, estado, mensaje, pista}
+	 */
+	public static function revisar_configuracion() {
+		$cfg   = self::config();
+		$filas = array();
+
+		$add = function ( $paso, $estado, $mensaje, $pista = '' ) use ( &$filas ) {
+			$filas[] = array(
+				'paso'    => $paso,
+				'estado'  => $estado, // ok | aviso | error
+				'mensaje' => $mensaje,
+				'pista'   => $pista,
+			);
+		};
+
+		// 1) Interruptores.
+		$add(
+			'Módulo activado',
+			! empty( $cfg['activo'] ) ? 'ok' : 'error',
+			! empty( $cfg['activo'] ) ? 'Sí' : 'No: el asistente no responderá',
+			! empty( $cfg['activo'] ) ? '' : 'Marque «Activar» arriba y guarde.'
+		);
+		$add(
+			'Visible en el sitio',
+			! empty( $cfg['visible'] ) ? 'ok' : 'aviso',
+			! empty( $cfg['visible'] ) ? 'Sí' : 'No: está configurado pero no se pinta',
+			! empty( $cfg['visible'] ) ? '' : 'Normal mientras lo prueba. Márquelo cuando quiera publicarlo.'
+		);
+
+		// 2) Proveedor y clave.
+		$prov        = $cfg['proveedor'];
+		$proveedores = self::proveedores();
+		$nombre      = isset( $proveedores[ $prov ] ) ? $proveedores[ $prov ]['nombre'] : $prov;
+		$guardada    = self::clave_proveedor( $cfg, $prov );
+
+		$add( 'Proveedor seleccionado', 'ok', $nombre );
+
+		if ( '' === $guardada ) {
+			$add( 'Clave del proveedor', 'error', 'No hay clave guardada', 'Pegue la clave de ' . $nombre . ' y guarde la configuración.' );
+		} else {
+			$plana = self::descifrar( $guardada );
+			if ( '' === $plana ) {
+				$add(
+					'Clave del proveedor',
+					'error',
+					'Hay una clave guardada pero NO se puede descifrar',
+					'Las sales de seguridad de wp-config.php cambiaron desde que se guardó. Vuelva a pegar la clave y guarde.'
+				);
+			} else {
+				$add( 'Clave del proveedor', 'ok', 'Guardada y legible (' . strlen( $plana ) . ' caracteres)' );
+			}
+		}
+
+		// 3) Modelo.
+		$campo_modelo = $prov . '_modelo';
+		$modelo       = isset( $cfg[ $campo_modelo ] ) ? $cfg[ $campo_modelo ] : '';
+		$valido       = isset( $proveedores[ $prov ]['modelos'][ $modelo ] );
+		$add(
+			'Modelo',
+			$valido ? 'ok' : 'error',
+			$modelo ? $modelo : '(sin modelo)',
+			$valido ? '' : 'El modelo guardado no está en el catálogo. Elija uno del desplegable y guarde.'
+		);
+
+		// 4) Salida a internet del servidor: el fallo más común en hosting
+		//    gestionado, y el que más se confunde con «la clave está mal».
+		$destinos = array(
+			'claude' => 'https://api.anthropic.com',
+			'openai' => 'https://api.openai.com',
+			'gemini' => 'https://generativelanguage.googleapis.com',
+		);
+		$destino  = isset( $destinos[ $prov ] ) ? $destinos[ $prov ] : '';
+		if ( $destino ) {
+			$ping = wp_remote_get( $destino, array( 'timeout' => 12 ) );
+			if ( is_wp_error( $ping ) ) {
+				$add(
+					'Salida a internet',
+					'error',
+					'El servidor NO pudo conectar con ' . wp_parse_url( $destino, PHP_URL_HOST ) . ': ' . $ping->get_error_message(),
+					'El hosting bloquea las conexiones salientes. Pida que permitan ese dominio, o revise WP_HTTP_BLOCK_EXTERNAL en wp-config.php.'
+				);
+			} else {
+				$add( 'Salida a internet', 'ok', 'El servidor alcanza ' . wp_parse_url( $destino, PHP_URL_HOST ) . ' (HTTP ' . (int) wp_remote_retrieve_response_code( $ping ) . ')' );
+			}
+		}
+
+		// 5) Cifrado disponible.
+		$add(
+			'Cifrado de claves',
+			function_exists( 'sodium_crypto_secretbox' ) ? 'ok' : 'error',
+			function_exists( 'sodium_crypto_secretbox' ) ? 'Disponible (sodium)' : 'La extensión sodium de PHP no está disponible',
+			function_exists( 'sodium_crypto_secretbox' ) ? '' : 'Sin sodium las claves no pueden guardarse cifradas. Pida que activen la extensión.'
+		);
+
+		// 6) Voz.
+		if ( empty( $cfg['voz_activa'] ) ) {
+			$add( 'Voz (ElevenLabs)', 'aviso', 'Desactivada', 'Opcional: actívela si quiere que las respuestas se puedan escuchar.' );
+		} else {
+			$vk = self::descifrar( $cfg['voz_clave'] );
+			if ( '' === $vk ) {
+				$add( 'Voz (ElevenLabs)', 'error', 'Activada pero sin clave legible', 'Vuelva a pegar la clave de ElevenLabs y guarde.' );
+			} elseif ( '' === trim( (string) $cfg['voz_id'] ) ) {
+				$add( 'Voz (ElevenLabs)', 'error', 'Activada y con clave, pero falta el ID de voz', 'Copie el ID desde su biblioteca de voces de ElevenLabs.' );
+			} else {
+				$add( 'Voz (ElevenLabs)', 'ok', 'Clave y ID de voz presentes', 'Use «Probar clave y voz» para confirmar que el ID existe en la cuenta.' );
+			}
+		}
+
+		// 7) Cupos.
+		$consumo = self::consumo_hoy();
+		$tope    = (int) $cfg['limite_dia'];
+		if ( $tope > 0 && $consumo >= $tope ) {
+			$add( 'Tope diario', 'error', 'Alcanzado: ' . $consumo . ' de ' . $tope, 'Suba el tope o espere a mañana. Mientras tanto el asistente rechaza las consultas nuevas.' );
+		} else {
+			$add( 'Tope diario', 'ok', $tope > 0 ? $consumo . ' de ' . $tope . ' consultas hoy' : 'Sin tope · ' . $consumo . ' consultas hoy' );
+		}
+
+		return $filas;
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -280,7 +552,7 @@ final class MAN_AI {
 		// Las clasificaciones de seguridad del proveedor devuelven HTTP 200 con
 		// stop_reason=refusal y sin texto: hay que distinguirlo de un fallo.
 		if ( isset( $r['stop_reason'] ) && 'refusal' === $r['stop_reason'] ) {
-			return new \WP_Error( 'man_ai_rechazo', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.', array( 'status' => 200 ) );
+			return self::error( '303', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.' );
 		}
 
 		$texto = '';
@@ -393,25 +665,77 @@ final class MAN_AI {
 			)
 		);
 
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+
 		if ( is_wp_error( $resp ) ) {
-			return new \WP_Error( 'man_ai_red', 'No se pudo contactar al servicio de IA: ' . $resp->get_error_message(), array( 'status' => 502 ) );
+			// Fallo de red/DNS/TLS: el hosting suele bloquear la salida HTTP.
+			$msg = $resp->get_error_message();
+			// Un tiempo de espera agotado no es lo mismo que una salida bloqueada.
+			$num = ( false !== stripos( $msg, 'timed out' ) || false !== stripos( $msg, 'timeout' ) ) ? '102' : '101';
+			return self::error(
+				$num,
+				'El asistente no está disponible en este momento. Vuelva a intentarlo en unos minutos.',
+				$msg,
+				array( 'host' => $host )
+			);
 		}
 
 		$codigo = (int) wp_remote_retrieve_response_code( $resp );
-		$json   = json_decode( wp_remote_retrieve_body( $resp ), true );
+		$bruto  = wp_remote_retrieve_body( $resp );
+		$json   = json_decode( $bruto, true );
 
 		if ( $codigo < 200 || $codigo >= 300 ) {
-			// El detalle va al registro de auditoría, no al visitante: puede
-			// contener información del proveedor que no debe hacerse pública.
-			$detalle = isset( $json['error']['message'] ) ? $json['error']['message'] : 'HTTP ' . $codigo;
-			return new \WP_Error( 'man_ai_proveedor', 'El servicio de IA respondió con un error (' . $codigo . ').', array( 'status' => 502, 'detalle' => $detalle ) );
+			$detalle = self::detalle_error( $json, $codigo );
+			return self::error(
+				MAN_AI_Codigos::desde_http( $codigo ),
+				// Mensaje llano: el texto del proveedor puede describir la cuenta
+				// o el modelo, y no tiene por qué llegar a un visitante.
+				'El asistente no está disponible en este momento. Vuelva a intentarlo en unos minutos.',
+				'HTTP ' . $codigo . ' — ' . $detalle,
+				array( 'host' => $host, 'codigo' => $codigo, 'cuerpo' => $bruto, 'codigo_proveedor' => $codigo )
+			);
 		}
 
 		if ( ! is_array( $json ) ) {
-			return new \WP_Error( 'man_ai_json', 'El servicio de IA devolvió una respuesta ilegible.', array( 'status' => 502 ) );
+			return self::error(
+				'301',
+				'El asistente no está disponible en este momento. Vuelva a intentarlo en unos minutos.',
+				'Respuesta no JSON: ' . mb_substr( (string) $bruto, 0, 200 ),
+				array( 'host' => $host, 'codigo' => $codigo, 'cuerpo' => $bruto )
+			);
 		}
+
+		self::diag( 'proveedor', 'ok', 'HTTP ' . $codigo . ' correcto', array( 'host' => $host, 'codigo' => $codigo ) );
 		return $json;
 	}
+
+	/**
+	 * Extrae el motivo que informa el proveedor, cada uno con su forma.
+	 *
+	 * @param array|null $json   Respuesta decodificada.
+	 * @param int        $codigo Código HTTP.
+	 * @return string
+	 */
+	private static function detalle_error( $json, $codigo ) {
+		if ( ! is_array( $json ) ) {
+			return 'sin detalle (la respuesta no era JSON)';
+		}
+		// Anthropic y OpenAI: {error:{message}}. Google: {error:{message}}.
+		if ( isset( $json['error']['message'] ) ) {
+			return (string) $json['error']['message'];
+		}
+		if ( isset( $json['error'] ) && is_string( $json['error'] ) ) {
+			return $json['error'];
+		}
+		if ( isset( $json['detail']['message'] ) ) {
+			return (string) $json['detail']['message'];
+		}
+		if ( isset( $json['message'] ) ) {
+			return (string) $json['message'];
+		}
+		return 'HTTP ' . $codigo . ' sin mensaje del proveedor';
+	}
+
 
 	/**
 	 * Valida y recorta el texto devuelto por el modelo.
@@ -422,7 +746,7 @@ final class MAN_AI {
 	private static function validar_texto( $texto ) {
 		$texto = trim( wp_strip_all_tags( (string) $texto ) );
 		if ( '' === $texto ) {
-			return new \WP_Error( 'man_ai_vacio', 'El asistente no pudo formular una respuesta. Intente reformular la pregunta.', array( 'status' => 502 ) );
+			return self::error( '302', 'El asistente no pudo formular una respuesta. Intente reformular la pregunta.' );
 		}
 		return $texto;
 	}
@@ -498,9 +822,12 @@ final class MAN_AI {
 		}
 
 		if ( is_wp_error( $res ) ) {
-			$datos   = $res->get_error_data();
-			$detalle = is_array( $datos ) && ! empty( $datos['detalle'] ) ? ' — ' . $datos['detalle'] : '';
-			return array( 'ok' => false, 'mensaje' => $res->get_error_message() . $detalle );
+			$datos = $res->get_error_data();
+			// Aquí sí se muestra el motivo real: quien lo lee administra el sitio.
+			$detalle = ( is_array( $datos ) && ! empty( $datos['detalle'] ) )
+				? $datos['detalle']
+				: $res->get_error_message();
+			return array( 'ok' => false, 'mensaje' => $detalle );
 		}
 		return array( 'ok' => true, 'mensaje' => 'Responde correctamente: «' . mb_substr( $res, 0, 180 ) . '…»' );
 	}

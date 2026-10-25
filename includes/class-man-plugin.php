@@ -84,6 +84,7 @@ final class MAN_Plugin {
 
 		// Presentación.
 		// Módulo de IA (asistente ciudadano por voz y texto).
+		require_once $base . 'ai/class-man-ai-codigos.php';
 		require_once $base . 'ai/class-man-ai.php';
 		require_once $base . 'ai/class-man-ai-contexto.php';
 		require_once $base . 'ai/class-man-ai-voz.php';

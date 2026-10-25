@@ -46,7 +46,7 @@ Al empaquetar, `.distignore` marca lo que no forma parte del plugin instalable
 | `[man_salud]` | **Enfermedades sensibles al clima** (SIVIGILA/INS): cifras, serie anual, reparto por enfermedad y municipios más afectados | `grupo` (`ETV`/`ETA`) |
 | `[man_hidrico]` | Caudal de ríos (GloFAS) + humedad de suelo | `municipio` |
 | `[man_estado_api]` | Panel público de salud de las APIs | — |
-| `[man_asistente]` | **Asistente de IA**: responde preguntas de la ciudadanía sobre los datos del sitio, por texto o por voz | `municipio`, `voz`, `titulo` |
+| `[man_asistente]` | **Asistente de IA**: botón «Asistente» que abre una ventana para preguntar sobre los datos del sitio, por texto o por voz | `municipio`, `voz`, `etiqueta` |
 
 `municipio` admite código DIVIPOLA (`52001`) o nombre, o `departamento` para el agregado.
 
@@ -160,13 +160,24 @@ Se configura en **Monitor Ambiental → Asistente IA**:
   *Visible en el sitio* (se pinta en el front). Permite dejarlo configurado y
   probado pero oculto hasta decidir publicarlo.
 - **Topes de uso**: consultas por visitante y hora, y tope diario global.
+- **Presentación**: nombre del anfitrión, saludo inicial y preguntas sugeridas
+  (una por línea, hasta 8). Si se dejan vacíos, usa textos de ejemplo.
 
 ```
-[man_asistente]                      # panel completo
-[man_asistente municipio="52835"]    # enfocado en un municipio
-[man_asistente voz="no"]             # solo texto
-[man_globo asistente="no"]           # globo sin el asistente encima
+[man_asistente]                          # botón «Asistente» + ventana
+[man_asistente etiqueta="Pregúntame"]    # otro texto en el botón
+[man_asistente municipio="52835"]        # enfocado en un municipio
+[man_asistente voz="no"]                 # solo texto
+[man_globo asistente="no"]               # globo sin el asistente encima
 ```
+
+**La ventana.** El botón «Asistente» abre una ventana con el nombre del
+anfitrión, su saludo, las preguntas sugeridas («Puedes preguntar:») y la barra
+de entrada: **micrófono** · campo «Escribe tu pregunta…» con la **flecha de
+enviar** dentro · **detener** (corta la consulta o el audio en curso) ·
+**cerrar**. Se cierra también con Escape. Los iconos son SVG en línea que toman
+el color del tema, y todos los botones miden al menos 44 px para el dedo; en
+móvil, *cerrar* sube a la esquina para dejarle sitio al campo de texto.
 
 **Interacción por voz.** Hablarle usa el micrófono del navegador (Chrome, Edge y
 Android; en Firefox e iOS el botón no aparece y queda el texto), así que el audio
@@ -180,6 +191,33 @@ y nunca llegan al navegador: el front habla con la REST del plugin
 endpoint es público y cada consulta cuesta dinero, hay cupo por IP, tope diario y
 caché de respuestas repetidas. El prompt del sistema trata los datos como
 información, no como instrucciones, y limita al asistente a su dominio.
+
+**Si algo falla.** *Monitor Ambiental → Asistente IA* trae dos bloques al final:
+**Diagnóstico**, que recorre toda la cadena en orden (interruptores, clave,
+modelo, salida a internet del servidor, cifrado, voz y cupos) y señala el primer
+punto roto con qué hacer para arreglarlo; y **Registro de errores**, con el
+código HTTP y el motivo exacto que devolvió el proveedor, incluida su respuesta
+cruda. En el sitio público el detalle también se escribe en la **consola del
+navegador** (F12 → Consola); con sesión de administrador aparece el motivo
+técnico, y sin ella solo el mensaje general. Las claves nunca entran ni al
+registro ni a la consola.
+
+**Códigos MAN-AI.** Cada fallo posible tiene un código estable, el mismo en la
+consola, en el registro y en la tabla *Códigos de error* del panel, que dice
+qué pasó y qué hacer:
+
+| Rango | Dónde se rompió | Ejemplos |
+|---|---|---|
+| `MAN-AI-0xx` | Configuración del panel | 001 módulo desactivado · 002 sin clave · 003 clave ilegible |
+| `MAN-AI-1xx` | Salida a internet del servidor | 101 conexión bloqueada · 102 tiempo agotado |
+| `MAN-AI-2xx` | El proveedor de IA devolvió error | 201 clave rechazada · 204 sin saldo · 206 caída del proveedor |
+| `MAN-AI-3xx` | Respuesta inutilizable | 301 no es JSON · 303 el modelo declinó |
+| `MAN-AI-4xx` | Cupos propios | 401 cupo por hora · 402 tope diario |
+| `MAN-AI-5xx` | Voz (ElevenLabs) | 503 petición rechazada · 504 el ID de voz no existe |
+| `MAN-AI-6xx` | Navegador del visitante | 602 micrófono denegado · 604 la REST no responde · 605 tiempo de espera |
+
+Al visitante nunca se le muestra el código ni el texto técnico del navegador
+(«Failed to fetch»): recibe una frase en español y el código queda en la consola.
 
 > El asistente **no es un canal oficial de alertas**. Los textos del componente
 > lo advierten y remiten al IDEAM, la UNGRD y la línea 123.

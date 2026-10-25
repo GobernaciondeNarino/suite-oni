@@ -37,6 +37,69 @@
     });
   });
 
+  /* ---- Asistente de IA: probar proveedor y probar voz ---- */
+
+  /** POST genérico con cuerpo arbitrario (los botones del asistente no usan slug). */
+  function postCampos(campos, cb) {
+    var partes = Object.keys(campos).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(campos[k]);
+    });
+    partes.push('nonce=' + encodeURIComponent(CFG.nonce));
+    fetch(CFG.ajax, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: partes.join('&')
+    }).then(function (r) { return r.json(); })
+      .then(cb)
+      .catch(function (err) {
+        console.error('[Monitor Ambiental · asistente] Fallo de red al probar:', err);
+        cb({ success: false, data: { mensaje: 'Error de red al contactar con el propio sitio.' } });
+      });
+  }
+
+  /** Pinta el resultado y deja el detalle completo en consola. */
+  function resultado(span, boton, res, etiqueta) {
+    boton.disabled = false;
+    var ok = res && res.success;
+    var msg = (res && res.data && res.data.mensaje) ? res.data.mensaje : (ok ? 'OK' : 'Error');
+    if (span) {
+      span.textContent = msg;
+      span.style.color = ok ? '#2e7d32' : '#c62828';
+    }
+    if (!ok && window.console) {
+      console.error('[Monitor Ambiental · asistente] ' + etiqueta + ':', msg);
+      console.debug('Respuesta completa:', res);
+      console.info('El registro con la respuesta cruda del proveedor está más abajo, en «Registro de errores».');
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.classList || !t.classList.contains('man-probar-ai')) { return; }
+
+    var prov = t.getAttribute('data-proveedor');
+    var span = document.querySelector('.man-resultado-ai[data-proveedor="' + prov + '"]');
+    if (span) { span.textContent = '… consultando al proveedor'; span.style.color = '#787c82'; }
+    t.disabled = true;
+
+    postCampos({ action: 'man_probar_ai', proveedor: prov }, function (res) {
+      resultado(span, t, res, 'Prueba del proveedor «' + prov + '» fallida');
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || t.id !== 'man-probar-voz') { return; }
+
+    var span = document.getElementById('man-resultado-voz');
+    if (span) { span.textContent = '… comprobando ElevenLabs'; span.style.color = '#787c82'; }
+    t.disabled = true;
+
+    postCampos({ action: 'man_probar_voz' }, function (res) {
+      resultado(span, t, res, 'Prueba de voz fallida');
+    });
+  });
+
   /* Copiar shortcode al portapapeles (página de Elementos). */
   function copiar(texto) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
