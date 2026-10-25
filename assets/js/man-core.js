@@ -10,7 +10,7 @@
 
   /** fetch con límite de tiempo: sin él, una API colgada deja el skeleton
       girando indefinidamente y los reintentos apilan peticiones vivas. */
-  function pedir(url, ms, init) {
+  function pedir(url, ms, init, senal) {
     var limite = ms || TIMEOUT;
     var opciones = init || {};
     if (typeof AbortController === 'undefined') {
@@ -19,12 +19,25 @@
     var ctl = new AbortController();
     var reloj = setTimeout(function () { ctl.abort(); }, limite);
     opciones.signal = ctl.signal;
+
+    // Señal externa (p. ej. el botón «Detener» del asistente): al dispararse,
+    // aborta también esta petición.
+    if (senal) {
+      if (senal.aborted) { ctl.abort(); }
+      else { senal.addEventListener('abort', function () { ctl.abort(); }); }
+    }
+
     return fetch(url, opciones)
       .then(function (r) { clearTimeout(reloj); return comprobar(r); })
       .catch(function (e) {
         clearTimeout(reloj);
         if (e && e.name === 'AbortError') {
-          throw new Error('La fuente de datos tardó demasiado en responder.');
+          // Si lo abortó quien llama, se propaga tal cual para que pueda
+          // distinguir una cancelación deliberada de un tiempo agotado.
+          if (senal && senal.aborted) { throw e; }
+          var t = new Error('La fuente de datos tardó demasiado en responder.');
+          t.name = 'TimeoutError';
+          throw t;
         }
         throw e;
       });
@@ -61,12 +74,12 @@
 
     // Por defecto GET; con opts.metodo se envía un cuerpo JSON.
     var o = opts || {};
-    if (!o.metodo || o.metodo === 'GET') { return pedir(url); }
+    if (!o.metodo || o.metodo === 'GET') { return pedir(url, o.timeout, null, o.senal); }
     return pedir(url, o.timeout, {
       method: o.metodo,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(o.cuerpo || {})
-    });
+    }, o.senal);
   }
 
   /** GET a una URL pública externa (Open-Meteo). */

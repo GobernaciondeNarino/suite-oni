@@ -116,7 +116,10 @@ final class MAN_AI {
 			// Defensas.
 			'limite_ip_hora'  => 10,
 			'limite_dia'      => 500,
+			// Presentación del asistente.
+			'anfitrion'       => 'Tu anfitrión',
 			'saludo'          => '',
+			'sugerencias'     => '',
 		);
 	}
 
@@ -150,12 +153,62 @@ final class MAN_AI {
 	public static function estado() {
 		$c = self::config();
 		return array(
-			'activo'  => self::activo(),
-			'visible' => self::visible(),
-			'voz'     => self::voz_disponible(),
-			'saludo'  => trim( (string) $c['saludo'] ),
-			'limite'  => (int) $c['limite_ip_hora'],
+			'activo'      => self::activo(),
+			'visible'     => self::visible(),
+			'voz'         => self::voz_disponible(),
+			'anfitrion'   => self::anfitrion(),
+			'saludo'      => self::saludo(),
+			'sugerencias' => self::sugerencias(),
+			'limite'      => (int) $c['limite_ip_hora'],
 		);
+	}
+
+	/** Nombre con el que se presenta el asistente. */
+	public static function anfitrion() {
+		$c = self::config();
+		$n = trim( (string) $c['anfitrion'] );
+		return '' !== $n ? $n : 'Tu anfitrión';
+	}
+
+	/** Saludo inicial, con uno por defecto si no se configuró. */
+	public static function saludo() {
+		$c = self::config();
+		$s = trim( (string) $c['saludo'] );
+		if ( '' !== $s ) {
+			return $s;
+		}
+		return '¡Hola! Le doy la bienvenida. Puedo contarle cómo está el fenómeno El Niño y las condiciones ambientales en Nariño. ¿Qué le gustaría saber?';
+	}
+
+	/**
+	 * Preguntas sugeridas que se ofrecen como atajos.
+	 *
+	 * Se guardan una por línea; si no hay ninguna, se usan las de ejemplo, que
+	 * son las que el sistema puede responder con los datos que publica.
+	 *
+	 * @return string[]
+	 */
+	public static function sugerencias() {
+		$c     = self::config();
+		$crudo = trim( (string) $c['sugerencias'] );
+
+		if ( '' === $crudo ) {
+			return array(
+				'¿Cómo está el fenómeno El Niño ahora?',
+				'¿Qué se espera para los próximos meses?',
+				'¿Qué municipios tienen más riesgo?',
+				'¿Qué significa el índice ONI?',
+			);
+		}
+
+		$out = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', $crudo ) as $linea ) {
+			$linea = trim( $linea );
+			if ( '' !== $linea ) {
+				$out[] = mb_substr( $linea, 0, 120 );
+			}
+		}
+		return array_slice( $out, 0, 8 );
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -171,12 +224,12 @@ final class MAN_AI {
 	 */
 	public static function preguntar( $pregunta, $municipio = '' ) {
 		if ( ! self::activo() ) {
-			return new \WP_Error( 'man_ai_inactivo', 'El asistente no está disponible en este momento.', array( 'status' => 503 ) );
+			return self::error( '001', 'El asistente no está disponible en este momento.' );
 		}
 
 		$pregunta = trim( wp_strip_all_tags( (string) $pregunta ) );
 		if ( '' === $pregunta ) {
-			return new \WP_Error( 'man_ai_vacia', 'Escriba una pregunta.', array( 'status' => 400 ) );
+			return self::error( '403', 'Escriba una pregunta.' );
 		}
 		if ( mb_strlen( $pregunta ) > self::MAX_PREGUNTA ) {
 			$pregunta = mb_substr( $pregunta, 0, self::MAX_PREGUNTA );
@@ -195,20 +248,15 @@ final class MAN_AI {
 		// 2) Cupo por IP.
 		$por_hora = max( 1, (int) $cfg['limite_ip_hora'] );
 		if ( ! MAN_Security::rate_limit( 'ai_consulta', $por_hora, HOUR_IN_SECONDS ) ) {
-			return new \WP_Error(
-				'man_ai_cupo',
-				'Ha alcanzado el límite de consultas por hora. Intente más tarde; mientras tanto puede explorar los datos del sitio.',
-				array( 'status' => 429 )
+			return self::error(
+				'401',
+				'Ha alcanzado el límite de consultas por hora. Intente más tarde; mientras tanto puede explorar los datos del sitio.'
 			);
 		}
 
 		// 3) Tope diario global: protege el presupuesto de la entidad.
 		if ( ! self::consumir_cupo_diario( (int) $cfg['limite_dia'] ) ) {
-			return new \WP_Error(
-				'man_ai_tope',
-				'El asistente alcanzó su límite de consultas del día. Vuelva mañana.',
-				array( 'status' => 429 )
-			);
+			return self::error( '402', 'El asistente alcanzó su límite de consultas del día. Vuelva mañana.' );
 		}
 
 		$sistema = MAN_AI_Contexto::sistema( $municipio );
@@ -246,6 +294,43 @@ final class MAN_AI {
 	/* ----------------------------------------------------------------- */
 	/* Diagnóstico                                                       */
 	/* ----------------------------------------------------------------- */
+
+	/**
+	 * Construye el error con su código interno adjunto.
+	 *
+	 * El visitante ve un mensaje llano; el código y el detalle viajan en los
+	 * datos y solo se muestran a quien administra el sitio.
+	 *
+	 * @param string $num      Número del catálogo (ver MAN_AI_Codigos).
+	 * @param string $publico  Mensaje para el visitante.
+	 * @param string $detalle  Motivo técnico.
+	 * @param array  $extra    Datos adicionales para el registro.
+	 * @return \WP_Error
+	 */
+	private static function error( $num, $publico, $detalle = '', $extra = array() ) {
+		$ficha = MAN_AI_Codigos::ficha( $num );
+
+		self::diag(
+			$ficha['tipo'],
+			'error',
+			$ficha['codigo'] . ' · ' . $ficha['que'] . ( '' !== $detalle ? ' — ' . $detalle : '' ),
+			array_merge( array( 'codigo_interno' => $ficha['codigo'], 'pista' => $ficha['haz'] ), $extra )
+		);
+
+		$datos = array(
+			'codigo_interno' => $ficha['codigo'],
+			'tipo'           => $ficha['tipo'],
+			'detalle'        => '' !== $detalle ? $detalle : $ficha['que'],
+			'pista'          => $ficha['haz'],
+		);
+		// El código HTTP del proveedor debe llegar también a la respuesta (no
+		// solo al registro): es lo que distingue un 401 de un 429 en consola.
+		if ( isset( $extra['codigo_proveedor'] ) ) {
+			$datos['codigo_proveedor'] = (int) $extra['codigo_proveedor'];
+		}
+
+		return new \WP_Error( 'man_ai_' . $num, $publico, $datos );
+	}
 
 	/**
 	 * Registra un evento para el panel de diagnóstico.
@@ -467,7 +552,7 @@ final class MAN_AI {
 		// Las clasificaciones de seguridad del proveedor devuelven HTTP 200 con
 		// stop_reason=refusal y sin texto: hay que distinguirlo de un fallo.
 		if ( isset( $r['stop_reason'] ) && 'refusal' === $r['stop_reason'] ) {
-			return new \WP_Error( 'man_ai_rechazo', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.', array( 'status' => 200 ) );
+			return self::error( '303', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.' );
 		}
 
 		$texto = '';
@@ -584,16 +669,14 @@ final class MAN_AI {
 
 		if ( is_wp_error( $resp ) ) {
 			// Fallo de red/DNS/TLS: el hosting suele bloquear la salida HTTP.
-			self::diag(
-				'red',
-				'error',
-				$resp->get_error_message(),
-				array( 'host' => $host, 'pista' => 'El servidor no pudo salir a internet. Revise el cortafuegos de salida o la lista blanca de dominios del hosting.' )
-			);
-			return new \WP_Error(
-				'man_ai_red',
+			$msg = $resp->get_error_message();
+			// Un tiempo de espera agotado no es lo mismo que una salida bloqueada.
+			$num = ( false !== stripos( $msg, 'timed out' ) || false !== stripos( $msg, 'timeout' ) ) ? '102' : '101';
+			return self::error(
+				$num,
 				'El asistente no está disponible en este momento. Vuelva a intentarlo en unos minutos.',
-				array( 'detalle' => 'Sin salida a internet desde el servidor: ' . $resp->get_error_message() )
+				$msg,
+				array( 'host' => $host )
 			);
 		}
 
@@ -603,27 +686,22 @@ final class MAN_AI {
 
 		if ( $codigo < 200 || $codigo >= 300 ) {
 			$detalle = self::detalle_error( $json, $codigo );
-			self::diag(
-				'proveedor',
-				'error',
-				'HTTP ' . $codigo . ' — ' . $detalle,
-				array( 'host' => $host, 'codigo' => $codigo, 'cuerpo' => $bruto, 'pista' => self::pista( $codigo ) )
-			);
-			return new \WP_Error(
-				'man_ai_proveedor',
+			return self::error(
+				MAN_AI_Codigos::desde_http( $codigo ),
 				// Mensaje llano: el texto del proveedor puede describir la cuenta
 				// o el modelo, y no tiene por qué llegar a un visitante.
 				'El asistente no está disponible en este momento. Vuelva a intentarlo en unos minutos.',
-				array( 'detalle' => 'HTTP ' . $codigo . ' — ' . $detalle, 'codigo_proveedor' => $codigo )
+				'HTTP ' . $codigo . ' — ' . $detalle,
+				array( 'host' => $host, 'codigo' => $codigo, 'cuerpo' => $bruto, 'codigo_proveedor' => $codigo )
 			);
 		}
 
 		if ( ! is_array( $json ) ) {
-			self::diag( 'respuesta', 'error', 'La respuesta no es JSON', array( 'host' => $host, 'codigo' => $codigo, 'cuerpo' => $bruto ) );
-			return new \WP_Error(
-				'man_ai_json',
+			return self::error(
+				'301',
 				'El asistente no está disponible en este momento. Vuelva a intentarlo en unos minutos.',
-				array( 'detalle' => 'Respuesta no JSON: ' . mb_substr( (string) $bruto, 0, 200 ) )
+				'Respuesta no JSON: ' . mb_substr( (string) $bruto, 0, 200 ),
+				array( 'host' => $host, 'codigo' => $codigo, 'cuerpo' => $bruto )
 			);
 		}
 
@@ -658,32 +736,6 @@ final class MAN_AI {
 		return 'HTTP ' . $codigo . ' sin mensaje del proveedor';
 	}
 
-	/**
-	 * Pista accionable según el código HTTP del proveedor.
-	 *
-	 * @param int $codigo Código.
-	 * @return string
-	 */
-	private static function pista( $codigo ) {
-		switch ( $codigo ) {
-			case 401:
-			case 403:
-				return 'La clave no es válida, caducó o no tiene permiso para este modelo. Vuelva a pegarla en el panel y guarde.';
-			case 404:
-				return 'El modelo seleccionado no existe para esta cuenta. Elija otro en el desplegable.';
-			case 429:
-				return 'La cuenta del proveedor superó su límite de peticiones o se quedó sin saldo.';
-			case 400:
-				return 'El proveedor rechazó la petición. El detalle de arriba dice exactamente qué parámetro no aceptó.';
-			case 500:
-			case 502:
-			case 503:
-			case 529:
-				return 'Avería temporal del proveedor. Reintente en unos minutos.';
-			default:
-				return '';
-		}
-	}
 
 	/**
 	 * Valida y recorta el texto devuelto por el modelo.
@@ -694,7 +746,7 @@ final class MAN_AI {
 	private static function validar_texto( $texto ) {
 		$texto = trim( wp_strip_all_tags( (string) $texto ) );
 		if ( '' === $texto ) {
-			return new \WP_Error( 'man_ai_vacio', 'El asistente no pudo formular una respuesta. Intente reformular la pregunta.', array( 'status' => 502 ) );
+			return self::error( '302', 'El asistente no pudo formular una respuesta. Intente reformular la pregunta.' );
 		}
 		return $texto;
 	}

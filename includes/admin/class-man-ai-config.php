@@ -81,11 +81,29 @@ final class MAN_AI_Config {
 						</label>
 					</p>
 					<p>
-						<label>Saludo inicial (opcional)<br />
-							<input type="text" class="large-text" name="man_ai[saludo]" maxlength="200"
-								value="<?php echo esc_attr( $cfg['saludo'] ); ?>"
-								placeholder="Pregúnteme sobre el clima y el fenómeno El Niño en Nariño" />
+						<label>Nombre del anfitrión<br />
+							<input type="text" class="regular-text" name="man_ai[anfitrion]" maxlength="60"
+								value="<?php echo esc_attr( $cfg['anfitrion'] ); ?>"
+								placeholder="Tu anfitrión" />
 						</label>
+						<span class="description">Se muestra encima del saludo, como quien recibe a la persona.</span>
+					</p>
+					<p>
+						<label>Saludo inicial<br />
+							<textarea class="large-text" rows="2" name="man_ai[saludo]" maxlength="300"
+								placeholder="<?php echo esc_attr( MAN_AI::saludo() ); ?>"><?php echo esc_textarea( $cfg['saludo'] ); ?></textarea>
+						</label>
+						<span class="description">Si lo deja vacío se usa el texto del ejemplo.</span>
+					</p>
+					<p>
+						<label>Preguntas sugeridas (una por línea)<br />
+							<textarea class="large-text" rows="5" name="man_ai[sugerencias]"
+								placeholder="<?php echo esc_attr( implode( "\n", MAN_AI::sugerencias() ) ); ?>"><?php echo esc_textarea( $cfg['sugerencias'] ); ?></textarea>
+						</label>
+						<span class="description">
+							Aparecen como atajos bajo el saludo (máximo 8). Escriba preguntas que el
+							asistente pueda responder con los datos del sitio. Vacío = las del ejemplo.
+						</span>
 					</p>
 				</div>
 
@@ -278,11 +296,31 @@ final class MAN_AI_Config {
 				general.
 			</p>
 
+			<h2>Códigos de error</h2>
+			<p class="description" style="max-width:62em">
+				Cada fallo tiene un código estable que aparece en la consola del navegador
+				(F12 → Consola), en el registro de arriba y en los mensajes al operador. Si alguien
+				reporta un problema, pídale el código: dice exactamente dónde se rompió.
+			</p>
+			<table class="widefat striped" style="max-width:62em">
+				<thead><tr><th style="width:9em">Código</th><th>Qué ocurrió</th><th>Qué hacer</th></tr></thead>
+				<tbody>
+				<?php foreach ( MAN_AI_Codigos::catalogo() as $num => $f ) : ?>
+					<tr>
+						<td><code><?php echo esc_html( MAN_AI_Codigos::codigo( $num ) ); ?></code></td>
+						<td><?php echo esc_html( $f['que'] ); ?></td>
+						<td class="description"><?php echo esc_html( $f['haz'] ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+
 			<h2>Cómo publicarlo</h2>
 			<p>El asistente aparece junto al globo cuando está activo y visible. También puede colocarlo aparte:</p>
-			<p><code>[man_asistente]</code> — panel completo de preguntas y respuestas.<br />
+			<p><code>[man_asistente]</code> — botón «Asistente» que abre la ventana.<br />
+				<code>[man_asistente etiqueta="Pregúntame"]</code> — cambia el texto del botón.<br />
 				<code>[man_asistente municipio="52835"]</code> — enfocado en un municipio.<br />
-				<code>[man_asistente voz="no"]</code> — solo texto, sin botón de escucha.</p>
+				<code>[man_asistente voz="no"]</code> — solo texto, sin micrófono ni escucha.</p>
 			<p>En el globo puede desactivarlo con <code>[man_globo asistente="no"]</code>.</p>
 		</div>
 		<?php
@@ -326,7 +364,9 @@ final class MAN_AI_Config {
 		$proveedores          = MAN_AI::proveedores();
 		$prov                 = isset( $in['proveedor'] ) ? sanitize_key( $in['proveedor'] ) : 'claude';
 		$nuevo['proveedor']   = isset( $proveedores[ $prov ] ) ? $prov : 'claude';
-		$nuevo['saludo']      = isset( $in['saludo'] ) ? sanitize_text_field( $in['saludo'] ) : '';
+		$nuevo['anfitrion']   = isset( $in['anfitrion'] ) ? sanitize_text_field( $in['anfitrion'] ) : '';
+		$nuevo['saludo']      = isset( $in['saludo'] ) ? sanitize_textarea_field( $in['saludo'] ) : '';
+		$nuevo['sugerencias'] = isset( $in['sugerencias'] ) ? sanitize_textarea_field( $in['sugerencias'] ) : '';
 		$nuevo['voz_id']      = isset( $in['voz_id'] ) ? sanitize_text_field( $in['voz_id'] ) : $actual['voz_id'];
 		$nuevo['voz_modelo']  = isset( $in['voz_modelo'] ) && '' !== trim( $in['voz_modelo'] )
 			? sanitize_text_field( $in['voz_modelo'] )

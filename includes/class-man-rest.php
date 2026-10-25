@@ -426,7 +426,9 @@ final class MAN_Rest {
 
 		if ( current_user_can( 'manage_options' ) ) {
 			$salida['diagnostico'] = array(
+				'codigo_interno'   => isset( $datos['codigo_interno'] ) ? $datos['codigo_interno'] : '',
 				'detalle'          => isset( $datos['detalle'] ) ? $datos['detalle'] : '',
+				'pista'            => isset( $datos['pista'] ) ? $datos['pista'] : '',
 				'codigo_proveedor' => isset( $datos['codigo_proveedor'] ) ? $datos['codigo_proveedor'] : null,
 				'nota'             => 'Visible solo para administradores. El registro completo está en Monitor Ambiental → Asistente IA.',
 			);

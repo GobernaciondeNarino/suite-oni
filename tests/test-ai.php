@@ -63,6 +63,7 @@ namespace GobernacionNarino\MonitorAmbiental {
 	}
 	class MAN_Sync { public static function auditar( ...$a ) {} }
 	class MAN_AI_Contexto { public static function sistema( $m = '' ) { return 'CONTEXTO DE PRUEBA para ' . ( $m ? $m : 'departamento' ); } }
+	require __DIR__ . '/../includes/ai/class-man-ai-codigos.php';
 	require __DIR__ . '/../includes/ai/class-man-ai.php';
 }
 namespace {
@@ -103,7 +104,7 @@ namespace {
 	$GLOBALS['__c'] = array(); // limpiar caché de respuestas
 	$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array( 'stop_reason' => 'refusal', 'content' => array() ) ) );
 	$r = MAN_AI::preguntar( 'Algo que será rechazado' );
-	chk( is_wp_error( $r ) && 'man_ai_rechazo' === $r->code, 'se distingue del fallo técnico y da mensaje al ciudadano' );
+	chk( is_wp_error( $r ) && 'man_ai_303' === $r->code, 'se distingue del fallo técnico y da mensaje al ciudadano' );
 
 	echo "\n--- 3. OpenAI ---\n";
 	$GLOBALS['__c'] = array();
@@ -146,7 +147,7 @@ namespace {
 	MAN_Security::$permitir = false;
 	$GLOBALS['__c'] = array();
 	$r = MAN_AI::preguntar( 'Pregunta nueva sin caché' );
-	chk( is_wp_error( $r ) && 'man_ai_cupo' === $r->code, 'el cupo por IP corta antes de gastar' );
+	chk( is_wp_error( $r ) && 'man_ai_401' === $r->code, 'el cupo por IP corta antes de gastar' );
 	MAN_Security::$permitir = true;
 
 	$cfg = get_option( MAN_AI::OPCION ); $cfg['limite_dia'] = 1; update_option( MAN_AI::OPCION, $cfg );
@@ -154,7 +155,7 @@ namespace {
 	$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array( 'candidates' => array( array( 'content' => array( 'parts' => array( array( 'text' => 'ok' ) ) ) ) ) ) ) );
 	MAN_AI::preguntar( 'primera del dia' );
 	$r = MAN_AI::preguntar( 'segunda del dia' );
-	chk( is_wp_error( $r ) && 'man_ai_tope' === $r->code, 'el tope diario protege el presupuesto' );
+	chk( is_wp_error( $r ) && 'man_ai_402' === $r->code, 'el tope diario protege el presupuesto' );
 
 	echo "\n--- 7. Estado público ---\n";
 	$cfg = get_option( MAN_AI::OPCION ); $cfg['limite_dia'] = 500; update_option( MAN_AI::OPCION, $cfg );
@@ -167,7 +168,7 @@ namespace {
 	chk( ! MAN_AI::activo() && ! MAN_AI::visible(), 'desactivar apaga también la visibilidad' );
 	$GLOBALS['__c'] = array();
 	$r = MAN_AI::preguntar( 'cualquier cosa' );
-	chk( is_wp_error( $r ) && 'man_ai_inactivo' === $r->code, 'apagado, no responde' );
+	chk( is_wp_error( $r ) && 'man_ai_001' === $r->code, 'apagado, no responde' );
 
 	$cfg['activo'] = true; $cfg['visible'] = false; update_option( MAN_AI::OPCION, $cfg );
 	chk( MAN_AI::activo() && ! MAN_AI::visible(), 'activo pero oculto: se puede probar sin publicarlo' );
@@ -195,6 +196,8 @@ namespace {
 	$datos = $r->get_error_data();
 	chk( isset( $datos['detalle'] ) && false !== strpos( $datos['detalle'], 'invalid x-api-key' ), 'el detalle real viaja aparte, para administradores' );
 	chk( isset( $datos['codigo_proveedor'] ) && 401 === $datos['codigo_proveedor'], 'conserva el código HTTP del proveedor' );
+	chk( isset( $datos['codigo_interno'] ) && 'MAN-AI-201' === $datos['codigo_interno'], 'un 401 del proveedor se traduce a MAN-AI-201' );
+	chk( 'man_ai_201' === $r->code, 'el código del error lleva el número interno (lo lee la consola)' );
 
 	$log = MAN_AI::diagnostico();
 	chk( ! empty( $log ), 'el fallo queda en el registro de diagnóstico' );
@@ -209,10 +212,11 @@ namespace {
 	$GLOBALS['__c'] = array();
 	$GLOBALS['__resp'] = new \WP_Error( 'http_request_failed', 'cURL error 7: Failed to connect' );
 	$r = MAN_AI::preguntar( 'otra pregunta distinta' );
-	chk( is_wp_error( $r ) && 'man_ai_red' === $r->code, 'se distingue de un fallo del proveedor' );
+	chk( is_wp_error( $r ) && 'man_ai_101' === $r->code, 'se distingue de un fallo del proveedor' );
 	$log = MAN_AI::diagnostico();
 	chk( ! empty( $log ) && 'red' === $log[0]['paso'], 'registrado como fallo de red' );
-	chk( false !== strpos( $log[0]['extra']['pista'], 'cortafuegos' ), 'la pista apunta al bloqueo de salida del hosting' );
+	chk( false !== strpos( $log[0]['mensaje'], 'MAN-AI-101' ), 'el registro lleva el código interno MAN-AI-101' );
+	chk( false !== strpos( $log[0]['extra']['pista'], 'hosting' ), 'la pista apunta al bloqueo de salida del hosting' );
 
 	echo "\n--- 11. Revisión de la configuración ---\n";
 	$filas = MAN_AI::revisar_configuracion();
@@ -235,6 +239,61 @@ namespace {
 		}
 	}
 	chk( $encontrado, 'detecta una clave guardada que ya no se puede descifrar' );
+
+	echo "\n--- 12. Catálogo de códigos internos ---\n";
+	$cat = \GobernacionNarino\MonitorAmbiental\MAN_AI_Codigos::catalogo();
+	chk( count( $cat ) >= 20, 'catálogo con ' . count( $cat ) . ' códigos' );
+	$completos = true;
+	foreach ( $cat as $num => $f ) {
+		if ( ! preg_match( '/^\d{3}$/', (string) $num ) || empty( $f['tipo'] ) || empty( $f['que'] ) || ! isset( $f['haz'] ) ) {
+			$completos = false;
+		}
+	}
+	chk( $completos, 'todos tienen número de 3 cifras, tipo, qué pasó y qué hacer' );
+
+	$http = array( 401 => '201', 403 => '202', 404 => '203', 429 => '204', 400 => '205', 500 => '206', 529 => '206' );
+	$bien = true;
+	foreach ( $http as $h => $esperado ) {
+		if ( \GobernacionNarino\MonitorAmbiental\MAN_AI_Codigos::desde_http( $h ) !== $esperado ) { $bien = false; }
+	}
+	chk( $bien, 'cada código HTTP del proveedor se traduce a su código interno' );
+
+	// Todo código que lance el módulo debe existir en el catálogo.
+	$fuente = file_get_contents( __DIR__ . '/../includes/ai/class-man-ai.php' )
+		. file_get_contents( __DIR__ . '/../includes/ai/class-man-ai-voz.php' );
+	preg_match_all( "/self::error\(\s*'(\d{3})'/", $fuente, $m );
+	$huerfanos = array_diff( array_unique( $m[1] ), array_keys( $cat ) );
+	chk( empty( $huerfanos ), 'ningún código lanzado falta en el catálogo' . ( $huerfanos ? ': ' . implode( ',', $huerfanos ) : '' ) );
+
+	// Los códigos de navegador los emite el JS: deben existir también.
+	$js = file_get_contents( __DIR__ . '/../assets/js/asistente.js' );
+	preg_match_all( "/reportar\('(\d{3})'/", $js, $mj );
+	$huerfanos_js = array_diff( array_unique( $mj[1] ), array_keys( $cat ) );
+	chk( empty( $huerfanos_js ), 'ningún código del navegador falta en el catálogo' . ( $huerfanos_js ? ': ' . implode( ',', $huerfanos_js ) : '' ) );
+
+	echo "\n--- 13. Anfitrión y sugerencias ---\n";
+	$cfg = get_option( MAN_AI::OPCION );
+	$cfg['anfitrion'] = ''; $cfg['saludo'] = ''; $cfg['sugerencias'] = '';
+	update_option( MAN_AI::OPCION, $cfg );
+	chk( 'Tu anfitrión' === MAN_AI::anfitrion(), 'sin nombre, usa «Tu anfitrión»' );
+	chk( '' !== MAN_AI::saludo(), 'sin saludo, usa uno por defecto' );
+	chk( count( MAN_AI::sugerencias() ) >= 3, 'sin sugerencias, ofrece las de ejemplo' );
+
+	$cfg['anfitrion']   = 'Ñaño';
+	$cfg['sugerencias'] = "¿Qué es el ONI?\n\n  ¿Cómo está Tumaco?  \r\n" . str_repeat( 'x', 200 );
+	update_option( MAN_AI::OPCION, $cfg );
+	$sug = MAN_AI::sugerencias();
+	chk( 'Ñaño' === MAN_AI::anfitrion(), 'respeta el nombre configurado' );
+	chk( 3 === count( $sug ), 'una por línea, ignorando vacías y con saltos Windows: ' . count( $sug ) );
+	chk( '¿Cómo está Tumaco?' === $sug[1], 'recorta espacios' );
+	chk( mb_strlen( $sug[2] ) <= 120, 'acota la longitud de cada sugerencia' );
+
+	$cfg['sugerencias'] = implode( "\n", array_fill( 0, 20, 'pregunta' ) );
+	update_option( MAN_AI::OPCION, $cfg );
+	chk( count( MAN_AI::sugerencias() ) <= 8, 'máximo 8 sugerencias' );
+
+	$e = MAN_AI::estado();
+	chk( isset( $e['anfitrion'], $e['saludo'], $e['sugerencias'] ), 'el estado público incluye anfitrión, saludo y sugerencias' );
 
 	echo "\n" . ( $fallos ? "$fallos FALLO(S)\n" : "TODO OK\n" );
 	exit( $fallos ? 1 : 0 );

@@ -444,102 +444,196 @@
 
 /* ---------------------------------------------------------------------------
    [man_asistente] — asistente de IA (texto y voz)
-   Dentro del globo es un panel flotante plegable; suelto en una página, un
-   bloque normal que respeta el minimalismo del plugin.
+   Lanzador + ventana con saludo, sugerencias y barra de entrada. Hereda los
+   tokens de apariencia del plugin: sin paleta propia.
 --------------------------------------------------------------------------- */
-.man-asistente__panel { display: flex; flex-direction: column; gap: .7em; }
+.man-asistente { position: relative; display: inline-block; max-width: 100%; }
 
+/* --- Lanzador --- */
+.man-asistente__lanzador {
+  display: inline-flex; align-items: center; gap: .5em;
+  padding: .55em 1.1em; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: .95em; font-weight: 600; line-height: 1;
+  color: #fff; background: var(--man-acento-tecnico, #003087);
+  border: 1px solid transparent;
+  transition: filter .15s ease;
+}
+.man-asistente__lanzador:hover { filter: brightness(1.12); }
+.man-asistente__lanzador:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.man-asistente__lanzador .man-ico { width: 1.15em; height: 1.15em; }
+
+/* --- Ventana --- */
+.man-asistente__ventana {
+  position: relative;
+  display: flex; flex-direction: column; gap: .8em;
+  width: min(34em, calc(100vw - 2rem));
+  margin-top: .6em; padding: 1em;
+  border: 1px solid var(--man-borde-color, #e5e7eb);
+  border-radius: var(--man-borde-radio, 14px);
+  background: var(--man-fondo, #fff);
+  box-shadow: 0 10px 34px -18px rgba(0, 0, 0, .45);
+}
+.man-asistente__ventana[hidden] { display: none; }
+
+/* --- Hilo --- */
 .man-asistente__hilo {
-  display: flex; flex-direction: column; gap: .5em;
-  max-height: 16em; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: .55em;
+  max-height: 17em; overflow-y: auto; overscroll-behavior: contain;
+}
+/* El nombre del anfitrión queda fijo arriba del hilo: los mensajes pasan por
+   debajo al desplazarse y nunca quedan bajo el botón de cerrar en móvil. Sin
+   «opacity», que transparentaría el fondo y dejaría ver el texto de debajo. */
+.man-asistente__anfitrion {
+  position: sticky; top: 0; z-index: 1; flex: none;
+  margin: 0; padding: .2em 0 .35em;
+  font-size: .74em; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: inherit; color: color-mix(in srgb, currentColor 75%, transparent);
+  background: var(--man-fondo, #fff);
 }
 .man-asistente__msg {
-  margin: 0; padding: .5em .7em; border-radius: 10px;
-  font-size: .92em; line-height: 1.5; max-width: 90%;
+  display: flex; align-items: flex-start; gap: .4em;
+  padding: .6em .8em; border-radius: 12px;
+  font-size: .92em; line-height: 1.5; max-width: 92%;
+}
+.man-asistente__msg p { margin: 0; }
+.man-asistente__msg--bot {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--man-acento-tecnico, #003087) 10%, transparent);
+  border-bottom-left-radius: 4px;
 }
 .man-asistente__msg--yo {
   align-self: flex-end;
   background: var(--man-acento-tecnico, #003087); color: #fff;
-  border-bottom-right-radius: 3px;
+  border-bottom-right-radius: 4px;
 }
-.man-asistente__msg--bot {
-  align-self: flex-start;
-  background: color-mix(in srgb, var(--man-mute, #6b7280) 12%, transparent);
-  border-bottom-left-radius: 3px;
+@supports not (background: color-mix(in srgb, red 10%, transparent)) {
+  .man-asistente__msg--bot { background: rgba(0, 48, 135, .1); }
 }
-@supports not (background: color-mix(in srgb, red 12%, transparent)) {
-  .man-asistente__msg--bot { background: rgba(107, 114, 128, .12); }
-}
-.man-asistente__msg.is-provisional { opacity: .65; font-style: italic; }
+.man-asistente__msg.is-provisional { opacity: .6; font-style: italic; }
 
 .man-asistente__escuchar {
-  background: none; border: 0; cursor: pointer; padding: 0 0 0 .4em;
-  font-size: 1em; line-height: 1; opacity: .7;
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; margin: -4px -4px -4px auto; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+  background: transparent; color: inherit; opacity: .7;
 }
-.man-asistente__escuchar:hover:not(:disabled) { opacity: 1; }
-.man-asistente__escuchar:disabled { opacity: .35; cursor: default; }
+.man-asistente__escuchar:hover:not(:disabled) { opacity: 1; background: rgba(0, 0, 0, .06); }
+.man-asistente__escuchar:focus-visible { outline: 2px solid var(--man-acento-tecnico, #003087); outline-offset: 1px; }
+.man-asistente__escuchar:disabled { opacity: .3; cursor: default; }
+.man-asistente__escuchar .man-ico { width: 18px; height: 18px; }
 
-.man-asistente__form { display: flex; gap: .4em; align-items: center; }
-.man-asistente__input {
-  flex: 1 1 auto; min-width: 0;
-  padding: .5em .7em; font: inherit; font-size: .92em;
-  border: 1px solid var(--man-borde-color, #e5e7eb); border-radius: 8px;
-  background: var(--man-fondo, #fff); color: inherit;
+/* --- Sugerencias --- */
+.man-asistente__sugerencias { display: flex; flex-direction: column; gap: .35em; }
+.man-asistente__sugerencias.is-inactivo { opacity: .45; pointer-events: none; }
+.man-asistente__sug-rotulo { font-size: .76em; opacity: .7; }
+.man-asistente__sug-lista {
+  display: flex; gap: .4em; overflow-x: auto; padding-bottom: .2em;
+  scrollbar-width: thin;
 }
-.man-asistente__input:focus-visible {
+.man-asistente__sug {
+  flex: none; cursor: pointer; font: inherit; font-size: .82em;
+  padding: .4em .85em; border-radius: 999px; white-space: nowrap;
+  color: inherit; background: transparent;
+  border: 1px solid var(--man-borde-color, #e5e7eb);
+}
+.man-asistente__sug:hover { border-color: var(--man-acento-tecnico, #003087); }
+.man-asistente__sug:focus-visible { outline: 2px solid var(--man-acento-tecnico, #003087); outline-offset: 1px; }
+
+/* --- Barra de entrada ---
+   [mic]  [ campo de texto ........ (enviar) ]  [detener]  [cerrar]
+   Los botones miden 44 px: es el mínimo táctil recomendado en móvil. */
+.man-asistente__barra { display: flex; align-items: center; gap: .5em; }
+
+.man-asistente__campo {
+  flex: 1 1 auto; min-width: 0; position: relative;
+  display: flex; align-items: center;
+  border: 1px solid var(--man-borde-color, #e5e7eb); border-radius: 999px;
+  background: var(--man-fondo, #fff);
+}
+.man-asistente__campo:focus-within {
   outline: 2px solid var(--man-acento-tecnico, #003087); outline-offset: 1px;
 }
-
-.man-asistente__mic {
-  flex: none; width: 2.2em; height: 2.2em; border-radius: 50%;
-  border: 1px solid var(--man-borde-color, #e5e7eb);
-  background: var(--man-fondo, #fff); cursor: pointer; font-size: .95em;
+.man-asistente__input {
+  flex: 1 1 auto; min-width: 0; height: 44px;
+  padding: 0 .4em 0 1.1em; font: inherit; font-size: .95em;
+  border: 0; background: transparent; color: inherit;
 }
-.man-asistente__mic.is-escuchando {
-  background: #c62828; border-color: #c62828;
+.man-asistente__input:focus { outline: none; }
+.man-asistente__input:disabled { opacity: .6; }
+
+.man-asistente__btn {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; cursor: pointer;
+  border-radius: 50%; border: 1px solid var(--man-borde-color, #e5e7eb);
+  background: transparent; color: inherit;
+  transition: filter .15s ease, background-color .15s ease, opacity .15s ease;
+}
+.man-asistente__btn[hidden] { display: none; }
+.man-asistente__btn:hover:not(:disabled) { filter: brightness(.94); }
+.man-asistente__btn:focus-visible { outline: 2px solid var(--man-acento-tecnico, #003087); outline-offset: 2px; }
+.man-asistente__btn:disabled { opacity: .4; cursor: default; }
+.man-asistente__btn .man-ico { width: 20px; height: 20px; }
+
+/* Enviar vive dentro del campo: algo más pequeño y pegado al borde derecho. */
+.man-asistente__btn--enviar {
+  width: 36px; height: 36px; margin-right: 4px;
+  background: var(--man-acento-2, #FFD500); border-color: transparent; color: #1a1f2c;
+}
+.man-asistente__btn--enviar .man-ico { width: 18px; height: 18px; }
+.man-asistente__btn--detener .man-ico { width: 16px; height: 16px; }
+.man-asistente__btn--cerrar {
+  background: #c62828; border-color: transparent; color: #fff;
+}
+.man-asistente__btn--mic.is-escuchando {
+  background: #c62828; border-color: #c62828; color: #fff;
   animation: man-asistente-pulso 1.2s ease-in-out infinite;
 }
 @keyframes man-asistente-pulso {
   0%, 100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, .5); }
-  50% { box-shadow: 0 0 0 .4em rgba(198, 40, 40, 0); }
+  50% { box-shadow: 0 0 0 .45em rgba(198, 40, 40, 0); }
 }
 
 .man-asistente__aviso {
-  margin: 0; font-size: .74em; line-height: 1.45;
-  color: var(--man-mute, #6b7280);
+  margin: 0; font-size: .72em; line-height: 1.45; opacity: .7;
 }
 
-/* --- Montado dentro del globo: flotante y plegable --- */
-.man-asistente--globo { position: absolute; right: 12px; bottom: 12px; z-index: 5; max-width: min(23em, calc(100% - 24px)); }
-.man-asistente__toggle {
-  display: inline-flex; align-items: center; gap: .4em;
-  padding: .45em .8em; border-radius: 999px; cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, .25);
-  background: rgba(10, 20, 35, .72); color: #fff;
-  font: inherit; font-size: .85em; backdrop-filter: blur(4px);
+/* --- Montado sobre el globo: lanzador y ventana flotantes --- */
+.man-asistente--globo { position: absolute; right: 12px; bottom: 12px; z-index: 5; }
+.man-asistente--globo .man-asistente__ventana {
+  position: absolute; right: 0; bottom: calc(100% + .6em);
+  background: rgba(10, 20, 35, .94); color: #fff;
+  border-color: rgba(255, 255, 255, .16);
+  backdrop-filter: blur(6px);
 }
-.man-asistente__toggle:hover { background: rgba(10, 20, 35, .9); }
-.man-asistente--globo .man-asistente__panel {
-  margin-top: .5em; padding: .8em;
-  background: rgba(10, 20, 35, .88); color: #fff;
-  border-radius: 12px; backdrop-filter: blur(6px);
-}
-.man-asistente--globo .man-asistente__input {
+.man-asistente--globo .man-asistente__campo,
+.man-asistente--globo .man-asistente__btn,
+.man-asistente--globo .man-asistente__sug {
   background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .22); color: #fff;
 }
+.man-asistente--globo .man-asistente__input { color: #fff; }
+.man-asistente--globo .man-asistente__escuchar:hover:not(:disabled) { background: rgba(255, 255, 255, .12); }
+.man-asistente--globo .man-asistente__btn--enviar { background: var(--man-acento-2, #FFD500); color: #1a1f2c; }
+.man-asistente--globo .man-asistente__btn--cerrar { background: #c62828; color: #fff; }
 .man-asistente--globo .man-asistente__input::placeholder { color: rgba(255, 255, 255, .6); }
-.man-asistente--globo .man-asistente__mic {
-  background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .22); color: #fff;
-}
-.man-asistente--globo .man-asistente__msg--bot { background: rgba(255, 255, 255, .12); }
-.man-asistente--globo .man-asistente__aviso { color: rgba(255, 255, 255, .62); }
+.man-asistente--globo .man-asistente__msg--bot { background: rgba(255, 255, 255, .13); }
+.man-asistente--globo .man-asistente__anfitrion { background: rgb(10, 20, 35); }
 
 @media (max-width: 600px) {
-  .man-asistente--globo { left: 12px; right: 12px; max-width: none; }
-  .man-asistente__hilo { max-height: 11em; }
+  .man-asistente--globo { left: 12px; right: 12px; }
+  .man-asistente--globo .man-asistente__ventana { width: auto; left: 0; right: 0; }
+  .man-asistente__ventana { padding: .75em; }
+  .man-asistente__hilo { max-height: 12em; }
+  .man-asistente__barra { gap: .35em; }
+
+  /* Con tres botones de 44 px en la barra, el campo de texto quedaba en unos
+     100 px. «Cerrar» sube a la esquina de la ventana y libera ese espacio
+     sin bajar ningún botón del mínimo táctil. */
+  .man-asistente__btn--cerrar { position: absolute; top: .5em; right: .5em; z-index: 2; }
+  .man-asistente__anfitrion { padding: 0 52px 0 0; min-height: 44px; display: flex; align-items: center; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .man-asistente__mic.is-escuchando { animation: none; }
+  .man-asistente__btn--mic.is-escuchando { animation: none; }
+  .man-asistente__lanzador, .man-asistente__btn { transition: none; }
 }
 
 /* Accesibilidad: respeta reduced motion (el globo ya limita su carga). */
