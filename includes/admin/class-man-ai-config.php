@@ -19,6 +19,7 @@ final class MAN_AI_Config {
 		add_action( 'admin_post_man_guardar_ai', array( $this, 'guardar' ) );
 		add_action( 'wp_ajax_man_probar_voz', array( $this, 'ajax_probar_voz' ) );
 		add_action( 'wp_ajax_man_probar_ai', array( $this, 'ajax_probar_ai' ) );
+		add_action( 'wp_ajax_man_detectar_ai', array( $this, 'ajax_detectar_ai' ) );
 	}
 
 	/**
@@ -142,18 +143,31 @@ final class MAN_AI_Config {
 							</label></p>
 							<p class="description" style="margin-top:-6px"><?php echo esc_html( $p['ayuda'] ); ?></p>
 
+							<?php $detectados = MAN_AI::modelos_detectados( $slug ); ?>
 							<p><label>Modelo
-								<select name="man_ai[<?php echo esc_attr( $campo_modelo ); ?>]">
-									<?php foreach ( $p['modelos'] as $id => $etiqueta ) : ?>
+								<select name="man_ai[<?php echo esc_attr( $campo_modelo ); ?>]" class="man-modelo-ai" data-proveedor="<?php echo esc_attr( $slug ); ?>">
+									<?php foreach ( MAN_AI::modelos_de( $slug ) as $id => $etiqueta ) : ?>
 										<option value="<?php echo esc_attr( $id ); ?>" <?php selected( $cfg[ $campo_modelo ], $id ); ?>>
 											<?php echo esc_html( $etiqueta ); ?>
 										</option>
 									<?php endforeach; ?>
 								</select>
 							</label></p>
+							<?php if ( ! empty( $p['detectable'] ) ) : ?>
+								<p class="description" style="margin-top:-6px">
+									<?php if ( $detectados['fecha'] ) : ?>
+										<?php echo esc_html( sprintf( 'Su cuenta informó %d modelos de texto el %s.', count( $detectados['modelos'] ), gmdate( 'Y-m-d H:i', $detectados['fecha'] ) . ' UTC' ) ); ?>
+									<?php else : ?>
+										Use «Detectar modelos» para comprobar la clave y ver qué modelos admite su cuenta (no consume consultas).
+									<?php endif; ?>
+								</p>
+							<?php endif; ?>
 
 							<?php if ( $tiene_clave ) : ?>
 								<p>
+									<?php if ( ! empty( $p['detectable'] ) ) : ?>
+										<button type="button" class="button man-detectar-ai" data-proveedor="<?php echo esc_attr( $slug ); ?>">Detectar modelos</button>
+									<?php endif; ?>
 									<button type="button" class="button man-probar-ai" data-proveedor="<?php echo esc_attr( $slug ); ?>">Probar</button>
 									<span class="man-resultado-ai" data-proveedor="<?php echo esc_attr( $slug ); ?>"></span>
 								</p>
@@ -375,10 +389,12 @@ final class MAN_AI_Config {
 		$nuevo['limite_ip_hora'] = isset( $in['limite_ip_hora'] ) ? max( 1, min( 100, (int) $in['limite_ip_hora'] ) ) : 10;
 		$nuevo['limite_dia']     = isset( $in['limite_dia'] ) ? max( 0, min( 100000, (int) $in['limite_dia'] ) ) : 500;
 
-		// Modelos: solo se aceptan los del catálogo, no texto libre.
+		// Modelos: solo los del catálogo o los que la cuenta informó al
+		// detectarlos, nunca texto libre.
 		foreach ( $proveedores as $slug => $p ) {
-			$campo = $slug . '_modelo';
-			if ( isset( $in[ $campo ] ) && isset( $p['modelos'][ $in[ $campo ] ] ) ) {
+			$campo     = $slug . '_modelo';
+			$elegibles = MAN_AI::modelos_de( $slug );
+			if ( isset( $in[ $campo ] ) && isset( $elegibles[ $in[ $campo ] ] ) ) {
 				$nuevo[ $campo ] = $in[ $campo ];
 			}
 		}
@@ -431,5 +447,29 @@ final class MAN_AI_Config {
 			wp_send_json_success( array( 'mensaje' => $res['mensaje'] ) );
 		}
 		wp_send_json_error( array( 'mensaje' => $res['mensaje'] ) );
+	}
+
+	/**
+	 * AJAX: lista los modelos que admite la clave guardada. Comprueba la clave
+	 * sin gastar consultas y devuelve la lista para el desplegable.
+	 */
+	public function ajax_detectar_ai() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'mensaje' => 'No autorizado' ), 403 );
+		}
+		check_ajax_referer( 'man_admin', 'nonce' );
+
+		$slug = isset( $_POST['proveedor'] ) ? sanitize_key( wp_unslash( $_POST['proveedor'] ) ) : '';
+		$res  = MAN_AI::detectar_modelos( $slug );
+		$out  = array(
+			'mensaje' => $res['mensaje'],
+			'aviso'   => ! empty( $res['aviso'] ),
+			'modelos' => $res['modelos'],
+		);
+
+		if ( ! empty( $res['ok'] ) ) {
+			wp_send_json_success( $out );
+		}
+		wp_send_json_error( $out );
 	}
 }

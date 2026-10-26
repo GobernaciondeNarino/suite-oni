@@ -154,6 +154,15 @@ Se configura en **Monitor Ambiental → Asistente IA**:
 
 - **Proveedor**: Claude (Anthropic), ChatGPT (OpenAI) o Gemini (Google). Se
   configura el que se quiera y solo trabaja el seleccionado.
+- **Modelos**: Claude Opus 5.5 (recomendado), Sonnet 5.5 o Haiku 5.5; Gemini
+  3.8 Flash (recomendado), 4 Argon o 3.5 Flash-Lite. **«Detectar modelos»**
+  pregunta al proveedor qué modelos admite la clave guardada: comprueba la clave
+  sin gastar consultas y añade al desplegable los modelos nuevos de la cuenta,
+  sin esperar a una actualización del plugin. Si un proveedor retira el modelo
+  guardado, el plugin usa el recomendado y el *Diagnóstico* lo señala.
+- **Clave de Gemini**: desde 2026 Google rechaza las claves estándar sin
+  restricción y bloquea las inactivas. Use una clave creada en
+  aistudio.google.com/apikey o restrinja la suya a «Generative Language API».
 - **Voz**: ElevenLabs, con su **clave y su ID de voz**. Si se activa, cada
   respuesta trae un botón para escucharla.
 - **Dos interruptores independientes**: *Activar* (el asistente responde) y
@@ -211,7 +220,7 @@ qué pasó y qué hacer:
 | `MAN-AI-0xx` | Configuración del panel | 001 módulo desactivado · 002 sin clave · 003 clave ilegible |
 | `MAN-AI-1xx` | Salida a internet del servidor | 101 conexión bloqueada · 102 tiempo agotado |
 | `MAN-AI-2xx` | El proveedor de IA devolvió error | 201 clave rechazada · 204 sin saldo · 206 caída del proveedor |
-| `MAN-AI-3xx` | Respuesta inutilizable | 301 no es JSON · 303 el modelo declinó |
+| `MAN-AI-3xx` | Respuesta inutilizable | 301 no es JSON · 303 el modelo declinó · 304 se cortó razonando |
 | `MAN-AI-4xx` | Cupos propios | 401 cupo por hora · 402 tope diario |
 | `MAN-AI-5xx` | Voz (ElevenLabs) | 503 petición rechazada · 504 el ID de voz no existe |
 | `MAN-AI-6xx` | Navegador del visitante | 602 micrófono denegado · 604 la REST no responde · 605 tiempo de espera |

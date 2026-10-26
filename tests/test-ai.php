@@ -24,7 +24,11 @@ namespace {
 	function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d ); }
 	function wp_json_encode( $v ) { return json_encode( $v, JSON_UNESCAPED_UNICODE ); }
 	function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
-	function wp_remote_get( $url, $args = array() ) { return isset( $GLOBALS['__get'] ) ? $GLOBALS['__get'] : array( 'code' => 200, 'body' => '' ); }
+	function wp_remote_get( $url, $args = array() ) {
+		$GLOBALS['__gets'][] = array( 'url' => $url, 'args' => $args );
+		if ( ! empty( $GLOBALS['__get_cola'] ) ) { return array_shift( $GLOBALS['__get_cola'] ); }
+		return isset( $GLOBALS['__get'] ) ? $GLOBALS['__get'] : array( 'code' => 200, 'body' => '' );
+	}
 	function delete_option( $k ) { unset( $GLOBALS['__opt'][ $k ] ); return true; }
 	function current_time( $t, $g = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
 	function get_option( $k, $d = false ) { return isset( $GLOBALS['__opt'][ $k ] ) ? $GLOBALS['__opt'][ $k ] : $d; }
@@ -65,6 +69,8 @@ namespace GobernacionNarino\MonitorAmbiental {
 	class MAN_AI_Contexto { public static function sistema( $m = '' ) { return 'CONTEXTO DE PRUEBA para ' . ( $m ? $m : 'departamento' ); } }
 	require __DIR__ . '/../includes/ai/class-man-ai-codigos.php';
 	require __DIR__ . '/../includes/ai/class-man-ai.php';
+	class MAN_Sync_Firms { const DIAS_MAX = 5; }
+	require __DIR__ . '/../includes/class-man-activator.php';
 }
 namespace {
 	use GobernacionNarino\MonitorAmbiental\MAN_AI;
@@ -294,6 +300,181 @@ namespace {
 
 	$e = MAN_AI::estado();
 	chk( isset( $e['anfitrion'], $e['saludo'], $e['sugerencias'] ), 'el estado público incluye anfitrión, saludo y sugerencias' );
+
+	// Helpers para las secciones de modelos.
+	function cuerpo_ultimo() { $u = ultimo(); return json_decode( $u['args']['body'], true ); }
+	function usar( $prov, $modelo = null ) {
+		$cfg = get_option( MAN_AI::OPCION );
+		$cfg['proveedor'] = $prov;
+		if ( null !== $modelo ) { $cfg[ $prov . '_modelo' ] = $modelo; }
+		update_option( MAN_AI::OPCION, $cfg );
+		$GLOBALS['__c'] = array(); // sin caché ni contador
+	}
+	function json_resp( $datos, $code = 200 ) { return array( 'code' => $code, 'body' => json_encode( $datos ) ); }
+
+	echo "\n--- 14. Catálogo de modelos vigente ---\n";
+	$prov = MAN_AI::proveedores();
+	$todos = array_merge( array_keys( $prov['claude']['modelos'] ), array_keys( $prov['gemini']['modelos'] ) );
+	chk( ! preg_grep( '/^gemini-(1\.|2\.0)/', $todos ), 'ningún Gemini apagado (1.5, 2.0) en el catálogo' );
+	chk( 'gemini-3.8-flash' === key( $prov['gemini']['modelos'] ), 'Gemini recomendado: gemini-3.8-flash' );
+	chk( 'claude-opus-5-5' === key( $prov['claude']['modelos'] ), 'Claude recomendado: claude-opus-5-5' );
+	$def = MAN_AI::config_por_defecto();
+	chk( isset( $prov['gemini']['modelos'][ $def['gemini_modelo'] ], $prov['claude']['modelos'][ $def['claude_modelo'] ] ), 'los modelos por defecto están en el catálogo' );
+
+	echo "\n--- 15. Claude: el razonamiento cabe en el tope ---\n";
+	usar( 'claude', 'claude-opus-5-5' );
+	$GLOBALS['__resp'] = json_resp( array( 'stop_reason' => 'end_turn', 'content' => array( array( 'type' => 'text', 'text' => 'Ok.' ) ) ) );
+	MAN_AI::preguntar( 'tope claude' );
+	$b = cuerpo_ultimo();
+	chk( $b['max_tokens'] >= 2048, 'max_tokens deja sitio al razonamiento: ' . $b['max_tokens'] );
+	chk( 'low' === $b['output_config']['effort'], 'esfuerzo bajo para respuestas cortas' );
+
+	usar( 'claude' );
+	$GLOBALS['__resp'] = json_resp( array( 'stop_reason' => 'max_tokens', 'content' => array( array( 'type' => 'thinking', 'thinking' => '' ) ) ) );
+	$r = MAN_AI::preguntar( 'se agotó pensando' );
+	chk( is_wp_error( $r ) && 'man_ai_304' === $r->code, 'tope agotado sin texto → MAN-AI-304 (no un 302 genérico)' );
+
+	usar( 'claude' );
+	$GLOBALS['__resp'] = json_resp( array( 'stop_reason' => 'max_tokens', 'content' => array( array( 'type' => 'text', 'text' => 'El ONI está en' ) ) ) );
+	$r = MAN_AI::preguntar( 'se cortó escribiendo' );
+	chk( ! is_wp_error( $r ) && 'El ONI está en…' === $r['respuesta'], 'si alcanzó a escribir, entrega lo escrito marcado como cortado' );
+
+	echo "\n--- 16. Gemini 3/4: thinkingLevel; 2.5: thinkingBudget ---\n";
+	usar( 'gemini', 'gemini-3.8-flash' );
+	$GLOBALS['__resp'] = json_resp( array( 'candidates' => array( array(
+		'finishReason' => 'STOP',
+		'content'      => array( 'parts' => array(
+			array( 'text' => 'pensando en voz alta', 'thought' => true ),
+			array( 'text' => 'Respuesta visible.' ),
+		) ),
+	) ) ) );
+	$r = MAN_AI::preguntar( 'gemini 3.8' );
+	$u = ultimo();
+	$b = cuerpo_ultimo();
+	chk( false !== strpos( $u['url'], '/models/gemini-3.8-flash:generateContent' ), 'llama a gemini-3.8-flash' );
+	chk( isset( $b['generationConfig']['thinkingConfig']['thinkingLevel'] ) && 'low' === $b['generationConfig']['thinkingConfig']['thinkingLevel'], 'Gemini 3.x: thinkingLevel=low' );
+	chk( ! isset( $b['generationConfig']['thinkingConfig']['thinkingBudget'] ), 'sin thinkingBudget a la vez (sería HTTP 400)' );
+	chk( $b['generationConfig']['maxOutputTokens'] >= 2048, 'maxOutputTokens deja sitio al razonamiento: ' . $b['generationConfig']['maxOutputTokens'] );
+	chk( ! is_wp_error( $r ) && 'Respuesta visible.' === $r['respuesta'], 'descarta las partes de razonamiento (thought=true)' );
+
+	usar( 'gemini', 'gemini-4-argon' );
+	$GLOBALS['__resp'] = json_resp( array( 'candidates' => array( array( 'content' => array( 'parts' => array( array( 'text' => 'ok' ) ) ) ) ) ) );
+	MAN_AI::preguntar( 'gemini 4' );
+	$b = cuerpo_ultimo();
+	chk( 'low' === $b['generationConfig']['thinkingConfig']['thinkingLevel'], 'Gemini 4 Argon: thinkingLevel=low' );
+
+	// Modelos 2.5 solo llegan por detección (cuentas que ya los usaban).
+	update_option( MAN_AI::OPCION_MODELOS, array( 'gemini' => array( 'fecha' => time(), 'modelos' => array( 'gemini-2.5-flash' => 'Gemini 2.5 Flash', 'gemini-2.5-pro' => 'Gemini 2.5 Pro' ) ) ) );
+	usar( 'gemini', 'gemini-2.5-flash' );
+	MAN_AI::preguntar( 'gemini 2.5 flash' );
+	$b = cuerpo_ultimo();
+	chk( isset( $b['generationConfig']['thinkingConfig']['thinkingBudget'] ) && 0 === $b['generationConfig']['thinkingConfig']['thinkingBudget'], '2.5 Flash: thinkingBudget=0' );
+	chk( ! isset( $b['generationConfig']['thinkingConfig']['thinkingLevel'] ), '2.5 Flash: sin thinkingLevel (no lo admite)' );
+	usar( 'gemini', 'gemini-2.5-pro' );
+	MAN_AI::preguntar( 'gemini 2.5 pro' );
+	$b = cuerpo_ultimo();
+	chk( 128 === $b['generationConfig']['thinkingConfig']['thinkingBudget'], '2.5 Pro: thinkingBudget=128 (no admite 0)' );
+	delete_option( MAN_AI::OPCION_MODELOS );
+
+	echo "\n--- 17. Gemini: cortes y bloqueos ---\n";
+	usar( 'gemini', 'gemini-3.8-flash' );
+	$GLOBALS['__resp'] = json_resp( array( 'candidates' => array( array( 'finishReason' => 'MAX_TOKENS', 'content' => array( 'parts' => array() ) ) ) ) );
+	$r = MAN_AI::preguntar( 'gemini se agotó' );
+	chk( is_wp_error( $r ) && 'man_ai_304' === $r->code, 'MAX_TOKENS sin texto → MAN-AI-304' );
+	usar( 'gemini' );
+	$GLOBALS['__resp'] = json_resp( array( 'promptFeedback' => array( 'blockReason' => 'SAFETY' ) ) );
+	$r = MAN_AI::preguntar( 'gemini bloqueada' );
+	chk( is_wp_error( $r ) && 'man_ai_303' === $r->code, 'pregunta bloqueada (promptFeedback) → MAN-AI-303' );
+	usar( 'gemini' );
+	$GLOBALS['__resp'] = json_resp( array( 'candidates' => array( array( 'finishReason' => 'SAFETY' ) ) ) );
+	$r = MAN_AI::preguntar( 'gemini filtrada' );
+	chk( is_wp_error( $r ) && 'man_ai_303' === $r->code, 'respuesta filtrada (finishReason=SAFETY) → MAN-AI-303' );
+	usar( 'gemini' );
+	$GLOBALS['__resp'] = json_resp( array( 'error' => array( 'code' => 403, 'message' => 'Requests from unrestricted API keys are blocked.' ) ), 403 );
+	$res = MAN_AI::probar_proveedor( 'gemini' );
+	chk( ! $res['ok'] && false !== strpos( $res['mensaje'], 'aistudio.google.com/apikey' ), 'clave estándar rechazada: el panel explica qué clave crear' );
+
+	echo "\n--- 18. Modelo retirado guardado ---\n";
+	usar( 'gemini', 'gemini-2.0-flash' );
+	$GLOBALS['__resp'] = json_resp( array( 'candidates' => array( array( 'content' => array( 'parts' => array( array( 'text' => 'ok' ) ) ) ) ) ) );
+	MAN_AI::preguntar( 'con modelo viejo' );
+	$u = ultimo();
+	chk( false !== strpos( $u['url'], 'gemini-3.8-flash' ) && false === strpos( $u['url'], 'gemini-2.0' ), 'un modelo apagado se sustituye por el recomendado al llamar' );
+	$fila = null;
+	foreach ( MAN_AI::revisar_configuracion() as $f ) { if ( 'Modelo' === $f['paso'] ) { $fila = $f; } }
+	chk( $fila && 'error' === $fila['estado'] && false !== strpos( $fila['mensaje'], 'gemini-3.8-flash' ), 'el diagnóstico lo señala y dice qué modelo se usa en su lugar' );
+	chk( 'gemini-3.8-flash' === MAN_AI::modelo_vigente( 'gemini', 'gemini-1.5-pro' ), 'gemini-1.5-pro → gemini-3.8-flash' );
+	chk( 'claude-sonnet-5-5' === MAN_AI::modelo_vigente( 'claude', 'claude-sonnet-5-5' ), 'un modelo vigente se respeta' );
+
+	echo "\n--- 19. Detectar modelos: Claude ---\n";
+	usar( 'claude', 'claude-opus-5-5' );
+	$cfg = get_option( MAN_AI::OPCION ); $cfg['claude_clave'] = MAN_Security::cifrar( 'sk-ant-prueba' ); update_option( MAN_AI::OPCION, $cfg );
+	$GLOBALS['__gets'] = array();
+	$GLOBALS['__get_cola'] = array(
+		json_resp( array( 'data' => array(
+			array( 'type' => 'model', 'id' => 'claude-opus-5-5', 'display_name' => 'Claude Opus 5.5' ),
+			array( 'type' => 'model', 'id' => 'claude-fable-5-1', 'display_name' => 'Claude Fable 5.1' ),
+		), 'has_more' => true, 'last_id' => 'claude-fable-5-1' ) ),
+		json_resp( array( 'data' => array(
+			array( 'type' => 'model', 'id' => 'claude-haiku-5-5', 'display_name' => 'Claude Haiku 5.5' ),
+			array( 'type' => 'model', 'id' => 'x"><script>', 'display_name' => 'malicioso' ),
+		), 'has_more' => false ) ),
+	);
+	$d = MAN_AI::detectar_modelos( 'claude' );
+	chk( $d['ok'] && ! $d['aviso'], 'clave reconocida y el modelo elegido está disponible' );
+	chk( 2 === count( $GLOBALS['__gets'] ) && false !== strpos( $GLOBALS['__gets'][1]['url'], 'after_id=claude-fable-5-1' ), 'recorre las páginas con after_id' );
+	$g = $GLOBALS['__gets'][0];
+	chk( false !== strpos( $g['url'], 'api.anthropic.com/v1/models' ) && 'sk-ant-prueba' === $g['args']['headers']['x-api-key'] && isset( $g['args']['headers']['anthropic-version'] ), 'GET /v1/models con x-api-key y anthropic-version' );
+	$det = MAN_AI::modelos_detectados( 'claude' );
+	chk( 3 === count( $det['modelos'] ) && ! isset( $det['modelos']['x"><script>'] ), 'guarda 3 modelos y descarta un ID con caracteres no válidos' );
+	$m = MAN_AI::modelos_de( 'claude' );
+	chk( isset( $m['claude-fable-5-1'] ) && false !== strpos( $m['claude-fable-5-1'], 'detectado' ), 'un modelo nuevo de la cuenta se puede elegir sin actualizar el plugin' );
+	chk( 'claude-fable-5-1' === MAN_AI::modelo_vigente( 'claude', 'claude-fable-5-1' ), 'y se usa tal cual al llamar' );
+
+	$GLOBALS['__get_cola'] = array( json_resp( array( 'type' => 'error', 'error' => array( 'type' => 'authentication_error', 'message' => 'invalid x-api-key' ) ), 401 ) );
+	$d = MAN_AI::detectar_modelos( 'claude' );
+	chk( ! $d['ok'] && false !== strpos( $d['mensaje'], 'MAN-AI-201' ) && false !== strpos( $d['mensaje'], 'invalid x-api-key' ), 'clave rechazada: código y motivo del proveedor' );
+
+	echo "\n--- 20. Detectar modelos: Gemini ---\n";
+	usar( 'gemini', 'gemini-3.8-flash' );
+	$GLOBALS['__gets'] = array();
+	$GLOBALS['__get_cola'] = array( json_resp( array( 'models' => array(
+		array( 'name' => 'models/gemini-3.8-flash', 'displayName' => 'Gemini 3.8 Flash', 'supportedGenerationMethods' => array( 'generateContent', 'countTokens' ) ),
+		array( 'name' => 'models/gemini-4-argon', 'displayName' => 'Gemini 4 Argon', 'supportedGenerationMethods' => array( 'generateContent' ) ),
+		array( 'name' => 'models/gemini-3.8-flash-tts', 'displayName' => 'TTS', 'supportedGenerationMethods' => array( 'generateContent' ) ),
+		array( 'name' => 'models/gemini-3.1-flash-image', 'displayName' => 'Imagen', 'supportedGenerationMethods' => array( 'generateContent' ) ),
+		array( 'name' => 'models/gemini-embedding-001', 'displayName' => 'Embedding', 'supportedGenerationMethods' => array( 'embedContent' ) ),
+	) ) ) );
+	$d = MAN_AI::detectar_modelos( 'gemini' );
+	$g = $GLOBALS['__gets'][0];
+	chk( $d['ok'] && ! $d['aviso'], 'clave reconocida y el modelo elegido está disponible' );
+	chk( false === strpos( $g['url'], 'AIza-prueba' ) && 'AIza-prueba' === $g['args']['headers']['x-goog-api-key'], 'la clave va en cabecera, no en la URL' );
+	$det = MAN_AI::modelos_detectados( 'gemini' );
+	chk( array( 'gemini-3.8-flash', 'gemini-4-argon' ) === array_keys( $det['modelos'] ), 'solo modelos de texto: fuera voz, imagen y embeddings' );
+
+	usar( 'gemini', 'gemini-3.5-flash-lite' );
+	$GLOBALS['__get_cola'] = array( json_resp( array( 'models' => array(
+		array( 'name' => 'models/gemini-3.8-flash', 'supportedGenerationMethods' => array( 'generateContent' ) ),
+	) ) ) );
+	$d = MAN_AI::detectar_modelos( 'gemini' );
+	chk( $d['ok'] && $d['aviso'] && false !== strpos( $d['mensaje'], 'NO está' ), 'avisa si el modelo elegido no está en la cuenta' );
+
+	$d = MAN_AI::detectar_modelos( 'openai' );
+	chk( ! $d['ok'], 'OpenAI no ofrece detección: lo dice en vez de fallar' );
+	$GLOBALS['__get_cola'] = array();
+	delete_option( MAN_AI::OPCION_MODELOS );
+
+	echo "\n--- 21. Migración al actualizar el plugin ---\n";
+	$cfg = get_option( MAN_AI::OPCION );
+	$cfg['gemini_modelo'] = 'gemini-2.0-flash';
+	$cfg['claude_modelo'] = 'claude-sonnet-5-5';
+	update_option( MAN_AI::OPCION, $cfg );
+	update_option( 'man_version', '1.42.0' );
+	\GobernacionNarino\MonitorAmbiental\MAN_Activator::migrar_si_necesario();
+	$cfg = get_option( MAN_AI::OPCION );
+	chk( 'gemini-3.8-flash' === $cfg['gemini_modelo'], 'la config guardada con gemini-2.0-flash pasa a gemini-3.8-flash' );
+	chk( 'claude-sonnet-5-5' === $cfg['claude_modelo'], 'un modelo vigente elegido por el operador no se toca' );
+	chk( MAN_VERSION === get_option( 'man_version' ), 'marca la versión migrada' );
 
 	echo "\n" . ( $fallos ? "$fallos FALLO(S)\n" : "TODO OK\n" );
 	exit( $fallos ? 1 : 0 );

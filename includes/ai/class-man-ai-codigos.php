@@ -58,7 +58,7 @@ final class MAN_AI_Codigos {
 			'004' => array(
 				'tipo' => 'config',
 				'que'  => 'El modelo guardado no está en el catálogo del proveedor.',
-				'haz'  => 'Elija un modelo del desplegable y guarde.',
+				'haz'  => 'Elija un modelo del desplegable y guarde, o pulse «Detectar modelos» para ver los de su cuenta.',
 			),
 			'005' => array(
 				'tipo' => 'config',
@@ -91,8 +91,8 @@ final class MAN_AI_Codigos {
 			),
 			'203' => array(
 				'tipo' => 'proveedor',
-				'que'  => 'El modelo no existe para esta cuenta (HTTP 404).',
-				'haz'  => 'Elija otro modelo en el desplegable.',
+				'que'  => 'El modelo no existe para esta cuenta o el proveedor lo retiró (HTTP 404).',
+				'haz'  => 'Pulse «Detectar modelos» para ver los que admite su cuenta, elija uno y guarde.',
 			),
 			'204' => array(
 				'tipo' => 'proveedor',
@@ -125,6 +125,11 @@ final class MAN_AI_Codigos {
 				'tipo' => 'respuesta',
 				'que'  => 'El modelo declinó responder a esa consulta.',
 				'haz'  => 'No es un fallo: sus filtros de seguridad rechazaron la pregunta.',
+			),
+			'304' => array(
+				'tipo' => 'respuesta',
+				'que'  => 'La respuesta se cortó: el modelo agotó el tope de tokens razonando.',
+				'haz'  => 'Suele ser una pregunta muy abierta. Si se repite, elija un modelo más rápido.',
 			),
 
 			// --- 4xx límites propios ---

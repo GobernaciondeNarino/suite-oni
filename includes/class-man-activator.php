@@ -196,6 +196,28 @@ final class MAN_Activator {
 			}
 		}
 
+		// Asistente: un modelo que el proveedor retiró (Gemini 2.0 Flash se
+		// apagó el 1/6/2026; 1.5 Pro mucho antes) dejaba toda consulta en
+		// HTTP 404. Se reemplaza por el recomendado del catálogo vigente.
+		$ai = get_option( MAN_AI::OPCION );
+		if ( is_array( $ai ) ) {
+			$cambio_ai = false;
+			foreach ( array_keys( MAN_AI::proveedores() ) as $slug ) {
+				$campo = $slug . '_modelo';
+				if ( isset( $ai[ $campo ] ) ) {
+					$vigente = MAN_AI::modelo_vigente( $slug, $ai[ $campo ] );
+					if ( $vigente !== $ai[ $campo ] ) {
+						MAN_Sync::auditar( 'migracion', 'ai', 'ok', 0, 'Modelo retirado ' . $ai[ $campo ] . ' → ' . $vigente );
+						$ai[ $campo ] = $vigente;
+						$cambio_ai    = true;
+					}
+				}
+			}
+			if ( $cambio_ai ) {
+				update_option( MAN_AI::OPCION, $ai );
+			}
+		}
+
 		update_option( 'man_version', MAN_VERSION );
 	}
 

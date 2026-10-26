@@ -87,6 +87,45 @@
     });
   });
 
+  /* Detectar modelos: comprueba la clave sin gastar consultas y rellena el
+     desplegable con lo que la cuenta del proveedor dice admitir. */
+  function rellenarModelos(prov, modelos) {
+    var sel = document.querySelector('.man-modelo-ai[data-proveedor="' + prov + '"]');
+    if (!sel || !modelos) { return; }
+    var actual = sel.value;
+    while (sel.options.length) { sel.remove(0); }
+    Object.keys(modelos).forEach(function (id) {
+      var op = document.createElement('option');
+      op.value = id;
+      op.textContent = modelos[id]; // textContent: el nombre viene del proveedor
+      if (id === actual) { op.selected = true; }
+      sel.appendChild(op);
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.classList || !t.classList.contains('man-detectar-ai')) { return; }
+
+    var prov = t.getAttribute('data-proveedor');
+    var span = document.querySelector('.man-resultado-ai[data-proveedor="' + prov + '"]');
+    if (span) { span.textContent = '… consultando los modelos de la cuenta'; span.style.color = '#787c82'; }
+    t.disabled = true;
+
+    postCampos({ action: 'man_detectar_ai', proveedor: prov }, function (res) {
+      resultado(span, t, res, 'Detección de modelos de «' + prov + '» fallida');
+      var datos = (res && res.data) ? res.data : {};
+      if (res && res.success) {
+        rellenarModelos(prov, datos.modelos);
+        if (datos.aviso && span) {
+          span.style.color = '#b26a00';
+          if (window.console) { console.warn('[Monitor Ambiental · asistente] ' + datos.mensaje); }
+        }
+        if (window.console) { console.info('[Monitor Ambiental · asistente] Modelos de «' + prov + '»:', datos.modelos); }
+      }
+    });
+  });
+
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t || t.id !== 'man-probar-voz') { return; }

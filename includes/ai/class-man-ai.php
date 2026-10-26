@@ -37,10 +37,23 @@ final class MAN_AI {
 	/** Cuántos eventos se conservan. */
 	const MAX_DIAG = 15;
 
+	/** Opción con los modelos que la cuenta de cada proveedor dice tener. */
+	const OPCION_MODELOS = 'man_ai_modelos_detectados';
+
 	/** Límites de entrada y salida. */
 	const MAX_PREGUNTA   = 500;
 	const MAX_RESPUESTA  = 600;
 	const TTL_RESPUESTA  = 6 * HOUR_IN_SECONDS;
+
+	/**
+	 * Tope de tokens para los modelos que razonan antes de responder (Claude y
+	 * Gemini actuales). El razonamiento cuenta dentro del tope aunque no se
+	 * devuelva: con 600, el modelo podía gastarlo entero pensando y responder
+	 * vacío o cortado. El largo de la respuesta lo fija el prompt (2 a 5
+	 * frases) y solo se cobra lo que se genera, así que subir el tope no
+	 * encarece las respuestas normales.
+	 */
+	const MAX_TOKENS_RAZONADOR = 4096;
 
 	/**
 	 * Proveedores soportados y sus modelos sugeridos.
@@ -52,31 +65,91 @@ final class MAN_AI {
 	public static function proveedores() {
 		return array(
 			'claude' => array(
-				'nombre'  => 'Claude (Anthropic)',
-				'modelos' => array(
-					'claude-opus-5-5'   => 'Claude Opus 5.5 — el más capaz',
+				'nombre'     => 'Claude (Anthropic)',
+				'modelos'    => array(
+					'claude-opus-5-5'   => 'Claude Opus 5.5 — recomendado',
 					'claude-sonnet-5-5' => 'Claude Sonnet 5.5 — equilibrado',
 					'claude-haiku-5-5'  => 'Claude Haiku 5.5 — el más económico',
 				),
-				'ayuda'   => 'Clave de console.anthropic.com (empieza por sk-ant-).',
+				'ayuda'      => 'Clave de console.anthropic.com (empieza por sk-ant-).',
+				'detectable' => true,
 			),
 			'openai' => array(
-				'nombre'  => 'ChatGPT (OpenAI)',
-				'modelos' => array(
+				'nombre'     => 'ChatGPT (OpenAI)',
+				'modelos'    => array(
 					'gpt-4o'      => 'GPT-4o',
 					'gpt-4o-mini' => 'GPT-4o mini — más económico',
 				),
-				'ayuda'   => 'Clave de platform.openai.com (empieza por sk-).',
+				'ayuda'      => 'Clave de platform.openai.com (empieza por sk-).',
+				'detectable' => false,
 			),
+			// Gemini 2.0 Flash se apagó el 1 de junio de 2026 y 1.5 Pro mucho
+			// antes: con ellos toda consulta devolvía HTTP 404.
 			'gemini' => array(
-				'nombre'  => 'Gemini (Google)',
-				'modelos' => array(
-					'gemini-2.0-flash' => 'Gemini 2.0 Flash',
-					'gemini-1.5-pro'   => 'Gemini 1.5 Pro',
+				'nombre'     => 'Gemini (Google)',
+				'modelos'    => array(
+					'gemini-3.8-flash'      => 'Gemini 3.8 Flash — recomendado',
+					'gemini-4-argon'        => 'Gemini 4 Argon — el más capaz',
+					'gemini-3.5-flash-lite' => 'Gemini 3.5 Flash-Lite — el más económico',
 				),
-				'ayuda'   => 'Clave de aistudio.google.com/apikey.',
+				'ayuda'      => 'Clave de aistudio.google.com/apikey. Desde 2026 Google rechaza las claves estándar sin restricción: use una clave creada en AI Studio o restrinja la suya a «Generative Language API».',
+				'detectable' => true,
 			),
 		);
+	}
+
+	/**
+	 * Modelos elegibles para un proveedor: los del catálogo más los que la
+	 * cuenta informó con «Detectar modelos».
+	 *
+	 * @param string $slug Proveedor.
+	 * @return array<string,string> id => etiqueta.
+	 */
+	public static function modelos_de( $slug ) {
+		$proveedores = self::proveedores();
+		if ( ! isset( $proveedores[ $slug ] ) ) {
+			return array();
+		}
+		$lista     = $proveedores[ $slug ]['modelos'];
+		$detectado = self::modelos_detectados( $slug );
+		foreach ( $detectado['modelos'] as $id => $nombre ) {
+			if ( ! isset( $lista[ $id ] ) ) {
+				$lista[ $id ] = $nombre . ' · detectado en su cuenta';
+			}
+		}
+		return $lista;
+	}
+
+	/**
+	 * Última detección guardada para un proveedor.
+	 *
+	 * @param string $slug Proveedor.
+	 * @return array {fecha:int, modelos:array<string,string>}
+	 */
+	public static function modelos_detectados( $slug ) {
+		$todo = get_option( self::OPCION_MODELOS, array() );
+		$item = ( is_array( $todo ) && isset( $todo[ $slug ] ) && is_array( $todo[ $slug ] ) ) ? $todo[ $slug ] : array();
+		return array(
+			'fecha'   => isset( $item['fecha'] ) ? (int) $item['fecha'] : 0,
+			'modelos' => ( isset( $item['modelos'] ) && is_array( $item['modelos'] ) ) ? $item['modelos'] : array(),
+		);
+	}
+
+	/**
+	 * Modelo con el que se llama de verdad: el guardado si sigue siendo
+	 * elegible; si no (p. ej. el proveedor lo retiró), el recomendado.
+	 *
+	 * @param string $slug   Proveedor.
+	 * @param string $modelo Modelo guardado.
+	 * @return string
+	 */
+	public static function modelo_vigente( $slug, $modelo ) {
+		$elegibles = self::modelos_de( $slug );
+		if ( '' !== (string) $modelo && isset( $elegibles[ $modelo ] ) ) {
+			return (string) $modelo;
+		}
+		$proveedores = self::proveedores();
+		return isset( $proveedores[ $slug ] ) ? (string) key( $proveedores[ $slug ]['modelos'] ) : (string) $modelo;
 	}
 
 	/**
@@ -107,7 +180,7 @@ final class MAN_AI {
 			'openai_clave'    => '',
 			'openai_modelo'   => 'gpt-4o-mini',
 			'gemini_clave'    => '',
-			'gemini_modelo'   => 'gemini-2.0-flash',
+			'gemini_modelo'   => 'gemini-3.8-flash',
 			// Voz (ElevenLabs).
 			'voz_activa'      => false,
 			'voz_clave'       => '',
@@ -262,18 +335,7 @@ final class MAN_AI {
 		$sistema = MAN_AI_Contexto::sistema( $municipio );
 		$clave   = self::descifrar( self::clave_proveedor( $cfg, $cfg['proveedor'] ) );
 
-		switch ( $cfg['proveedor'] ) {
-			case 'openai':
-				$res = self::llamar_openai( $clave, $cfg['openai_modelo'], $sistema, $pregunta );
-				break;
-			case 'gemini':
-				$res = self::llamar_gemini( $clave, $cfg['gemini_modelo'], $sistema, $pregunta );
-				break;
-			case 'claude':
-			default:
-				$res = self::llamar_claude( $clave, $cfg['claude_modelo'], $sistema, $pregunta );
-				break;
-		}
+		$res = self::llamar( $cfg['proveedor'], $clave, $cfg, $sistema, $pregunta );
 
 		if ( is_wp_error( $res ) ) {
 			MAN_Sync::auditar( 'ai', $cfg['proveedor'], 'error', 0, $res->get_error_message() );
@@ -442,16 +504,29 @@ final class MAN_AI {
 			}
 		}
 
-		// 3) Modelo.
+		// 3) Modelo: debe ser elegible y, si ya se detectaron los de la
+		//    cuenta, figurar entre ellos (si no, el proveedor responde 404).
 		$campo_modelo = $prov . '_modelo';
 		$modelo       = isset( $cfg[ $campo_modelo ] ) ? $cfg[ $campo_modelo ] : '';
-		$valido       = isset( $proveedores[ $prov ]['modelos'][ $modelo ] );
-		$add(
-			'Modelo',
-			$valido ? 'ok' : 'error',
-			$modelo ? $modelo : '(sin modelo)',
-			$valido ? '' : 'El modelo guardado no está en el catálogo. Elija uno del desplegable y guarde.'
-		);
+		$elegibles    = self::modelos_de( $prov );
+		$detectados   = self::modelos_detectados( $prov );
+		if ( ! isset( $elegibles[ $modelo ] ) ) {
+			$add(
+				'Modelo',
+				'error',
+				( $modelo ? $modelo : '(sin modelo)' ) . ' — retirado o fuera del catálogo; se está usando ' . self::modelo_vigente( $prov, $modelo ),
+				'Elija un modelo del desplegable y guarde' . ( ! empty( $proveedores[ $prov ]['detectable'] ) ? ', o pulse «Detectar modelos» para ver los de su cuenta.' : '.' )
+			);
+		} elseif ( $detectados['fecha'] && ! isset( $detectados['modelos'][ $modelo ] ) ) {
+			$add(
+				'Modelo',
+				'aviso',
+				$modelo . ' — no figura entre los modelos que su cuenta informó el ' . gmdate( 'Y-m-d', $detectados['fecha'] ),
+				'Si las consultas fallan con MAN-AI-203, elija uno de los detectados y guarde.'
+			);
+		} else {
+			$add( 'Modelo', 'ok', $modelo . ( $detectados['fecha'] ? ' (disponible en su cuenta)' : '' ) );
+		}
 
 		// 4) Salida a internet del servidor: el fallo más común en hosting
 		//    gestionado, y el que más se confunde con «la clave está mal».
@@ -514,11 +589,36 @@ final class MAN_AI {
 	/* ----------------------------------------------------------------- */
 
 	/**
+	 * Enruta la consulta al proveedor con el modelo vigente.
+	 *
+	 * @param string $slug     Proveedor.
+	 * @param string $clave    Clave en claro.
+	 * @param array  $cfg      Configuración.
+	 * @param string $sistema  Instrucción de sistema.
+	 * @param string $pregunta Pregunta.
+	 * @return string|\WP_Error
+	 */
+	private static function llamar( $slug, $clave, $cfg, $sistema, $pregunta ) {
+		$campo  = $slug . '_modelo';
+		$modelo = self::modelo_vigente( $slug, isset( $cfg[ $campo ] ) ? $cfg[ $campo ] : '' );
+
+		switch ( $slug ) {
+			case 'openai':
+				return self::llamar_openai( $clave, $modelo, $sistema, $pregunta );
+			case 'gemini':
+				return self::llamar_gemini( $clave, $modelo, $sistema, $pregunta );
+			case 'claude':
+			default:
+				return self::llamar_claude( $clave, $modelo, $sistema, $pregunta );
+		}
+	}
+
+	/**
 	 * Claude (Anthropic) — POST /v1/messages.
 	 *
-	 * En los modelos actuales el razonamiento es adaptativo y no se configura
-	 * con presupuesto de tokens; el esfuerzo se baja a «low» porque aquí se
-	 * piden respuestas cortas de divulgación, no análisis profundo.
+	 * En los modelos actuales el razonamiento es adaptativo, siempre activo y
+	 * cuenta dentro de max_tokens; se controla con el esfuerzo, que se baja a
+	 * «low» porque aquí se piden respuestas cortas de divulgación.
 	 *
 	 * @param string $clave    Clave en claro.
 	 * @param string $modelo   Identificador de modelo.
@@ -529,7 +629,7 @@ final class MAN_AI {
 	private static function llamar_claude( $clave, $modelo, $sistema, $pregunta ) {
 		$cuerpo = array(
 			'model'         => $modelo ? $modelo : 'claude-opus-5-5',
-			'max_tokens'    => self::MAX_RESPUESTA,
+			'max_tokens'    => self::MAX_TOKENS_RAZONADOR,
 			'system'        => $sistema,
 			'output_config' => array( 'effort' => 'low' ),
 			'messages'      => array(
@@ -555,13 +655,16 @@ final class MAN_AI {
 			return self::error( '303', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.' );
 		}
 
+		// Los bloques de razonamiento («thinking») preceden al texto: se lee
+		// por tipo, no por posición.
 		$texto = '';
 		foreach ( ( isset( $r['content'] ) && is_array( $r['content'] ) ? $r['content'] : array() ) as $bloque ) {
 			if ( isset( $bloque['type'], $bloque['text'] ) && 'text' === $bloque['type'] ) {
 				$texto .= $bloque['text'];
 			}
 		}
-		return self::validar_texto( $texto );
+		$cortada = isset( $r['stop_reason'] ) && 'max_tokens' === $r['stop_reason'];
+		return self::texto_o_corte( $texto, $cortada, 'stop_reason=max_tokens' );
 	}
 
 	/**
@@ -606,7 +709,7 @@ final class MAN_AI {
 	 * @return string|\WP_Error
 	 */
 	private static function llamar_gemini( $clave, $modelo, $sistema, $pregunta ) {
-		$modelo = $modelo ? $modelo : 'gemini-2.0-flash';
+		$modelo = $modelo ? $modelo : 'gemini-3.8-flash';
 		$cuerpo = array(
 			'systemInstruction' => array(
 				'parts' => array( array( 'text' => $sistema ) ),
@@ -617,7 +720,7 @@ final class MAN_AI {
 					'parts' => array( array( 'text' => $pregunta ) ),
 				),
 			),
-			'generationConfig'  => array( 'maxOutputTokens' => self::MAX_RESPUESTA ),
+			'generationConfig'  => self::generacion_gemini( $modelo ),
 		);
 
 		// La clave va en cabecera, no en la URL: así no queda en logs de proxy.
@@ -630,13 +733,69 @@ final class MAN_AI {
 			return $r;
 		}
 
+		// Una pregunta bloqueada por los filtros llega sin candidatos.
+		if ( ! empty( $r['promptFeedback']['blockReason'] ) ) {
+			return self::error( '303', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.', 'promptFeedback.blockReason=' . $r['promptFeedback']['blockReason'] );
+		}
+
 		$texto = '';
 		foreach ( ( isset( $r['candidates'][0]['content']['parts'] ) ? $r['candidates'][0]['content']['parts'] : array() ) as $parte ) {
-			if ( isset( $parte['text'] ) ) {
+			// Las partes de razonamiento vienen marcadas con thought=true.
+			if ( isset( $parte['text'] ) && empty( $parte['thought'] ) ) {
 				$texto .= $parte['text'];
 			}
 		}
-		return self::validar_texto( $texto );
+
+		$motivo = isset( $r['candidates'][0]['finishReason'] ) ? (string) $r['candidates'][0]['finishReason'] : '';
+		if ( '' === trim( $texto ) && in_array( $motivo, array( 'SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION' ), true ) ) {
+			return self::error( '303', 'No puedo responder a esa consulta. Pregúnteme sobre el clima y el ambiente en Nariño.', 'finishReason=' . $motivo );
+		}
+		return self::texto_o_corte( $texto, 'MAX_TOKENS' === $motivo, 'finishReason=MAX_TOKENS' );
+	}
+
+	/**
+	 * generationConfig de Gemini según la generación del modelo.
+	 *
+	 * Gemini 3 y 4 razonan siempre y se regulan con thinkingLevel; la serie
+	 * 2.5 usa thinkingBudget (Pro no admite 0). Mandar el campo equivocado, o
+	 * los dos a la vez, es un HTTP 400.
+	 *
+	 * @param string $modelo Modelo.
+	 * @return array
+	 */
+	private static function generacion_gemini( $modelo ) {
+		$gen = array( 'maxOutputTokens' => self::MAX_TOKENS_RAZONADOR );
+
+		if ( preg_match( '/^gemini-[34][.-]/', $modelo ) ) {
+			$gen['thinkingConfig'] = array( 'thinkingLevel' => 'low' );
+		} elseif ( 0 === strpos( $modelo, 'gemini-2.5-pro' ) ) {
+			$gen['thinkingConfig'] = array( 'thinkingBudget' => 128 );
+		} elseif ( 0 === strpos( $modelo, 'gemini-2.5-' ) ) {
+			$gen['thinkingConfig'] = array( 'thinkingBudget' => 0 );
+		}
+		return $gen;
+	}
+
+	/**
+	 * Texto final, distinguiendo una respuesta vacía de una que se cortó.
+	 *
+	 * Si el modelo agotó el tope razonando y no llegó a escribir, se reporta
+	 * como MAN-AI-304; si alcanzó a escribir algo, se entrega lo que hay.
+	 *
+	 * @param string $texto   Texto acumulado.
+	 * @param bool   $cortada El proveedor informó que llegó al tope.
+	 * @param string $motivo  Motivo técnico para el registro.
+	 * @return string|\WP_Error
+	 */
+	private static function texto_o_corte( $texto, $cortada, $motivo ) {
+		if ( $cortada && '' === trim( wp_strip_all_tags( (string) $texto ) ) ) {
+			return self::error( '304', 'El asistente no pudo completar la respuesta. Intente con una pregunta más concreta.', $motivo );
+		}
+		$texto = self::validar_texto( $texto );
+		if ( $cortada && ! is_wp_error( $texto ) ) {
+			$texto .= '…';
+		}
+		return $texto;
 	}
 
 	/* ----------------------------------------------------------------- */
@@ -664,7 +823,36 @@ final class MAN_AI {
 				'user-agent' => 'MonitorAmbientalNarino/' . MAN_VERSION,
 			)
 		);
+		return self::procesar_http( $resp, $url );
+	}
 
+	/**
+	 * GET con el mismo manejo de error (listado de modelos).
+	 *
+	 * @param string $url       Endpoint.
+	 * @param array  $cabeceras Cabeceras de autenticación.
+	 * @return array|\WP_Error Respuesta decodificada.
+	 */
+	private static function http_get( $url, $cabeceras ) {
+		$resp = wp_remote_get(
+			$url,
+			array(
+				'timeout'    => 20,
+				'headers'    => $cabeceras,
+				'user-agent' => 'MonitorAmbientalNarino/' . MAN_VERSION,
+			)
+		);
+		return self::procesar_http( $resp, $url );
+	}
+
+	/**
+	 * Traduce la respuesta HTTP del proveedor a JSON o a un error con código.
+	 *
+	 * @param array|\WP_Error $resp Respuesta de wp_remote_*.
+	 * @param string          $url  Endpoint (para el registro).
+	 * @return array|\WP_Error
+	 */
+	private static function procesar_http( $resp, $url ) {
 		$host = wp_parse_url( $url, PHP_URL_HOST );
 
 		if ( is_wp_error( $resp ) ) {
@@ -686,6 +874,13 @@ final class MAN_AI {
 
 		if ( $codigo < 200 || $codigo >= 300 ) {
 			$detalle = self::detalle_error( $json, $codigo );
+			// Desde mayo de 2026 Google rechaza las claves estándar sin
+			// restricción y bloquea las que llevan tiempo inactivas: el 400/403
+			// resultante se confunde con «clave mal copiada».
+			if ( 'generativelanguage.googleapis.com' === $host && in_array( $codigo, array( 400, 401, 403 ), true )
+				&& preg_match( '/api[ _-]?key|unrestricted|blocked|permission/i', $detalle ) ) {
+				$detalle .= ' · Pista: Gemini ya no acepta claves estándar sin restricción ni claves inactivas. Cree una clave nueva en aistudio.google.com/apikey o restrinja la suya a «Generative Language API».';
+			}
 			return self::error(
 				MAN_AI_Codigos::desde_http( $codigo ),
 				// Mensaje llano: el texto del proveedor puede describir la cuenta
@@ -808,18 +1003,7 @@ final class MAN_AI {
 		$sistema  = MAN_AI_Contexto::sistema( '' );
 		$pregunta = '¿En qué fase del fenómeno ENSO estamos y qué significa para Nariño?';
 
-		switch ( $slug ) {
-			case 'openai':
-				$res = self::llamar_openai( $clave, $cfg['openai_modelo'], $sistema, $pregunta );
-				break;
-			case 'gemini':
-				$res = self::llamar_gemini( $clave, $cfg['gemini_modelo'], $sistema, $pregunta );
-				break;
-			case 'claude':
-			default:
-				$res = self::llamar_claude( $clave, $cfg['claude_modelo'], $sistema, $pregunta );
-				break;
-		}
+		$res = self::llamar( $slug, $clave, $cfg, $sistema, $pregunta );
 
 		if ( is_wp_error( $res ) ) {
 			$datos = $res->get_error_data();
@@ -829,7 +1013,147 @@ final class MAN_AI {
 				: $res->get_error_message();
 			return array( 'ok' => false, 'mensaje' => $detalle );
 		}
-		return array( 'ok' => true, 'mensaje' => 'Responde correctamente: «' . mb_substr( $res, 0, 180 ) . '…»' );
+		$modelo = self::modelo_vigente( $slug, isset( $cfg[ $slug . '_modelo' ] ) ? $cfg[ $slug . '_modelo' ] : '' );
+		return array( 'ok' => true, 'mensaje' => 'Responde correctamente con ' . $modelo . ': «' . mb_substr( $res, 0, 180 ) . '…»' );
+	}
+
+	/**
+	 * «Detectar modelos»: pregunta al proveedor qué modelos admite la clave.
+	 *
+	 * Verifica la clave sin gastar consultas (el listado no consume tokens) y
+	 * deja un catálogo vivo: un modelo nuevo se puede elegir sin actualizar el
+	 * plugin, y uno retirado se nota en el panel antes de que un visitante
+	 * reciba el error.
+	 *
+	 * @param string $slug Proveedor (claude|gemini).
+	 * @return array {ok, aviso, mensaje, modelos}
+	 */
+	public static function detectar_modelos( $slug ) {
+		$proveedores = self::proveedores();
+		if ( empty( $proveedores[ $slug ]['detectable'] ) ) {
+			return array( 'ok' => false, 'aviso' => false, 'mensaje' => 'Este proveedor no admite la detección de modelos.', 'modelos' => array() );
+		}
+
+		$cfg   = self::config();
+		$clave = self::descifrar( self::clave_proveedor( $cfg, $slug ) );
+		if ( '' === $clave ) {
+			return array( 'ok' => false, 'aviso' => false, 'mensaje' => 'No hay clave guardada para este proveedor (o no se pudo descifrar). Pegue la clave y guarde antes de detectar.', 'modelos' => array() );
+		}
+
+		$hallados = 'gemini' === $slug ? self::listar_gemini( $clave ) : self::listar_claude( $clave );
+		if ( is_wp_error( $hallados ) ) {
+			$datos = $hallados->get_error_data();
+			$cod   = ( is_array( $datos ) && ! empty( $datos['codigo_interno'] ) ) ? $datos['codigo_interno'] . ' · ' : '';
+			$det   = ( is_array( $datos ) && ! empty( $datos['detalle'] ) ) ? $datos['detalle'] : $hallados->get_error_message();
+			return array( 'ok' => false, 'aviso' => false, 'mensaje' => 'La clave no fue reconocida: ' . $cod . $det, 'modelos' => array() );
+		}
+		if ( empty( $hallados ) ) {
+			return array( 'ok' => false, 'aviso' => false, 'mensaje' => 'La clave es válida, pero la cuenta no informó ningún modelo de texto.', 'modelos' => array() );
+		}
+
+		$todo          = get_option( self::OPCION_MODELOS, array() );
+		$todo          = is_array( $todo ) ? $todo : array();
+		$todo[ $slug ] = array( 'fecha' => time(), 'modelos' => $hallados );
+		update_option( self::OPCION_MODELOS, $todo );
+
+		$actual     = isset( $cfg[ $slug . '_modelo' ] ) ? (string) $cfg[ $slug . '_modelo' ] : '';
+		$disponible = isset( $hallados[ $actual ] );
+		self::diag( 'proveedor', 'ok', 'Clave reconocida por ' . $slug . ': ' . count( $hallados ) . ' modelos de texto' );
+
+		return array(
+			'ok'      => true,
+			'aviso'   => ! $disponible,
+			'mensaje' => 'Clave reconocida: la cuenta tiene ' . count( $hallados ) . ' modelos de texto. '
+				. ( $disponible
+					? 'El modelo elegido (' . $actual . ') está disponible.'
+					: 'El modelo elegido (' . $actual . ') NO está entre ellos: elija uno de la lista y guarde.' ),
+			'modelos' => self::modelos_de( $slug ),
+		);
+	}
+
+	/**
+	 * Modelos de la cuenta de Anthropic — GET /v1/models (paginado).
+	 *
+	 * @param string $clave Clave en claro.
+	 * @return array<string,string>|\WP_Error id => nombre.
+	 */
+	private static function listar_claude( $clave ) {
+		$modelos = array();
+		$despues = '';
+		for ( $pagina = 0; $pagina < 5; $pagina++ ) {
+			$r = self::http_get(
+				'https://api.anthropic.com/v1/models?limit=100' . ( '' !== $despues ? '&after_id=' . rawurlencode( $despues ) : '' ),
+				array(
+					'x-api-key'         => $clave,
+					'anthropic-version' => '2023-06-01',
+				)
+			);
+			if ( is_wp_error( $r ) ) {
+				return $r;
+			}
+			foreach ( ( isset( $r['data'] ) && is_array( $r['data'] ) ? $r['data'] : array() ) as $m ) {
+				$id = isset( $m['id'] ) ? (string) $m['id'] : '';
+				if ( self::id_modelo_valido( $id ) ) {
+					$modelos[ $id ] = ! empty( $m['display_name'] ) ? sanitize_text_field( $m['display_name'] ) : $id;
+				}
+			}
+			if ( empty( $r['has_more'] ) || empty( $r['last_id'] ) ) {
+				break;
+			}
+			$despues = (string) $r['last_id'];
+		}
+		return $modelos;
+	}
+
+	/**
+	 * Modelos de texto de la cuenta de Google — GET /v1beta/models (paginado).
+	 *
+	 * El listado trae también voz, imagen, tiempo real y embeddings: solo
+	 * sirven los que admiten generateContent y producen texto.
+	 *
+	 * @param string $clave Clave en claro.
+	 * @return array<string,string>|\WP_Error id => nombre.
+	 */
+	private static function listar_gemini( $clave ) {
+		$modelos = array();
+		$token   = '';
+		for ( $pagina = 0; $pagina < 5; $pagina++ ) {
+			// La clave va en cabecera también aquí, nunca en la URL.
+			$r = self::http_get(
+				'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200' . ( '' !== $token ? '&pageToken=' . rawurlencode( $token ) : '' ),
+				array( 'x-goog-api-key' => $clave )
+			);
+			if ( is_wp_error( $r ) ) {
+				return $r;
+			}
+			foreach ( ( isset( $r['models'] ) && is_array( $r['models'] ) ? $r['models'] : array() ) as $m ) {
+				$metodos = ( isset( $m['supportedGenerationMethods'] ) && is_array( $m['supportedGenerationMethods'] ) ) ? $m['supportedGenerationMethods'] : array();
+				$id      = isset( $m['name'] ) ? preg_replace( '#^models/#', '', (string) $m['name'] ) : '';
+				if ( ! in_array( 'generateContent', $metodos, true )
+					|| 0 !== strpos( $id, 'gemini-' )
+					|| preg_match( '/tts|image|live|embedding|transcribe|audio|robotics|computer-use|nano-banana|translate|omni/i', $id )
+					|| ! self::id_modelo_valido( $id ) ) {
+					continue;
+				}
+				$modelos[ $id ] = ! empty( $m['displayName'] ) ? sanitize_text_field( $m['displayName'] ) : $id;
+			}
+			$token = isset( $r['nextPageToken'] ) ? (string) $r['nextPageToken'] : '';
+			if ( '' === $token ) {
+				break;
+			}
+		}
+		return $modelos;
+	}
+
+	/**
+	 * Un ID de modelo que viene de fuera se guarda, se pinta y va en una URL:
+	 * solo se aceptan letras, cifras, puntos y guiones.
+	 *
+	 * @param string $id Identificador.
+	 * @return bool
+	 */
+	private static function id_modelo_valido( $id ) {
+		return (bool) preg_match( '/^[a-z0-9][a-z0-9.\-]{1,79}$/i', (string) $id );
 	}
 
 	/**
